@@ -452,7 +452,7 @@ contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken, LimitedT
 /**
   A Token which is 'Bancor' compatible and can mint new tokens and pause token-transfer functionality
 */
-contract Token is LimitedTransferBancorSmartToken {
+contract KiroboSmartToken is LimitedTransferBancorSmartToken {
 
   string public constant name = "Kirobo Smart Token";
 
