@@ -32,8 +32,13 @@ contract SafeTransferPayments {
       return ERC20(tokenContract).balanceOf(address(this));
     }
 
+    function availableSupply() view public returns (uint256) {
+      return ERC20(tokenContract).balanceOf(address(this)) - minSupply;
+    }
+
     function deposit(uint256 value) public {
-      ERC20(tokenContract).transfer(address(this), value);
+      require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= value, "ERC20 allowance too low");
+      ERC20(tokenContract).transferFrom(msg.sender, address(this), value);
       accounts[msg.sender].value += value;
       minSupply += value;
     }
@@ -50,9 +55,9 @@ contract SafeTransferPayments {
       accounts[msg.sender].release = 0;
     }
 
-    function widthraw() public {
-      require(accounts[msg.sender].release != 0, "no withdraw request");
-      require(accounts[msg.sender].release >= block.number, "too soon");
+    function withdraw() public {
+      require(accounts[msg.sender].release > 0, "no withdraw request");
+      require(accounts[msg.sender].release < block.number, "too soon");
       uint256 value = accounts[msg.sender].withdraw;
       accounts[msg.sender].withdraw = 0;
       accounts[msg.sender].release = 0;

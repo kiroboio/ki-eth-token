@@ -53,7 +53,7 @@ library SafeMath {
  * @dev The Ownable contract has an owner address, and provides basic authorization control
  * functions, this simplifies the implementation of "user permissions".
  */
-contract Ownable {
+abstract contract Ownable {
   address public owner;
 
 
@@ -94,7 +94,7 @@ contract Ownable {
  * @dev Extension for the Ownable contract, where the ownership needs to be claimed.
  * This allows the new owner to accept the transfer.
  */
-contract Claimable is Ownable {
+abstract contract Claimable is Ownable {
   address public pendingOwner;
 
   /**
@@ -153,7 +153,7 @@ abstract contract ERC20 is ERC20Basic {
  * @title Basic token
  * @dev Basic version of StandardToken, with no allowances.
  */
-contract BasicToken is ERC20Basic {
+abstract contract BasicToken is ERC20Basic {
   using SafeMath for uint256;
 
   mapping(address => uint256) balances;
@@ -202,10 +202,12 @@ contract BasicToken is ERC20Basic {
  * @dev https://github.com/ethereum/EIPs/issues/20
  * @dev Based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
  */
-contract StandardToken is ERC20, BasicToken {
+abstract contract StandardToken is ERC20, BasicToken {
 
   mapping (address => mapping (address => uint256)) internal allowed;
 
+  event Approval(address indexed owner, address indexed spender, uint256 value);
+  event Transfer(address indexed from, address indexed to, uint256 value);
 
   /**
    * @dev Transfer tokens from one address to another
@@ -339,7 +341,7 @@ abstract contract LimitedTransferToken is StandardToken {
  * @dev Issue: * https://github.com/OpenZeppelin/zeppelin-solidity/issues/120
  * Based on code by TokenMarketNet: https://github.com/TokenMarketNet/ico/blob/master/contracts/MintableToken.sol
  */
-contract MintableToken is LimitedTransferToken, Claimable {
+abstract contract MintableToken is LimitedTransferToken, Claimable {
   event Mint(address indexed to, uint256 amount);
   event MintFinished();
 
@@ -392,7 +394,7 @@ abstract contract ISmartToken {
 }
 
 
-contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken {
+abstract contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken {
     /**
      * @dev Throws if destroy flag is not enabled.
      */
