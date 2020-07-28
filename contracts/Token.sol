@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.18 <0.7.0;
-
+pragma solidity 0.6.12;
 
 /**
  * @title SafeMath
@@ -65,7 +64,7 @@ contract Ownable {
    * @dev The Ownable constructor sets the original `owner` of the contract to the sender
    * account.
    */
-  function Ownable() public {
+  constructor() public {
     owner = msg.sender;
   }
 
@@ -73,7 +72,7 @@ contract Ownable {
    * @dev Throws if called by any account other than the owner.
    */
   modifier onlyOwner() {
-    require(msg.sender == owner);
+    require(msg.sender == owner, "not owner");
     _;
   }
 
@@ -81,9 +80,9 @@ contract Ownable {
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) public onlyOwner {
-    require(newOwner != address(0));
-    OwnershipTransferred(owner, newOwner);
+  function transferOwnership(address newOwner) public onlyOwner virtual {
+    require(newOwner != address(0), "0 cannot be owner");
+    emit OwnershipTransferred(owner, newOwner);
     owner = newOwner;
   }
 
@@ -102,7 +101,7 @@ contract Claimable is Ownable {
    * @dev Modifier throws if called by any account other than the pendingOwner.
    */
   modifier onlyPendingOwner() {
-    require(msg.sender == pendingOwner);
+    require(msg.sender == pendingOwner, "not pending owner");
     _;
   }
 
@@ -110,15 +109,15 @@ contract Claimable is Ownable {
    * @dev Allows the current owner to set the pendingOwner address.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) onlyOwner public {
+  function transferOwnership(address newOwner) public onlyOwner override {
     pendingOwner = newOwner;
   }
 
   /**
    * @dev Allows the pendingOwner address to finalize the transfer.
    */
-  function claimOwnership() onlyPendingOwner public {
-    OwnershipTransferred(owner, pendingOwner);
+  function claimOwnership() public onlyPendingOwner {
+    emit OwnershipTransferred(owner, pendingOwner);
     owner = pendingOwner;
     pendingOwner = address(0);
   }
@@ -130,23 +129,22 @@ contract Claimable is Ownable {
  * @dev Simpler version of ERC20 interface
  * @dev see https://github.com/ethereum/EIPs/issues/179
  */
-contract ERC20Basic {
-  function totalSupply() public view returns (uint256);
-  function balanceOf(address who) public view returns (uint256);
-  function transfer(address to, uint256 value) public returns (bool);
+abstract contract ERC20Basic {
+  function totalSupply() public view virtual returns (uint256);
+  function balanceOf(address who) public view virtual returns (uint256);
+  function transfer(address to, uint256 value) public virtual returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
 }
-
 
 
 /**
  * @title ERC20 interface
  * @dev see https://github.com/ethereum/EIPs/issues/20
  */
-contract ERC20 is ERC20Basic {
-  function allowance(address owner, address spender) public view returns (uint256);
-  function transferFrom(address from, address to, uint256 value) public returns (bool);
-  function approve(address spender, uint256 value) public returns (bool);
+abstract contract ERC20 is ERC20Basic {
+  function allowance(address owner, address spender) public view virtual returns (uint256);
+  function transferFrom(address from, address to, uint256 value) public virtual returns (bool);
+  function approve(address spender, uint256 value) public virtual returns (bool);
   event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
@@ -165,7 +163,7 @@ contract BasicToken is ERC20Basic {
   /**
   * @dev total number of tokens in existence
   */
-  function totalSupply() public view returns (uint256) {
+  function totalSupply() public view override returns (uint256) {
     return totalSupply_;
   }
 
@@ -174,23 +172,23 @@ contract BasicToken is ERC20Basic {
   * @param _to The address to transfer to.
   * @param _value The amount to be transferred.
   */
-  function transfer(address _to, uint256 _value) public returns (bool) {
-    require(_to != address(0));
-    require(_value <= balances[msg.sender]);
+  function transfer(address _to, uint256 _value) public override returns (bool) {
+    require(_to != address(0), "cannot transfer to 0 address");
+    require(_value <= balances[msg.sender], "not enough balance");
 
     // SafeMath.sub will throw if there is not enough balance.
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
-    Transfer(msg.sender, _to, _value);
+    emit Transfer(msg.sender, _to, _value);
     return true;
   }
 
   /**
   * @dev Gets the balance of the specified address.
   * @param _owner The address to query the the balance of.
-  * @return An uint256 representing the amount owned by the passed address.
+  * @return balance An uint256 representing the amount owned by the passed address.
   */
-  function balanceOf(address _owner) public view returns (uint256 balance) {
+  function balanceOf(address _owner) public view override returns (uint256 balance) {
     return balances[_owner];
   }
 
@@ -215,15 +213,15 @@ contract StandardToken is ERC20, BasicToken {
    * @param _to address The address which you want to transfer to
    * @param _value uint256 the amount of tokens to be transferred
    */
-  function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-    require(_to != address(0));
-    require(_value <= balances[_from]);
-    require(_value <= allowed[_from][msg.sender]);
+  function transferFrom(address _from, address _to, uint256 _value) public virtual override returns (bool) {
+    require(_to != address(0), "cannot transfer to address 0");
+    require(_value <= balances[_from], "not enough balance");
+    require(_value <= allowed[_from][msg.sender], "not allowed");
 
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-    Transfer(_from, _to, _value);
+    emit Transfer(_from, _to, _value);
     return true;
   }
 
@@ -237,9 +235,9 @@ contract StandardToken is ERC20, BasicToken {
    * @param _spender The address which will spend the funds.
    * @param _value The amount of tokens to be spent.
    */
-  function approve(address _spender, uint256 _value) public returns (bool) {
+  function approve(address _spender, uint256 _value) public override returns (bool) {
     allowed[msg.sender][_spender] = _value;
-    Approval(msg.sender, _spender, _value);
+    emit Approval(msg.sender, _spender, _value);
     return true;
   }
 
@@ -249,7 +247,7 @@ contract StandardToken is ERC20, BasicToken {
    * @param _spender address The address which will spend the funds.
    * @return A uint256 specifying the amount of tokens still available for the spender.
    */
-  function allowance(address _owner, address _spender) public view returns (uint256) {
+  function allowance(address _owner, address _spender) public override view returns (uint256) {
     return allowed[_owner][_spender];
   }
 
@@ -265,7 +263,7 @@ contract StandardToken is ERC20, BasicToken {
    */
   function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
     allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
-    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
     return true;
   }
 
@@ -286,66 +284,22 @@ contract StandardToken is ERC20, BasicToken {
     } else {
       allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
     }
-    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
     return true;
   }
 
-}
-
-
-/**
- * @title Mintable token
- * @dev Simple ERC20 Token example, with mintable token creation
- * @dev Issue: * https://github.com/OpenZeppelin/zeppelin-solidity/issues/120
- * Based on code by TokenMarketNet: https://github.com/TokenMarketNet/ico/blob/master/contracts/MintableToken.sol
- */
-contract MintableToken is StandardToken, Claimable {
-  event Mint(address indexed to, uint256 amount);
-  event MintFinished();
-
-  bool public mintingFinished = false;
-
-
-  modifier canMint() {
-    require(!mintingFinished);
-    _;
-  }
-
-  /**
-   * @dev Function to mint tokens
-   * @param _to The address that will receive the minted tokens.
-   * @param _amount The amount of tokens to mint.
-   * @return A boolean that indicates if the operation was successful.
-   */
-  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
-    totalSupply_ = totalSupply_.add(_amount);
-    balances[_to] = balances[_to].add(_amount);
-    Mint(_to, _amount);
-    Transfer(address(0), _to, _amount);
-    return true;
-  }
-
-  /**
-   * @dev Function to stop minting new tokens.
-   * @return True if the operation was successful.
-   */
-  function finishMinting() onlyOwner canMint public returns (bool) {
-    mintingFinished = true;
-    MintFinished();
-    return true;
-  }
 }
 
 //--------------------------------------------------
 
-contract LimitedTransferToken is ERC20 {
+abstract contract LimitedTransferToken is StandardToken {
 
   /**
    * @dev Checks whether it can transfer or otherwise throws.
    */
   modifier canTransfer(address _sender, uint256 _value) {
-   require(_value <= transferableTokens(_sender, uint64(now)));
-   _;
+    require(_value <= transferableTokens(_sender, uint64(now)), "not enough tokens");
+    _;
   }
 
   /**
@@ -353,7 +307,7 @@ contract LimitedTransferToken is ERC20 {
    * @param _to The address that will receive the tokens.
    * @param _value The amount of tokens to be transferred.
    */
-  function transfer(address _to, uint256 _value) canTransfer(msg.sender, _value) public returns (bool) {
+  function transfer(address _to, uint256 _value)  public canTransfer(msg.sender, _value) override returns (bool) {
     return super.transfer(_to, _value);
   }
 
@@ -363,7 +317,7 @@ contract LimitedTransferToken is ERC20 {
   * @param _to The address that will receive the tokens.
   * @param _value The amount of tokens to be transferred.
   */
-  function transferFrom(address _from, address _to, uint256 _value) canTransfer(_from, _value) public returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _value) canTransfer(_from, _value) public override returns (bool) {
     return super.transferFrom(_from, _to, _value);
   }
 
@@ -372,14 +326,57 @@ contract LimitedTransferToken is ERC20 {
    * @dev Overwriting transferableTokens(address holder, uint64 time) is the way to provide the
    * specific logic for limiting token transferability for a holder over time.
    */
-  function transferableTokens(address holder, uint64 /*time*/) public view returns (uint256) {
+  function transferableTokens(address holder, uint64 /*time*/) public virtual view returns (uint256) {
     return balanceOf(holder);
   }
 }
 
 
 
-contract ISmartToken {
+/**
+ * @title Mintable token
+ * @dev Simple ERC20 Token example, with mintable token creation
+ * @dev Issue: * https://github.com/OpenZeppelin/zeppelin-solidity/issues/120
+ * Based on code by TokenMarketNet: https://github.com/TokenMarketNet/ico/blob/master/contracts/MintableToken.sol
+ */
+contract MintableToken is LimitedTransferToken, Claimable {
+  event Mint(address indexed to, uint256 amount);
+  event MintFinished();
+
+  bool public mintingFinished = false;
+
+
+  modifier canMint() {
+    require(!mintingFinished, "minting finished");
+    _;
+  }
+
+  /**
+   * @dev Function to mint tokens
+   * @param _to The address that will receive the minted tokens.
+   * @param _amount The amount of tokens to mint.
+   * @return A boolean that indicates if the operation was successful.
+   */
+  function mint(address _to, uint256 _amount) public onlyOwner canMint returns (bool) {
+    totalSupply_ = totalSupply_.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    emit Mint(_to, _amount);
+    emit Transfer(address(0), _to, _amount);
+    return true;
+  }
+
+  /**
+   * @dev Function to stop minting new tokens.
+   * @return True if the operation was successful.
+   */
+  function finishMinting() public onlyOwner canMint returns (bool) {
+    mintingFinished = true;
+    emit MintFinished();
+    return true;
+  }
+}
+
+abstract contract ISmartToken {
     bool public transfersEnabled = false;
 
     // triggered when a smart token is deployed - the _token address is defined for forward compatibility, in case we want to trigger the event from a factory
@@ -389,18 +386,18 @@ contract ISmartToken {
     // triggered when the total supply is decreased
     event Destruction(uint256 _amount);
 
-    function disableTransfers(bool _disable) public;
-    function issue(address _to, uint256 _amount) public;
-    function destroy(address _from, uint256 _amount) public;
+    function disableTransfers(bool _disable) public virtual;
+    function issue(address _to, uint256 _amount) public virtual;
+    function destroy(address _from, uint256 _amount) public virtual;
 }
 
 
-contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken, LimitedTransferToken {
+contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken {
     /**
      * @dev Throws if destroy flag is not enabled.
      */
     modifier canDestroy() {
-        require(destroyEnabled);
+        require(destroyEnabled, "destory not enabled");
         _;
     }
 
@@ -409,31 +406,31 @@ contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken, LimitedT
     // We enable destroy option on finalize, so destroy will be possible after the crowdsale.
     bool public destroyEnabled = false;
 
-    function setDestroyEnabled(bool _enable) onlyOwner public {
+    function setDestroyEnabled(bool _enable) public onlyOwner {
         destroyEnabled = _enable;
     }
 
     //@Override
-    function disableTransfers(bool _disable) onlyOwner public {
+    function disableTransfers(bool _disable) public onlyOwner override {
         transfersEnabled = !_disable;
     }
 
     //@Override
-    function issue(address _to, uint256 _amount) onlyOwner public {
-        require(super.mint(_to, _amount));
-        Issuance(_amount);
+    function issue(address _to, uint256 _amount) public onlyOwner override {
+        require(super.mint(_to, _amount), "mint failed");
+        emit Issuance(_amount);
     }
 
     //@Override
-    function destroy(address _from, uint256 _amount) canDestroy public {
+    function destroy(address _from, uint256 _amount) canDestroy public override {
 
-        require(msg.sender == _from || msg.sender == owner); // validate input
+        require(msg.sender == _from || msg.sender == owner, "not token or contract owner"); // validate input
 
         balances[_from] = balances[_from].sub(_amount);
         totalSupply_ = totalSupply_.sub(_amount);
 
-        Destruction(_amount);
-        Transfer(_from, 0x0, _amount);
+        emit Destruction(_amount);
+        emit Transfer(_from, address(0), _amount);
     }
 
     // Enable/Disable token transfer
@@ -442,8 +439,8 @@ contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken, LimitedT
     // @time - not used (framework unneeded functionality)
     //
     // @Override
-    function transferableTokens(address holder, uint64 time) public constant returns (uint256) {
-        require(transfersEnabled);
+    function transferableTokens(address holder, uint64 time) public view override returns (uint256) {
+        require(transfersEnabled, "transfer not enabled");
         return super.transferableTokens(holder, time);
     }
 }
@@ -466,7 +463,7 @@ contract Token is LimitedTransferBancorSmartToken {
       //Apart of 'Bancor' computability - triggered when a smart token is deployed
       totalSupply_ = INITIAL_SUPPLY;
       balances[msg.sender] = INITIAL_SUPPLY;
-      Transfer(0x0, msg.sender, INITIAL_SUPPLY);
-      NewSmartToken(address(this));
+      emit Transfer(address(0), msg.sender, INITIAL_SUPPLY);
+      emit NewSmartToken(address(this));
     }
 }
