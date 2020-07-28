@@ -13,14 +13,16 @@ interface ERC20 {
 contract SafeTransferPayments {
 
     address public tokenContract;
+    uint256 public minSupply;
     
     struct Account {
         uint256 nonce;
         uint256 value;
+        uint256 withdraw;
+        uint256 release;
     }
 
     mapping(address => Account) internal accounts;
-
 
     constructor(address _tokenContract) public {
       tokenContract = _tokenContract;
@@ -29,4 +31,34 @@ contract SafeTransferPayments {
     function totalSupply() view public returns (uint256) {
       return ERC20(tokenContract).balanceOf(address(this));
     }
+
+    function deposit(uint256 value) public {
+      ERC20(tokenContract).transfer(address(this), value);
+      accounts[msg.sender].value += value;
+      minSupply += value;
+    }
+
+    function postWithdraw(uint256 value) public {
+      require(accounts[msg.sender].value >= value, "not enough tokens");
+      require(value > 0, "cannot withdraw");
+      accounts[msg.sender].withdraw = value;
+      accounts[msg.sender].release = block.number + 240;
+    }
+
+    function cancelWithdraw() public {
+      accounts[msg.sender].withdraw = 0;
+      accounts[msg.sender].release = 0;
+    }
+
+    function widthraw() public {
+      require(accounts[msg.sender].release != 0, "no withdraw request");
+      require(accounts[msg.sender].release >= block.number, "too soon");
+      uint256 value = accounts[msg.sender].withdraw;
+      accounts[msg.sender].withdraw = 0;
+      accounts[msg.sender].release = 0;
+      accounts[msg.sender].value -= value;
+      minSupply -= value;
+      ERC20(tokenContract).transfer(msg.sender, value);
+    }
+
 }
