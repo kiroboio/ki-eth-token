@@ -99,9 +99,10 @@ contract Pool is Claimable {
     }
 
     function paymentBySig(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        bytes32 message  = generatePaymentMessageToSign(_from, _value);
+        bytes32 message  = _messageToRecover(generatePaymentMessageToSign(_from, _value));
+        address addr = ecrecover(message, _v+27, _r, _s);
+        require(addr == _from, "wrong signature");
         accounts[_from].nonce += 1; // TODO: some random
-        //TODO: check sig
         accounts[_from]. balance -= _value;
         minSupply -= _value;
     }
@@ -118,8 +119,9 @@ contract Pool is Claimable {
     }
 
     function acceptTokensBySig(address _for, uint256 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        bytes32 message  = generatePaymentMessageToSign(_for, _secret);
-        //TODO: check sig
+        bytes32 message  = _messageToRecover(generateAcceptTokensMessageToSign(_for, _secret));
+        address addr = ecrecover(message, _v+27, _r, _s);
+        require(addr == _for, "wrong signature");
         _acceptTokens(_for);
     }
 
@@ -163,6 +165,35 @@ contract Pool is Claimable {
         accounts[msg.sender].balance -= value;
         minSupply -= value;
         ERC20(tokenContract).transfer(msg.sender, value);
+    }
+
+    function _messageToRecover(bytes32 hashedUnsignedMessage) private pure returns (bytes32)
+    {
+        bytes memory unsignedMessageBytes = _hashToAscii(
+            hashedUnsignedMessage
+        );
+        bytes memory prefix = "\x19Ethereum Signed Message:\n64";
+        return keccak256(abi.encodePacked(prefix,unsignedMessageBytes));
+    }
+
+    function _hashToAscii(bytes32 hash) private pure returns (bytes memory) {
+        bytes memory s = new bytes(64);
+        for (uint i = 0; i < 32; i++) {
+            byte  b = hash[i];
+            byte hi = byte(uint8(b) / 16);
+            byte lo = byte(uint8(b) - 16 * uint8(hi));
+            s[2*i] = _char(hi);
+            s[2*i+1] = _char(lo);
+        }
+        return s;
+    }
+
+    function _char(byte b) private pure returns (byte c) {
+        if (b < byte(uint8(10))) {
+            return byte(uint8(b) + 0x30);
+        } else {
+            return byte(uint8(b) + 0x57);
+        }
     }
 
 }
