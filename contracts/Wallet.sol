@@ -9,11 +9,11 @@ contract Wallet is MultiSig {
 
     event Received(address indexed from, uint256 value);
 
-    function setTarget(address _target) public multiSig2of3(0) {
+    function setOwnTarget_(address _target) public multiSig2of3(0) {
         target = _target;
     }
 
-    function getTarget() public view returns (address) {
+    function getOwnTarget_() public view returns (address) {
         return target;
     }
 
@@ -23,7 +23,7 @@ contract Wallet is MultiSig {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
                 calldatacopy(0x00, 0x00, calldatasize())
-                let res := delegatecall(gas(), sload(target_slot), 0x00, calldatasize(), 0, 0)
+                let res := call(gas(), sload(target_slot), callvalue(), 0x00, calldatasize(), 0, 0)
                 returndatacopy(0x00, 0x00, returndatasize())
                 if res { return(0x00, returndatasize()) }
                 revert(0x00, returndatasize())
@@ -34,7 +34,7 @@ contract Wallet is MultiSig {
         emit Received(msg.sender, msg.value);
     }
 
-    function transfer(address payable _to, uint256 _amount) public payable multiSig2of3(msg.value) {
+    function transferOwnEther_(address payable _to, uint256 _amount) public payable multiSig2of3(msg.value) {
         _to.transfer(_amount);
     }
 
