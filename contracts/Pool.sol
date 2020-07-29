@@ -1,28 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+import "./IERC20.sol";
 import "./Claimable.sol";
-
-interface ERC20 {
-  function totalSupply() external view returns (uint256);
-  function balanceOf(address who) external view returns (uint256);
-  function transfer(address to, uint256 value) external returns (bool);
-  function allowance(address owner, address spender) external view returns (uint256);
-  function transferFrom(address from, address to, uint256 value) external returns (bool);
-  function approve(address spender, uint256 value) external returns (bool);
-}
 
 contract Pool is Claimable {
 
     address private tokenContract;
     uint256 private minSupply;
+    uint256 private pendingSupply;
     
     address private manager;
-    address payable private wallet;
+    address payable private etherWallet;
+    address private tokenWallet;
 
     struct Account {
         uint256 nonce;  
-        uint256 value;
+        uint256 balance;
+        uint256 pending;
         uint256 withdraw;
         uint256 release;
     }
@@ -39,18 +34,93 @@ contract Pool is Claimable {
     }
 
     function issueTokens(address _to, uint256 _amount) public onlyAdmins() {
+        require(_amount <= availableSupply(), "not enough available tokens");
+        uint256 _currentAmount = accounts[_to].pending;
+        if (_currentAmount > _amount) {
+            accounts[_to].pending = _amount;
+            pendingSupply += _currentAmount - _amount;
+        } else if (_currentAmount < _amount) {
+            accounts[_to].pending = _amount;
+            pendingSupply += _amount - _currentAmount;
+        }
     }
 
-    function setEtherWallet(address payable _wallet) public onlyOwner() {
-        wallet = _wallet;
+    function _acceptTokens(address _account) internal {
+        uint256 _pending = accounts[_account].pending;
+        require(_pending > 0, "no pending tokens");
+        accounts[_account].pending = 0;
+        accounts[_account].balance += _pending;
+        pendingSupply -= _pending;
+    }
+
+    function acceptTokens() public {
+        _acceptTokens(msg.sender);
+    }
+
+    function setEtherWallet(address payable _etherWallet) public onlyOwner() {
+        etherWallet = _etherWallet;
+    }
+
+    function setTokenWallet(address _tokenWallet) public onlyOwner() {
+        tokenWallet = _tokenWallet;
     }
 
     function transferEther(uint256 _value) public onlyAdmins() {
-        require(wallet != address(0), "ether wallet not set");
-        wallet.transfer(_value);
+        require(etherWallet != address(0), "ether wallet not set");
+        etherWallet.transfer(_value);
     }
 
-    function collectPayment(address _from, uint256 _amount) public onlyAdmins() {
+    function transferTokens(uint256 _value) public onlyAdmins() {
+        require(tokenWallet != address(0), "token wallet not set");
+        require(_value <= availableSupply(), "value larget than available tokens");
+        ERC20(tokenContract).transfer(tokenWallet, _value);
+    }
+
+    function accountNonce(address _account) public view returns (uint256) {
+        return accounts[_account].nonce; 
+    }
+
+    function accountBalance(address _account) public view returns (uint256) {
+        return accounts[_account].balance; 
+    }
+
+    function generatePaymentMessageToSign(address _from, uint256 _value) public view returns (bytes32) {
+        Account memory _account = accounts[_from]; 
+        require(_account.balance >= _value, "account balnace too low");
+        bytes32 message = keccak256(
+            abi.encodePacked(
+                _account.nonce,
+                this,
+                _value,
+                _from
+            )
+        );
+        return message;
+    }
+
+    function paymentBySig(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        bytes32 message  = generatePaymentMessageToSign(_from, _value);
+        accounts[_from].nonce += 1; // TODO: some random
+        //TODO: check sig
+        accounts[_from]. balance -= _value;
+        minSupply -= _value;
+    }
+
+    function generateAcceptTokensMessageToSign(address _for, uint256 _secret) public view returns (bytes32) {
+        bytes32 message = keccak256(
+            abi.encodePacked(
+                _secret,
+                this,
+                _for
+            )
+        );
+        return message;
+    }
+
+    function acceptTokensBySig(address _for, uint256 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        bytes32 message  = generatePaymentMessageToSign(_for, _secret);
+        //TODO: check sig
+        _acceptTokens(_for);
     }
 
     function setManager(address _manager) public onlyOwner() {
@@ -58,41 +128,41 @@ contract Pool is Claimable {
     }
   
     function totalSupply() view public returns (uint256) {
-      return ERC20(tokenContract).balanceOf(address(this));
+        return ERC20(tokenContract).balanceOf(address(this));
     }
 
     function availableSupply() view public returns (uint256) {
-      return ERC20(tokenContract).balanceOf(address(this)) - minSupply;
+        return ERC20(tokenContract).balanceOf(address(this)) - minSupply - pendingSupply;
     }
 
     function deposit(uint256 value) public {
-      require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= value, "ERC20 allowance too low");
-      ERC20(tokenContract).transferFrom(msg.sender, address(this), value);
-      accounts[msg.sender].value += value;
-      minSupply += value;
+        require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= value, "ERC20 allowance too low");
+        ERC20(tokenContract).transferFrom(msg.sender, address(this), value);
+        accounts[msg.sender].balance += value;
+        minSupply += value;
     }
 
     function postWithdraw(uint256 value) public {
-      require(accounts[msg.sender].value >= value, "not enough tokens");
-      require(value > 0, "cannot withdraw");
-      accounts[msg.sender].withdraw = value;
-      accounts[msg.sender].release = block.number + 240;
+        require(accounts[msg.sender].balance >= value, "not enough tokens");
+        require(value > 0, "cannot withdraw");
+        accounts[msg.sender].withdraw = value;
+        accounts[msg.sender].release = block.number + 240;
     }
 
     function cancelWithdraw() public {
-      accounts[msg.sender].withdraw = 0;
-      accounts[msg.sender].release = 0;
+        accounts[msg.sender].withdraw = 0;
+        accounts[msg.sender].release = 0;
     }
 
     function withdraw() public {
-      require(accounts[msg.sender].release > 0, "no withdraw request");
-      require(accounts[msg.sender].release < block.number, "too soon");
-      uint256 value = accounts[msg.sender].withdraw;
-      accounts[msg.sender].withdraw = 0;
-      accounts[msg.sender].release = 0;
-      accounts[msg.sender].value -= value;
-      minSupply -= value;
-      ERC20(tokenContract).transfer(msg.sender, value);
+        require(accounts[msg.sender].release > 0, "no withdraw request");
+        require(accounts[msg.sender].release < block.number, "too soon");
+        uint256 value = accounts[msg.sender].withdraw;
+        accounts[msg.sender].withdraw = 0;
+        accounts[msg.sender].release = 0;
+        accounts[msg.sender].balance -= value;
+        minSupply -= value;
+        ERC20(tokenContract).transfer(msg.sender, value);
     }
 
 }
