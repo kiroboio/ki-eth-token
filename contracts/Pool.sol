@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+import "./Claimable.sol";
+
 interface ERC20 {
   function totalSupply() external view returns (uint256);
   function balanceOf(address who) external view returns (uint256);
@@ -10,22 +12,49 @@ interface ERC20 {
   function approve(address spender, uint256 value) external returns (bool);
 }
 
-contract Pool {
+contract Pool is Claimable {
 
-    address public tokenContract;
-    uint256 public minSupply;
+    address private tokenContract;
+    uint256 private minSupply;
     
+    address private manager;
+    address payable private wallet;
+
     struct Account {
-        uint256 nonce;
+        uint256 nonce;  
         uint256 value;
         uint256 withdraw;
         uint256 release;
     }
 
-    mapping(address => Account) internal accounts;
+    mapping(address => Account) private accounts;
 
     constructor(address _tokenContract) public {
-      tokenContract = _tokenContract;
+        tokenContract = _tokenContract;
+    }
+
+    modifier onlyAdmins() {
+        require(msg.sender == owner || msg.sender == manager, "not owner or manager");
+        _;
+    }
+
+    function issueTokens(address _to, uint256 _amount) public onlyAdmins() {
+    }
+
+    function setEtherWallet(address payable _wallet) public onlyOwner() {
+        wallet = _wallet;
+    }
+
+    function transferEther(uint256 _value) public onlyAdmins() {
+        require(wallet != address(0), "ether wallet not set");
+        wallet.transfer(_value);
+    }
+
+    function collectPayment(address _from, uint256 _amount) public onlyAdmins() {
+    }
+
+    function setManager(address _manager) public onlyOwner() {
+        manager = _manager; 
     }
   
     function totalSupply() view public returns (uint256) {

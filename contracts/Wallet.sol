@@ -31,11 +31,11 @@ contract Wallet is MultiSig {
     }
 
     receive () external payable {
-      emit Received(msg.sender, msg.value);
+        emit Received(msg.sender, msg.value);
     }
 
-    function transfer(address payable to, uint256 amount) public payable multiSig2of3(msg.value) {
-      transfer(to, amount);
+    function transfer(address payable _to, uint256 _amount) public payable multiSig2of3(msg.value) {
+        _to.transfer(_amount);
     }
 
     constructor(address owner1, address owner2, address owner3) MultiSig(owner1, owner2, owner3) public {
