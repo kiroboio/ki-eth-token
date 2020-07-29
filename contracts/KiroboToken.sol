@@ -451,7 +451,7 @@ abstract contract LimitedTransferBancorSmartToken is MintableToken, ISmartToken 
 /**
   A Token which is 'Bancor' compatible and can mint new tokens and pause token-transfer functionality
 */
-contract Token is LimitedTransferBancorSmartToken {
+contract KiroboToken is LimitedTransferBancorSmartToken {
 
   string public constant name = "Kirobo Smart Token";
 
@@ -461,7 +461,7 @@ contract Token is LimitedTransferBancorSmartToken {
 
   uint256 public constant INITIAL_SUPPLY = ((10 ** uint256(10) ) * (10 ** uint256(decimals)));
 
-  function KiroboSmartToken() public {
+  constructor() LimitedTransferBancorSmartToken() public {
       //Apart of 'Bancor' computability - triggered when a smart token is deployed
       totalSupply_ = INITIAL_SUPPLY;
       balances[msg.sender] = INITIAL_SUPPLY;

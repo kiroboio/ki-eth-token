@@ -1,7 +1,7 @@
 'use strict'
 
-const SafeTransferPayments = artifacts.require("Pool")
-const Token = artifacts.require("Token")
+const Pool = artifacts.require("Pool")
+const Token = artifacts.require("KiroboToken")
 const mlog = require('mocha-logger')
 
 const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } = require('./lib/asserts')
@@ -35,7 +35,7 @@ contract('Pool', async accounts => {
 
   before('setup contract for the test', async () => {
     token = await Token.new({ from: tokenOwner });
-    pool = await SafeTransferPayments.new(token.address, { from: poolOwner });
+    pool = await Pool.new(token.address, { from: poolOwner });
     await token.disableTransfers(false, { from: tokenOwner });
     
     mlog.log('web3           ', web3.version);
@@ -60,7 +60,9 @@ contract('Pool', async accounts => {
     await token.mint(pool.address, val1, { from: tokenOwner })
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
-    const totalSupply = await token.totalSupply({ from: poolOwner })
+    const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
+    assert.equal(poolTokens.toString(), val1)
+    const totalSupply = await pool.totalSupply({ from: poolOwner })
     assert.equal(totalSupply.toString(), val1)
   });
 
