@@ -10,7 +10,7 @@ interface ERC20 {
   function approve(address spender, uint256 value) external returns (bool);
 }
 
-contract SafeTransferPayments {
+contract Pool {
 
     address public tokenContract;
     uint256 public minSupply;

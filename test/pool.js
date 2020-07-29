@@ -1,13 +1,13 @@
 'use strict'
 
-const SafeTransferPayments = artifacts.require("SafeTransferPayments")
+const SafeTransferPayments = artifacts.require("Pool")
 const Token = artifacts.require("Token")
 const mlog = require('mocha-logger')
 
 const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } = require('./lib/asserts')
 const { advanceBlock, advanceTime, advanceTimeAndBlock } = require('./lib/utils')
 
-contract('SafeTransferPayments', async accounts => {
+contract('Pool', async accounts => {
   let token, pool
 
   const tokenOwner = accounts[1]
