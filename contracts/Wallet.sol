@@ -8,6 +8,7 @@ contract Wallet is MultiSig {
     address private target;
 
     event Received(address indexed from, uint256 value);
+    event Transfered(address indexed to, uint256 value);
 
     function setOwnTarget_(address _target) public multiSig2of3(0) {
         target = _target;
@@ -34,8 +35,9 @@ contract Wallet is MultiSig {
         emit Received(msg.sender, msg.value);
     }
 
-    function transferOwnEther_(address payable _to, uint256 _amount) public payable multiSig2of3(msg.value) {
-        _to.transfer(_amount);
+    function transferOwnEther_(address payable _to, uint256 _value) public payable multiSig2of3(msg.value) {
+        _to.transfer(_value);
+        emit Transfered(_to, _value);
     }
 
     constructor(address owner1, address owner2, address owner3) MultiSig(owner1, owner2, owner3) public {
