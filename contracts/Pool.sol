@@ -104,10 +104,11 @@ contract Pool is Claimable {
         require(_account.balance >= _value, "account balnace too low");
         bytes32 message = keccak256(
             abi.encodePacked(
-                _account.nonce,
+                uint8(0x2),
                 this,
-                _value,
-                _from
+                uint32(_account.nonce),
+                _from,
+                _value
             )
         );
         return message;
@@ -126,18 +127,19 @@ contract Pool is Claimable {
         minSupply -= _value;
     }
 
-    function generateAcceptTokensMessageToSign(address _for, uint256 _secret) public view returns (bytes32) {
+    function generateAcceptTokensMessageToSign(address _for, uint64 _secret) public view returns (bytes32) {
         bytes32 message = keccak256(
             abi.encodePacked(
-                _secret,
+                uint8(0x1),
                 this,
+                _secret,
                 _for
             )
         );
         return message;
     }
 
-    function acceptTokensBySig(address _for, uint256 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+    function acceptTokensBySig(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         bytes32 message  = _messageToRecover(generateAcceptTokensMessageToSign(_for, _secret));
         address addr = ecrecover(message, _v+27, _r, _s);
         require(addr == _for, "wrong signature");
