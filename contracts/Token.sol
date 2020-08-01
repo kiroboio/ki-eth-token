@@ -7,4 +7,8 @@ contract Token is ERC20PresetMinterPauser {
 
     constructor() ERC20PresetMinterPauser('Kirobo', 'KBO') public {
     }
+
+    receive() external payable {
+        require(false, "not aceepting ether");
+    }
 }
