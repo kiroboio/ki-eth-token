@@ -28,6 +28,11 @@ abstract contract MultiSig {
         owners[owner3] = true;
     }
 
+    modifier notSender (address addr) {
+      require(addr != msg.sender, "sender address not allowed");
+      _;
+    }
+
     modifier multiSig2of3 (uint256 value) {
       require(owners[msg.sender], 'only owners');
 
@@ -55,10 +60,10 @@ abstract contract MultiSig {
       action.owner = address(0);
     }
 
-    function replaceOwner(address _owner, address _newOwner) public multiSig2of3(0) {
-      require(owners[_owner] == true, 'owner should exist');
-      require(owners[_newOwner] == false, 'new owner should not exist');
-      owners[_owner] = false;
-      owners[_newOwner] = true;
+    function replaceOwner(address owner, address newOwner) public notSender(owner) multiSig2of3(0) {
+      require(owners[owner] == true, 'owner should exist');
+      require(owners[newOwner] == false, 'new owner should not exist');
+      owners[owner] = false;
+      owners[newOwner] = true;
     }
 }

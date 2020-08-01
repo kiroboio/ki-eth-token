@@ -13,6 +13,9 @@ contract Pool is Claimable {
     address private manager;
     address payable private etherWallet;
     address private tokenWallet;
+    uint256 private releaseDelay;
+    uint256 constant private MAX_RELEASE_DELAY = 11520; // about 48h
+    uint256 private maxTokensPerIssueCall;
 
     struct Account {
         uint256 nonce;  
@@ -26,6 +29,8 @@ contract Pool is Claimable {
 
     constructor(address _tokenContract) public {
         tokenContract = _tokenContract;
+        releaseDelay = 240;
+        maxTokensPerIssueCall = 1000;
     }
 
     modifier onlyAdmins() {
@@ -33,8 +38,18 @@ contract Pool is Claimable {
         _;
     }
 
+    function setReleaseDelay(uint256 _blocks) public onlyOwner() {
+        require(_blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
+        releaseDelay = _blocks;
+    }
+
+    function setMaxTokensPerIssueCall(uint256 _tokens) public onlyOwner() {
+        maxTokensPerIssueCall = _tokens;
+    }
+
     function issueTokens(address _to, uint256 _amount) public onlyAdmins() {
         require(_amount <= availableSupply(), "not enough available tokens");
+        require(_amount <= maxTokensPerIssueCall, "amount exeed max tokens per call");
         uint256 _currentAmount = accounts[_to].pending;
         if (_currentAmount > _amount) {
             accounts[_to].pending = _amount;
@@ -102,7 +117,11 @@ contract Pool is Claimable {
         bytes32 message  = _messageToRecover(generatePaymentMessageToSign(_from, _value));
         address addr = ecrecover(message, _v+27, _r, _s);
         require(addr == _from, "wrong signature");
-        accounts[_from].nonce += 1; // TODO: some random
+        if (accounts[_from].nonce == block.timestamp) {
+            accounts[_from].nonce += 1;
+        } else {
+            accounts[_from].nonce = block.timestamp;
+        }
         accounts[_from]. balance -= _value;
         minSupply -= _value;
     }
