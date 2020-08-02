@@ -3,7 +3,6 @@
 const Pool = artifacts.require("Pool")
 const Token = artifacts.require("KiroboToken")
 const mlog = require('mocha-logger')
-const HDWalletProvider = require("@truffle/hdwallet-provider");
 
 const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } = require('./lib/asserts')
 const { advanceBlock, advanceTime, advanceTimeAndBlock } = require('./lib/utils')
@@ -41,25 +40,21 @@ contract('Pool', async accounts => {
 
   before('setup contract for the test', async () => {
     
-    mlog.log('web3           ', web3.version);
-    mlog.log('tokenOwner     ', tokenOwner);
-    mlog.log('poolOwner      ', poolOwner);
-    mlog.log('user1          ', user1);
-    mlog.log('user2          ', user2);
-    mlog.log('user3          ', user3);
-    mlog.log('val1           ', val1);
-    mlog.log('val2           ', val2);
-    mlog.log('val3           ', val3);
+    mlog.log('web3           ', web3.version)
+    mlog.log('tokenOwner     ', tokenOwner)
+    mlog.log('poolOwner      ', poolOwner)
+    mlog.log('user1          ', user1)
+    mlog.log('user2          ', user2)
+    mlog.log('user3          ', user3)
+    mlog.log('val1           ', val1)
+    mlog.log('val2           ', val2)
+    mlog.log('val3           ', val3)
 
-    token = await Token.new({ from: tokenOwner });
-    mlog.log('1val3           ', val3);
-    pool = await Pool.new(token.address, { from: poolOwner });
-    mlog.log('2val3           ', val3);
-    await token.disableTransfers(false, { from: tokenOwner });
-    mlog.log('3val3           ', val3);
+    token = await Token.deployed()
+    pool = await Pool.deployed()
 
-    mlog.log('token contract ', token.address);
-    mlog.log('pool contract  ', pool.address);
+    mlog.log('token contract ', token.address)
+    mlog.log('pool contract  ', pool.address)
 
   });
 
