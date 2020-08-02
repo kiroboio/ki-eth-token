@@ -15,7 +15,7 @@ module.exports = function(deployer, network, accounts) {
   deployer.then(async () => {
 	  const token = await deployer.deploy(Token, { from: tokenOwner });
   	const pool = await deployer.deploy(Pool, token.address, { from: poolOwner });
-  	// const wallet = await deployer.deploy(Wallet, walletOwner1, walletOwner2, walletOwner3, { from: poolOwner });
+  	const wallet = await deployer.deploy(Wallet, walletOwner1, walletOwner2, walletOwner3, { from: poolOwner });
   });
 
 }

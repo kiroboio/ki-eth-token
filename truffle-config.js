@@ -1,4 +1,6 @@
-const HDWalletProvider = require("@truffle/hdwallet-provider");
+const HDWalletProvider = require("@truffle/hdwallet-provider")
+const ganache = require("ganache-cli")
+let server
 /**
  * Use this file to configure your truffle project. It's seeded with some
  * common settings for different networks and features like migrations,
@@ -43,13 +45,16 @@ module.exports = {
     // tab if you use this network and you must also set the `host`, `port` and `network_id`
     // options below to some value.
     //
-    development: {
-      host: "127.0.0.1",     
-      port: 8545,
+    test: {
       network_id: "*",
       provider: function() {
         const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
-        const provider = new HDWalletProvider(mnemonic, "http://127.0.0.1:8545/")
+        const port = 7545
+        if (!server) {
+          server = ganache.server({ mnemonic })
+          server.listen(port, ()=>{ console.log('ready')})
+        }
+        const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
         return provider
       },    
     },
