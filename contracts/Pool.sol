@@ -131,25 +131,25 @@ contract Pool is Claimable {
         minSupply -= _value;
     }
 
-    function generateAcceptTokensMessage(address _for, bytes memory _secret) public view returns (bytes memory) {
-        Account memory _account = accounts[_for]; 
-        require(_account.secret == keccak256(_secret), "wrong secret");
+    function generateAcceptTokensMessage(address _for, bytes32 _secretHash) public view returns (bytes memory) {
+        require(accounts[_for].secret == _secretHash, "wrong secret hash");
         return  abi.encodePacked(
                 uint8(0x1),
                 this,
-                _account.secret,
+                _secretHash,
                 _for
         );
     }
 
-    function validateAcceptTokensMessage(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secret)));
+    function validateAcceptTokensMessage(address _for, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secretHash)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _for;
     }
 
     function acceptTokens(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        require(validateAcceptTokensMessage(_for, _secret, _v, _r ,_s), "wrong signature or data");
+        require(accounts[_for].secret == keccak256(_secret), "wrong secret");
+        require(validateAcceptTokensMessage(_for, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
         _acceptTokens(_for);
     }
 
