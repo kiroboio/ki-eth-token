@@ -51,41 +51,14 @@ contract('Ledger Test', async accounts => {
     mlog.log('val3           ', val3);
   });
 
-  it('should create empty pool', async () => {
-    const balance = await web3.eth.getBalance(pool.address)
-    assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
-  });
-
-  it('pool should accept tokens', async () => {
+  it('should be able to generate message', async () => {
     await token.mint(pool.address, val1, { from: tokenOwner })
-    const balance = await web3.eth.getBalance(pool.address)
-    assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
-    const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
-    assert.equal(poolTokens.toString(), val1)
-    const totalSupply = await pool.totalSupply({ from: poolOwner })
-    assert.equal(totalSupply.toString(), val1)
-  });
-
-  it('user should be able to deposit tokens', async () => {
     await token.mint(user1, val2, { from: tokenOwner })
     await token.approve(pool.address, val3, { from: user1 })
     await pool.deposit(val3, { from: user1 })
-    const totalSupply = await pool.totalSupply({ from: poolOwner })
-    assert.equal((BigInt(val1) + BigInt(val3)).toString(), totalSupply.toString())
-    const availableSupply = await pool.availableSupply({ from: poolOwner })
-    assert.equal(BigInt(val1).toString(), availableSupply.toString())
+    const message = await pool.generatePaymentMessage(user1, 200, { from: user1 })
+    mlog.log(message)
   });
 
-  it('user should be able to withdraw tokens', async () => {
-    await pool.postWithdraw(val3, { from: user1 })
-    for (let i=0; i<240; ++i) {
-      await advanceBlock()
-    }
-    await pool.withdraw({ from: user1 })
-    const totalSupply = await pool.totalSupply({ from: poolOwner })
-    assert.equal((BigInt(val1)).toString(), totalSupply.toString())
-    const availableSupply = await pool.availableSupply({ from: poolOwner })
-    assert.equal(BigInt(val1).toString(), availableSupply.toString())
-  });
 
 });

@@ -99,23 +99,20 @@ contract Pool is Claimable {
         return accounts[_account].balance; 
     }
 
-    function generatePaymentMessage(address _from, uint256 _value) public view returns (bytes32) {
+    function generatePaymentMessage(address _from, uint256 _value) public view returns (bytes memory) {
         Account memory _account = accounts[_from]; 
         require(_account.balance >= _value, "account balnace too low");
-        bytes32 message = keccak256(
-            abi.encodePacked(
+        return abi.encodePacked(
                 uint8(0x2),
                 this,
                 uint32(_account.nonce),
                 _from,
                 _value
-            )
         );
-        return message;
     }
 
     function validatePaymentMessage(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(generatePaymentMessage(_from, _value));
+        bytes32 message  = _messageToRecover(keccak256(generatePaymentMessage(_from, _value)));
         address addr = ecrecover(message, _v+27, _r, _s);
         return addr == _from;      
     }
@@ -131,20 +128,17 @@ contract Pool is Claimable {
         minSupply -= _value;
     }
 
-    function generateAcceptTokensMessage(address _for, uint64 _secret) public view returns (bytes32) {
-        bytes32 message = keccak256(
-            abi.encodePacked(
+    function generateAcceptTokensMessage(address _for, uint64 _secret) public view returns (bytes memory) {
+        return  abi.encodePacked(
                 uint8(0x1),
                 this,
                 _secret,
                 _for
-            )
         );
-        return message;
     }
 
     function validateAcceptTokensMessage(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(generateAcceptTokensMessage(_for, _secret));
+        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secret)));
         address addr = ecrecover(message, _v+27, _r, _s);
         return addr == _for;
     }
