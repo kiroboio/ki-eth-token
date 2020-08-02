@@ -67,6 +67,7 @@ contract Pool is Claimable {
         require(_pending > 0, "no pending tokens");
         accounts[_account].pending = 0;
         accounts[_account].balance += _pending;
+        accounts[_account].secret = 0;
         pendingSupply -= _pending;
     }
 
