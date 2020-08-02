@@ -14,7 +14,7 @@ contract Pool is Claimable {
     address payable private etherWallet;
     address private tokenWallet;
     uint256 private releaseDelay;
-    uint256 constant private MAX_RELEASE_DELAY = 11520; // about 48h
+    uint256 constant private MAX_RELEASE_DELAY = 11_520; // about 48h
     uint256 private maxTokensPerIssueCall;
 
     struct Account {
@@ -99,7 +99,7 @@ contract Pool is Claimable {
         return accounts[_account].balance; 
     }
 
-    function generatePaymentMessageToSign(address _from, uint256 _value) public view returns (bytes32) {
+    function generatePaymentMessage(address _from, uint256 _value) public view returns (bytes32) {
         Account memory _account = accounts[_from]; 
         require(_account.balance >= _value, "account balnace too low");
         bytes32 message = keccak256(
@@ -114,10 +114,14 @@ contract Pool is Claimable {
         return message;
     }
 
-    function paymentBySig(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        bytes32 message  = _messageToRecover(generatePaymentMessageToSign(_from, _value));
+    function validatePaymentMessage(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        bytes32 message  = _messageToRecover(generatePaymentMessage(_from, _value));
         address addr = ecrecover(message, _v+27, _r, _s);
-        require(addr == _from, "wrong signature");
+        return addr == _from;      
+    }
+
+    function payment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        require(validatePaymentMessage(_from, _value, _v, _r, _s), "wrong signature or data");
         if (accounts[_from].nonce == block.timestamp) {
             accounts[_from].nonce += 1;
         } else {
@@ -127,7 +131,7 @@ contract Pool is Claimable {
         minSupply -= _value;
     }
 
-    function generateAcceptTokensMessageToSign(address _for, uint64 _secret) public view returns (bytes32) {
+    function generateAcceptTokensMessage(address _for, uint64 _secret) public view returns (bytes32) {
         bytes32 message = keccak256(
             abi.encodePacked(
                 uint8(0x1),
@@ -139,10 +143,14 @@ contract Pool is Claimable {
         return message;
     }
 
-    function acceptTokensBySig(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        bytes32 message  = _messageToRecover(generateAcceptTokensMessageToSign(_for, _secret));
+    function validateAcceptTokensMessage(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        bytes32 message  = _messageToRecover(generateAcceptTokensMessage(_for, _secret));
         address addr = ecrecover(message, _v+27, _r, _s);
-        require(addr == _for, "wrong signature");
+        return addr == _for;
+    }
+
+    function acceptTokens(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        require(validateAcceptTokensMessage(_for, _secret, _v, _r ,_s), "wrong signature or data");
         _acceptTokens(_for);
     }
 
@@ -194,7 +202,7 @@ contract Pool is Claimable {
             hashedUnsignedMessage
         );
         bytes memory prefix = "\x19Ethereum Signed Message:\n64";
-        return keccak256(abi.encodePacked(prefix,unsignedMessageBytes));
+        return keccak256(abi.encodePacked(prefix, unsignedMessageBytes));
     }
 
     function _hashToAscii(bytes32 hash) private pure returns (bytes memory) {
