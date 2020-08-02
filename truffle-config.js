@@ -53,6 +53,26 @@ module.exports = {
         return provider
       },    
     },
+    ropsten: {
+      provider: function() {
+        mnemonic =
+          "front assume robust donkey senior economy maple enhance click bright game alcohol";
+        return new HDWalletProvider(
+          mnemonic, "https://ropsten.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
+        );
+      },
+      network_id: 3,
+    },
+    rinkeby: {
+      provider: function() {
+        mnemonic =
+          "front assume robust donkey senior economy maple enhance click bright game alcohol";
+        return new HDWalletProvider(
+          mnemonic, "https://rinkeby.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
+        );
+      },
+      network_id: 4,
+    },
 
     // Another network with more advanced options...
     // advanced: {

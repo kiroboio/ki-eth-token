@@ -3,7 +3,7 @@
 pragma solidity 0.6.12;
 
 abstract contract MultiSig {
-    mapping(address => bool) private owners;
+    mapping(address => bool) owners;
 
     struct Action {
         address owner;
@@ -28,23 +28,23 @@ abstract contract MultiSig {
         owners[owner3] = true;
     }
 
-    modifier notSender (address addr) {
-      require(addr != msg.sender, "sender address not allowed");
+    modifier notSender (address _addr) {
+      require(_addr != msg.sender, "sender address not allowed");
       _;
     }
 
-    modifier multiSig2of3 (uint256 value) {
+    modifier multiSig2of3 (uint256 _value) {
       require(owners[msg.sender], 'only owners');
 
       if (action.owner == address(0)) {
           action.owner = msg.sender;
           action.data = msg.data;
-          action.value = value;
+          action.value = _value;
           return;
       }
 
       require(action.owner != msg.sender, 'same owner cannot sign twice');
-      require(action.value == value, 'must sign the same value');
+      require(action.value == _value, 'must sign the same value');
       require(keccak256(action.data) == keccak256(msg.data), 'must sign the same data');
 
       action.owner = address(0);
@@ -60,10 +60,10 @@ abstract contract MultiSig {
       action.owner = address(0);
     }
 
-    function replaceOwner(address owner, address newOwner) public notSender(owner) multiSig2of3(0) {
-      require(owners[owner] == true, 'owner should exist');
-      require(owners[newOwner] == false, 'new owner should not exist');
-      owners[owner] = false;
-      owners[newOwner] = true;
+    function replaceOwner(address _owner, address _newOwner) public notSender(_owner) multiSig2of3(0) {
+      require(owners[_owner] == true, 'owner should exist');
+      require(owners[_newOwner] == false, 'new owner should not exist');
+      owners[_owner] = false;
+      owners[_newOwner] = true;
     }
 }

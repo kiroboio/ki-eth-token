@@ -6,16 +6,16 @@ import "./Claimable.sol";
 
 contract Pool is Claimable {
 
-    address private tokenContract;
-    uint256 private minSupply;
-    uint256 private pendingSupply;
+    uint256 constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
-    address private manager;
-    address payable private etherWallet;
-    address private tokenWallet;
-    uint256 private releaseDelay;
-    uint256 constant private MAX_RELEASE_DELAY = 11_520; // about 48h
-    uint256 private maxTokensPerIssueCall;
+    address tokenContract;
+    uint256 minSupply;
+    uint256 pendingSupply;
+    address manager;
+    address payable etherWallet;
+    address tokenWallet;
+    uint256 releaseDelay;
+    uint256 maxTokensPerIssueCall;
 
     struct Account {
         uint256 nonce;  
@@ -26,7 +26,7 @@ contract Pool is Claimable {
         bytes32 secret;
     }
 
-    mapping(address => Account) private accounts;
+    mapping(address => Account) accounts;
 
     constructor(address _tokenContract) public {
         tokenContract = _tokenContract;

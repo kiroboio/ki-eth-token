@@ -7,11 +7,9 @@ pragma solidity 0.6.12;
  * functions, this simplifies the implementation of "user permissions".
  */
 abstract contract Ownable {
-  address public owner;
-
+  address owner;
 
   event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
 
   /**
    * @dev The Ownable constructor sets the original `owner` of the contract to the sender
