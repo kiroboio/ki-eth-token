@@ -88,4 +88,25 @@ contract('Pool', async accounts => {
     assert.equal(BigInt(val1).toString(), availableSupply.toString())
   });
 
+  it('should be able to generate & validate accept tokens message', async () => {
+    const account = web3.eth.accounts.privateKeyToAccount('0x348ce564d427a3311b6536bbcff9390d69395b03ed6c486954e971d960fe8709');
+    await token.mint(pool.address, val1, { from: tokenOwner })
+    await token.mint(user1, val2, { from: tokenOwner })
+    await token.approve(pool.address, val3, { from: user1 })
+    await pool.deposit(val3, { from: user1 })
+    const message = await pool.generateAcceptTokensMessage(account.address, 200, { from: poolOwner })
+    mlog.log('address: ', account.address)
+    mlog.log('message: ', message)
+    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), account.privateKey)
+    mlog.log('rlp', JSON.stringify(rlp))
+    mlog.log('recover', web3.eth.accounts.recover({
+        messageHash: rlp.messageHash,
+        v: rlp.v,
+        r: rlp.r,
+        s: rlp.s,
+    }))
+    assert(await pool.validateAcceptTokensMessage(account.address, 200, rlp.v, rlp.r, rlp.s, { from: account.address }), 'invalid signature')
+  });
+
+
 });

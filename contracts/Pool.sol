@@ -113,7 +113,7 @@ contract Pool is Claimable {
 
     function validatePaymentMessage(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
         bytes32 message  = _messageToRecover(keccak256(generatePaymentMessage(_from, _value)));
-        address addr = ecrecover(message, _v+27, _r, _s);
+        address addr = ecrecover(message, _v, _r, _s);
         return addr == _from;      
     }
 
@@ -139,7 +139,7 @@ contract Pool is Claimable {
 
     function validateAcceptTokensMessage(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
         bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secret)));
-        address addr = ecrecover(message, _v+27, _r, _s);
+        address addr = ecrecover(message, _v, _r, _s);
         return addr == _for;
     }
 
