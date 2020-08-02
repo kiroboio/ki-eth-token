@@ -58,6 +58,15 @@ module.exports = {
         return provider
       },    
     },
+    ganache: {
+      network_id: "*",
+      provider: function() {
+        const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        const port = 8545
+        const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
+        return provider
+      },    
+    },
     ropsten: {
       provider: function() {
         mnemonic =
