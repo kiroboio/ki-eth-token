@@ -23,6 +23,7 @@ contract Pool is Claimable {
         uint256 pending;
         uint256 withdraw;
         uint256 release;
+        bytes32 secret;
     }
 
     mapping(address => Account) private accounts;
@@ -30,7 +31,7 @@ contract Pool is Claimable {
     constructor(address _tokenContract) public {
         tokenContract = _tokenContract;
         releaseDelay = 240;
-        maxTokensPerIssueCall = 1000;
+        maxTokensPerIssueCall = 10000;
     }
 
     modifier onlyAdmins() {
@@ -47,10 +48,11 @@ contract Pool is Claimable {
         maxTokensPerIssueCall = _tokens;
     }
 
-    function issueTokens(address _to, uint256 _amount) public onlyAdmins() {
+    function issueTokens(address _to, uint256 _amount, bytes32 _secretHash) public onlyAdmins() {
         require(_amount <= availableSupply(), "not enough available tokens");
         require(_amount <= maxTokensPerIssueCall, "amount exeed max tokens per call");
         uint256 _currentAmount = accounts[_to].pending;
+        accounts[_to].secret = _secretHash;
         if (_currentAmount > _amount) {
             accounts[_to].pending = _amount;
             pendingSupply += _currentAmount - _amount;
@@ -128,22 +130,24 @@ contract Pool is Claimable {
         minSupply -= _value;
     }
 
-    function generateAcceptTokensMessage(address _for, uint64 _secret) public view returns (bytes memory) {
+    function generateAcceptTokensMessage(address _for, bytes memory _secret) public view returns (bytes memory) {
+        Account memory _account = accounts[_for]; 
+        require(_account.secret == keccak256(_secret), "wrong secret");
         return  abi.encodePacked(
                 uint8(0x1),
                 this,
-                _secret,
+                _account.secret,
                 _for
         );
     }
 
-    function validateAcceptTokensMessage(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+    function validateAcceptTokensMessage(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
         bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secret)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _for;
     }
 
-    function acceptTokens(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+    function acceptTokens(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         require(validateAcceptTokensMessage(_for, _secret, _v, _r ,_s), "wrong signature or data");
         _acceptTokens(_for);
     }
