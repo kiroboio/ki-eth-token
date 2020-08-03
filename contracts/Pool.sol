@@ -34,6 +34,16 @@ contract Pool is Claimable {
         maxTokensPerIssueCall = 10000;
     }
 
+    event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
+    event TokensAccepted(address indexed account, bool directCall);
+    event Payment(address indexed account, uint256 value);
+    event Deposit(address indexed account, uint256 value);
+    event WithdrawRequested(address indexed account, uint256 value);
+    event WithdrawCanceled(address indexed account);
+    event Withdraw(address indexed account, uint256 value);
+    event EtherTransfered(address indexed to, uint256 value);
+    event TokensTransfered(address indexed to, uint256 value);
+
     modifier onlyAdmins() {
         require(msg.sender == owner || msg.sender == manager, "not owner or manager");
         _;
@@ -48,18 +58,19 @@ contract Pool is Claimable {
         maxTokensPerIssueCall = _tokens;
     }
 
-    function issueTokens(address _to, uint256 _amount, bytes32 _secretHash) public onlyAdmins() {
-        require(_amount <= availableSupply(), "not enough available tokens");
-        require(_amount <= maxTokensPerIssueCall, "amount exeed max tokens per call");
+    function issueTokens(address _to, uint256 _value, bytes32 _secretHash) public onlyAdmins() {
+        require(_value <= availableSupply(), "not enough available tokens");
+        require(_value <= maxTokensPerIssueCall, "amount exeed max tokens per call");
         uint256 _currentAmount = accounts[_to].pending;
         accounts[_to].secret = _secretHash;
-        if (_currentAmount > _amount) {
-            accounts[_to].pending = _amount;
-            pendingSupply += _currentAmount - _amount;
-        } else if (_currentAmount < _amount) {
-            accounts[_to].pending = _amount;
-            pendingSupply += _amount - _currentAmount;
+        if (_currentAmount > _value) {
+            accounts[_to].pending = _value;
+            pendingSupply += _currentAmount - _value;
+        } else if (_currentAmount < _value) {
+            accounts[_to].pending = _value;
+            pendingSupply += _value - _currentAmount;
         }
+        emit TokensIssued(_to, _value, _secretHash);
     }
 
     function _acceptTokens(address _account) internal {
@@ -73,6 +84,7 @@ contract Pool is Claimable {
 
     function acceptTokens() public {
         _acceptTokens(msg.sender);
+        emit TokensAccepted(msg.sender, true);
     }
 
     function setEtherWallet(address payable _etherWallet) public onlyOwner() {
@@ -86,12 +98,14 @@ contract Pool is Claimable {
     function transferEther(uint256 _value) public onlyAdmins() {
         require(etherWallet != address(0), "ether wallet not set");
         etherWallet.transfer(_value);
+        emit EtherTransfered(etherWallet, _value);
     }
 
     function transferTokens(uint256 _value) public onlyAdmins() {
         require(tokenWallet != address(0), "token wallet not set");
         require(_value <= availableSupply(), "value larget than available tokens");
         ERC20(tokenContract).transfer(tokenWallet, _value);
+        emit TokensTransfered(tokenWallet, _value);
     }
 
     function accountNonce(address _account) public view returns (uint256) {
@@ -126,6 +140,7 @@ contract Pool is Claimable {
         accounts[_from].nonce = block.timestamp;
         accounts[_from]. balance -= _value;
         minSupply -= _value;
+        emit Payment(_from, _value);
     }
 
     function generateAcceptTokensMessage(address _for, bytes32 _secretHash) public view returns (bytes memory) {
@@ -148,6 +163,7 @@ contract Pool is Claimable {
         require(accounts[_for].secret == keccak256(_secret), "wrong secret");
         require(validateAcceptTokensMessage(_for, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
         _acceptTokens(_for);
+        emit TokensAccepted(_for, false);
     }
 
     function setManager(address _manager) public onlyOwner() {
@@ -162,23 +178,26 @@ contract Pool is Claimable {
         return ERC20(tokenContract).balanceOf(address(this)) - minSupply - pendingSupply;
     }
 
-    function deposit(uint256 value) public {
-        require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= value, "ERC20 allowance too low");
-        ERC20(tokenContract).transferFrom(msg.sender, address(this), value);
-        accounts[msg.sender].balance += value;
-        minSupply += value;
+    function deposit(uint256 _value) public {
+        require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= _value, "ERC20 allowance too low");
+        ERC20(tokenContract).transferFrom(msg.sender, address(this), _value);
+        accounts[msg.sender].balance += _value;
+        minSupply += _value;
+        emit Deposit(msg.sender, _value);
     }
 
-    function postWithdraw(uint256 value) public {
-        require(accounts[msg.sender].balance >= value, "not enough tokens");
-        require(value > 0, "cannot withdraw");
-        accounts[msg.sender].withdraw = value;
+    function postWithdraw(uint256 _value) public {
+        require(accounts[msg.sender].balance >= _value, "not enough tokens");
+        require(_value > 0, "cannot withdraw");
+        accounts[msg.sender].withdraw = _value;
         accounts[msg.sender].release = block.number + 240;
+        emit WithdrawRequested(msg.sender, _value);
     }
 
     function cancelWithdraw() public {
         accounts[msg.sender].withdraw = 0;
         accounts[msg.sender].release = 0;
+        emit WithdrawCanceled(msg.sender);
     }
 
     function withdraw() public {
@@ -190,6 +209,7 @@ contract Pool is Claimable {
         accounts[msg.sender].balance -= value;
         minSupply -= value;
         ERC20(tokenContract).transfer(msg.sender, value);
+        emit Withdraw(msg.sender, value);
     }
 
     function _messageToRecover(bytes32 hashedUnsignedMessage) private pure returns (bytes32)

@@ -96,7 +96,7 @@ contract('Pool', async accounts => {
   });
 
   it('should be able to generate,validate & execute "accept tokens" message', async () => {
-    const secret = Buffer.from("my secret")
+    const secret = 'my secret'
     await pool.issueTokens(user1, 500, web3.utils.sha3(secret), { from: poolOwner })
     const message = await pool.generateAcceptTokensMessage(user1, web3.utils.sha3(secret), { from: poolOwner })
     mlog.log('message: ', message)
@@ -109,7 +109,7 @@ contract('Pool', async accounts => {
         s: rlp.s,
     }))
     assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
-    await pool.acceptTokens(user1, secret, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    await pool.acceptTokens(user1, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
   });
 
