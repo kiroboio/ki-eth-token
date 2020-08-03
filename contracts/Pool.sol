@@ -125,12 +125,19 @@ contract Pool is Claimable {
         Account memory _account = accounts[_from]; 
         require(_account.balance >= _value, "account balnace too low");
         return abi.encodePacked(
-                uint8(0x2),
-                this,
-                uint32(_account.nonce),
-                _from,
-                _value
+            address(this),
+            this.generatePaymentMessage.selector,
+            _from,
+            _value,
+            _account.nonce
         );
+        // return abi.encodePacked(
+        //         uint8(0x02),
+        //         this,
+        //         _account.nonce,
+        //         _from,
+        //         _value
+        // );
     }
 
     function validatePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
@@ -151,13 +158,20 @@ contract Pool is Claimable {
     function generateAcceptTokensMessage(address _for, uint256 _value, bytes32 _secretHash) public view returns (bytes memory) {
         require(accounts[_for].secret == _secretHash, "wrong secret hash");
         require(accounts[_for].pending == _value, "value must equal pending(issued tokens)");
-        return  abi.encodePacked(
-                uint8(0x1),
-                this,
-                _secretHash,
-                _value,
-                _for
+        return abi.encodePacked(
+            address(this),
+            this.generateAcceptTokensMessage.selector,
+            _for,
+            _value,
+            _secretHash
         );
+        // return  abi.encodePacked(
+        //         uint(0x01),
+        //         this,
+        //         _secretHash,
+        //         _value,
+        //         _for
+        // );
     }
 
     function validateAcceptTokens(address _for, uint256 _value, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
@@ -166,7 +180,7 @@ contract Pool is Claimable {
         return addr == _for;
     }
 
-    function executeAcceptTokens(address _for, uint256 _value, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+    function executeAcceptTokens(address _for, uint256 _value, bytes calldata _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         require(accounts[_for].secret == keccak256(_secret), "wrong secret");
         require(validateAcceptTokens(_for, _value, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
         _acceptTokens(_for, _value);

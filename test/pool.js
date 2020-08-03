@@ -13,6 +13,26 @@ const getPrivateKey = (address) => {
   return `0x${wallet._privKey.toString('hex')}`
 }
 
+const parseAcceptTokensMessage = (message) => {
+  return {
+    pool: message.slice(2,42),
+    selector: message.slice(42, 42+8),
+    from: message.slice(50, 50+40),
+    value: message.slice(90, 90+64),
+    secretHash: message.slice(154, 154+64)  
+  }
+}
+
+const parsePaymentMessage = (message) => {
+  return {
+    pool: message.slice(2,42),
+    selector: message.slice(42, 42+8),
+    from: message.slice(50, 50+40),
+    value: message.slice(90, 90+64),
+    nonce: message.slice(154, 154+64)  
+  }
+}
+
 contract('Pool', async accounts => {
   let token, pool
   const tokenOwner = accounts[1]
@@ -101,6 +121,8 @@ contract('Pool', async accounts => {
     await pool.issueTokens(user1, tokens, web3.utils.sha3(secret), { from: poolOwner })
     const message = await pool.generateAcceptTokensMessage(user1, tokens, web3.utils.sha3(secret), { from: poolOwner })
     mlog.log('message: ', message)
+    mlog.log(`extract message: ${JSON.stringify(parseAcceptTokensMessage(message))}`)
+    
     const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user1))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
@@ -120,6 +142,7 @@ contract('Pool', async accounts => {
     await pool.deposit(val3, { from: user2 })
     const message = await pool.generatePaymentMessage(user2, 200, { from: poolOwner })
     mlog.log('message: ', message)
+    mlog.log(`extract message: ${JSON.stringify(parsePaymentMessage(message))}`)
     const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
