@@ -5,7 +5,7 @@ pragma solidity 0.6.12;
 import "./MultiSig.sol";
 
 contract Wallet is MultiSig {
-    address private target;
+    address target;
 
     event Received(address indexed from, uint256 value);
     event Transfered(address indexed to, uint256 value);

@@ -1,3 +1,6 @@
+const HDWalletProvider = require("@truffle/hdwallet-provider")
+const ganache = require("ganache-cli")
+let server
 /**
  * Use this file to configure your truffle project. It's seeded with some
  * common settings for different networks and features like migrations,
@@ -42,11 +45,48 @@ module.exports = {
     // tab if you use this network and you must also set the `host`, `port` and `network_id`
     // options below to some value.
     //
-    // development: {
-    //  host: "127.0.0.1",     // Localhost (default: none)
-    //  port: 8545,            // Standard Ethereum port (default: none)
-    //  network_id: "*",       // Any network (default: none)
-    // },
+    test: {
+      network_id: "*",
+      provider: function() {
+        const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        const port = 7545
+        if (!server) {
+          server = ganache.server({ mnemonic })
+          server.listen(port, ()=>{ console.log('ready')})
+        }
+        const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
+        return provider
+      },    
+    },
+    ganache: {
+      network_id: "*",
+      provider: function() {
+        const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        const port = 8545
+        const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
+        return provider
+      },    
+    },
+    ropsten: {
+      provider: function() {
+        mnemonic =
+          "front assume robust donkey senior economy maple enhance click bright game alcohol";
+        return new HDWalletProvider(
+          mnemonic, "https://ropsten.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
+        );
+      },
+      network_id: 3,
+    },
+    rinkeby: {
+      provider: function() {
+        mnemonic =
+          "front assume robust donkey senior economy maple enhance click bright game alcohol";
+        return new HDWalletProvider(
+          mnemonic, "https://rinkeby.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
+        );
+      },
+      network_id: 4,
+    },
 
     // Another network with more advanced options...
     // advanced: {

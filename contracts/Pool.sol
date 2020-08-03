@@ -6,16 +6,16 @@ import "./Claimable.sol";
 
 contract Pool is Claimable {
 
-    address private tokenContract;
-    uint256 private minSupply;
-    uint256 private pendingSupply;
+    uint256 constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
-    address private manager;
-    address payable private etherWallet;
-    address private tokenWallet;
-    uint256 private releaseDelay;
-    uint256 constant private MAX_RELEASE_DELAY = 11_520; // about 48h
-    uint256 private maxTokensPerIssueCall;
+    address tokenContract;
+    uint256 minSupply;
+    uint256 pendingSupply;
+    address manager;
+    address payable etherWallet;
+    address tokenWallet;
+    uint256 releaseDelay;
+    uint256 maxTokensPerIssueCall;
 
     struct Account {
         uint256 nonce;  
@@ -23,14 +23,15 @@ contract Pool is Claimable {
         uint256 pending;
         uint256 withdraw;
         uint256 release;
+        bytes32 secret;
     }
 
-    mapping(address => Account) private accounts;
+    mapping(address => Account) accounts;
 
     constructor(address _tokenContract) public {
         tokenContract = _tokenContract;
         releaseDelay = 240;
-        maxTokensPerIssueCall = 1000;
+        maxTokensPerIssueCall = 10000;
     }
 
     modifier onlyAdmins() {
@@ -47,10 +48,11 @@ contract Pool is Claimable {
         maxTokensPerIssueCall = _tokens;
     }
 
-    function issueTokens(address _to, uint256 _amount) public onlyAdmins() {
+    function issueTokens(address _to, uint256 _amount, bytes32 _secretHash) public onlyAdmins() {
         require(_amount <= availableSupply(), "not enough available tokens");
         require(_amount <= maxTokensPerIssueCall, "amount exeed max tokens per call");
         uint256 _currentAmount = accounts[_to].pending;
+        accounts[_to].secret = _secretHash;
         if (_currentAmount > _amount) {
             accounts[_to].pending = _amount;
             pendingSupply += _currentAmount - _amount;
@@ -65,6 +67,7 @@ contract Pool is Claimable {
         require(_pending > 0, "no pending tokens");
         accounts[_account].pending = 0;
         accounts[_account].balance += _pending;
+        accounts[_account].secret = 0;
         pendingSupply -= _pending;
     }
 
@@ -119,32 +122,31 @@ contract Pool is Claimable {
 
     function payment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         require(validatePaymentMessage(_from, _value, _v, _r, _s), "wrong signature or data");
-        if (accounts[_from].nonce == block.timestamp) {
-            accounts[_from].nonce += 1;
-        } else {
-            accounts[_from].nonce = block.timestamp;
-        }
+        require(accounts[_from].nonce != block.timestamp, "too soon");
+        accounts[_from].nonce = block.timestamp;
         accounts[_from]. balance -= _value;
         minSupply -= _value;
     }
 
-    function generateAcceptTokensMessage(address _for, uint64 _secret) public view returns (bytes memory) {
+    function generateAcceptTokensMessage(address _for, bytes32 _secretHash) public view returns (bytes memory) {
+        require(accounts[_for].secret == _secretHash, "wrong secret hash");
         return  abi.encodePacked(
                 uint8(0x1),
                 this,
-                _secret,
+                _secretHash,
                 _for
         );
     }
 
-    function validateAcceptTokensMessage(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secret)));
+    function validateAcceptTokensMessage(address _for, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secretHash)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _for;
     }
 
-    function acceptTokens(address _for, uint64 _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        require(validateAcceptTokensMessage(_for, _secret, _v, _r ,_s), "wrong signature or data");
+    function acceptTokens(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        require(accounts[_for].secret == keccak256(_secret), "wrong secret");
+        require(validateAcceptTokensMessage(_for, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
         _acceptTokens(_for);
     }
 

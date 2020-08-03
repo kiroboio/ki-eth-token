@@ -43,10 +43,10 @@ contract('Wallet', async accounts => {
   })
 
   before('setup contract for the test', async () => {
-    token = await Token.new({ from: tokenOwner })
-    pool = await Pool.new(token.address, { from: poolOwner })
-    await token.disableTransfers(false, { from: tokenOwner })
-    wallet = await Wallet.new(walletOwner1, walletOwner2, walletOwner3, { from: user1 })
+    token = await Token.deployed() // new({ from: tokenOwner })
+    pool = await Pool.deployed() // new(token.address, { from: poolOwner })
+    // await token.disableTransfers(false, { from: tokenOwner })
+    wallet = await Wallet.deployed() /// new(walletOwner1, walletOwner2, walletOwner3, { from: user1 })
     
     mlog.log('web3           ', web3.version)
     mlog.log('token contract ', token.address)
