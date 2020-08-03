@@ -122,11 +122,8 @@ contract Pool is Claimable {
 
     function payment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         require(validatePaymentMessage(_from, _value, _v, _r, _s), "wrong signature or data");
-        if (accounts[_from].nonce == block.timestamp) {
-            accounts[_from].nonce += 1;
-        } else {
-            accounts[_from].nonce = block.timestamp;
-        }
+        require(accounts[_from].nonce != block.timestamp, "too soon");
+        accounts[_from].nonce = block.timestamp;
         accounts[_from]. balance -= _value;
         minSupply -= _value;
     }
