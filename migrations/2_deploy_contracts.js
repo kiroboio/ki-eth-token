@@ -16,6 +16,7 @@ module.exports = function(deployer, network, accounts) {
   	const pool    = await deployer.deploy(Pool, token.address, { from: poolOwner })
     const wallet  = await deployer.deploy(Wallet, walletOwner1, walletOwner2, walletOwner3, { from: poolOwner })
     await token.disableTransfers(false, { from: tokenOwner })
+    // await token.mint(pool.address, 100000, { from: tokenOwner })
   })
 
 }

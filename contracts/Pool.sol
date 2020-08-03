@@ -38,9 +38,9 @@ contract Pool is Claimable {
     event TokensAccepted(address indexed account, bool directCall);
     event Payment(address indexed account, uint256 value);
     event Deposit(address indexed account, uint256 value);
-    event WithdrawRequested(address indexed account, uint256 value);
-    event WithdrawCanceled(address indexed account);
-    event Withdraw(address indexed account, uint256 value);
+    event WithdrawalRequested(address indexed account, uint256 value);
+    event WithdrawalCanceled(address indexed account);
+    event Withdrawal(address indexed account, uint256 value);
     event EtherTransfered(address indexed to, uint256 value);
     event TokensTransfered(address indexed to, uint256 value);
 
@@ -73,17 +73,22 @@ contract Pool is Claimable {
         emit TokensIssued(_to, _value, _secretHash);
     }
 
-    function _acceptTokens(address _account) internal {
+    function issuedPendingTokens(address _account) public view returns (uint256) {
+        return accounts[_account].pending;
+    }
+
+    function _acceptTokens(address _account, uint256 value) internal {
         uint256 _pending = accounts[_account].pending;
         require(_pending > 0, "no pending tokens");
+        require(_pending == value, "value must equal issued tokens");
         accounts[_account].pending = 0;
         accounts[_account].balance += _pending;
         accounts[_account].secret = 0;
         pendingSupply -= _pending;
     }
 
-    function acceptTokens() public {
-        _acceptTokens(msg.sender);
+    function acceptTokens(uint256 _value) public {
+        _acceptTokens(msg.sender, _value);
         emit TokensAccepted(msg.sender, true);
     }
 
@@ -128,14 +133,14 @@ contract Pool is Claimable {
         );
     }
 
-    function validatePaymentMessage(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+    function validatePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
         bytes32 message  = _messageToRecover(keccak256(generatePaymentMessage(_from, _value)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _from;      
     }
 
-    function payment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        require(validatePaymentMessage(_from, _value, _v, _r, _s), "wrong signature or data");
+    function executePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        require(validatePayment(_from, _value, _v, _r, _s), "wrong signature or data");
         require(accounts[_from].nonce != block.timestamp, "too soon");
         accounts[_from].nonce = block.timestamp;
         accounts[_from]. balance -= _value;
@@ -143,26 +148,28 @@ contract Pool is Claimable {
         emit Payment(_from, _value);
     }
 
-    function generateAcceptTokensMessage(address _for, bytes32 _secretHash) public view returns (bytes memory) {
+    function generateAcceptTokensMessage(address _for, uint256 _value, bytes32 _secretHash) public view returns (bytes memory) {
         require(accounts[_for].secret == _secretHash, "wrong secret hash");
+        require(accounts[_for].pending == _value, "value must equal pending(issued tokens)");
         return  abi.encodePacked(
                 uint8(0x1),
                 this,
                 _secretHash,
+                _value,
                 _for
         );
     }
 
-    function validateAcceptTokensMessage(address _for, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secretHash)));
+    function validateAcceptTokens(address _for, uint256 _value, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _value, _secretHash)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _for;
     }
 
-    function acceptTokens(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+    function executeAcceptTokens(address _for, uint256 _value, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         require(accounts[_for].secret == keccak256(_secret), "wrong secret");
-        require(validateAcceptTokensMessage(_for, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
-        _acceptTokens(_for);
+        require(validateAcceptTokens(_for, _value, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
+        _acceptTokens(_for, _value);
         emit TokensAccepted(_for, false);
     }
 
@@ -186,18 +193,18 @@ contract Pool is Claimable {
         emit Deposit(msg.sender, _value);
     }
 
-    function postWithdraw(uint256 _value) public {
+    function requestWithdrawal(uint256 _value) public {
         require(accounts[msg.sender].balance >= _value, "not enough tokens");
         require(_value > 0, "cannot withdraw");
         accounts[msg.sender].withdraw = _value;
         accounts[msg.sender].release = block.number + 240;
-        emit WithdrawRequested(msg.sender, _value);
+        emit WithdrawalRequested(msg.sender, _value);
     }
 
-    function cancelWithdraw() public {
+    function cancelWithdrawal() public {
         accounts[msg.sender].withdraw = 0;
         accounts[msg.sender].release = 0;
-        emit WithdrawCanceled(msg.sender);
+        emit WithdrawalCanceled(msg.sender);
     }
 
     function withdraw() public {
@@ -209,7 +216,7 @@ contract Pool is Claimable {
         accounts[msg.sender].balance -= value;
         minSupply -= value;
         ERC20(tokenContract).transfer(msg.sender, value);
-        emit Withdraw(msg.sender, value);
+        emit Withdrawal(msg.sender, value);
     }
 
     function _messageToRecover(bytes32 hashedUnsignedMessage) private pure returns (bytes32)

@@ -118,7 +118,7 @@ contract("Ledger Test", async (accounts) => {
     mlog.log("validating", `v is ${v} r is ${"0x" + r} s is ${"0x" + s}`);
 
     assert(
-      await pool.validateAcceptTokensMessage(
+      await pool.validateAcceptTokens(
         ldgAddress,
         web3.utils.sha3(secret),
         v,
@@ -128,7 +128,7 @@ contract("Ledger Test", async (accounts) => {
       ),
       "invalid ledger signature"
     );
-    await pool.acceptTokens(ldgAddress, secret, v, "0x" + signedLedger.r, "0x" + signedLedger.s, { from: poolOwner })
+    await pool.executeAcceptTokens(ldgAddress, secret, v, "0x" + signedLedger.r, "0x" + signedLedger.s, { from: poolOwner })
   });
 
   it('should be able to generate,validate & execute "payment" message', async () => {
@@ -166,7 +166,7 @@ contract("Ledger Test", async (accounts) => {
     mlog.log("validating", `v is ${v} r is ${"0x" + r} s is ${"0x" + s}`);
 
     assert(
-      await pool.validatePaymentMessage(
+      await pool.validatePayment(
         ldgAddress,
         200,
         v,
