@@ -6,16 +6,18 @@ import "./Claimable.sol";
 
 contract Pool is Claimable {
 
-    uint256 constant MAX_RELEASE_DELAY = 11_520; // about 48h
+    uint8 public constant VERSION = 0x1;
+    uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
-    address s_tokenContract;
+    uint256 s_uid;
     uint256 s_minSupply;
     uint256 s_pendingSupply;
-    address s_manager;
-    address payable s_etherWallet;
-    address s_tokenWallet;
     uint256 s_releaseDelay;
-    uint256 s_maxTokensPerIssueCall;
+    uint256 s_maxTokensPerIssue;
+    address s_manager;
+    address s_tokenContract;
+    address s_tokenWallet;
+    address payable s_etherWallet;
 
     struct Account {
         uint256 nonce;  
@@ -46,7 +48,12 @@ contract Pool is Claimable {
     constructor(address tokenContract) public {
         s_tokenContract = tokenContract;
         s_releaseDelay = 240;
-        s_maxTokensPerIssueCall = 10000;
+        s_maxTokensPerIssue = 10000;
+        s_uid = (
+          uint256(VERSION) << 248 |
+          uint256(blockhash(block.number-1)) << 192 >> 16 |
+          uint256(address(this))
+        );
     }
 
     function account(address addr) public view
@@ -75,20 +82,20 @@ contract Pool is Claimable {
         s_releaseDelay = blocks;
     }
 
-    function setMaxTokensPerIssueCall(uint256 tokens) public onlyOwner() {
-        s_maxTokensPerIssueCall = tokens;
+    function setMaxTokensPerIssue(uint256 tokens) public onlyOwner() {
+        s_maxTokensPerIssue = tokens;
     }
 
     /**
      * @dev Issueing tokens for an address to be used for payments.
      * The owner of the receiving address must accept via a signed message or a direct call.
-     * @param to The tokens recipeint. 
+     * @param to The tokens recipient. 
      * @param value The number of tokens to issue.
      * @param secretHash The keccak256 of the confirmation secret.
     */
     function issueTokens(address to, uint256 value, bytes32 secretHash) public onlyAdmins() {
         require(value <= availableSupply(), "not enough available tokens");
-        require(value <= s_maxTokensPerIssueCall, "amount exeed max tokens per call");
+        require(value <= s_maxTokensPerIssue, "amount exeed max tokens per call");
         Account storage sp_account = s_accounts[to];
         uint256 currentAmount = sp_account.pending;
         sp_account.secretHash = secretHash;
@@ -102,8 +109,8 @@ contract Pool is Claimable {
         emit TokensIssued(to, value, secretHash);
     }
 
-    function _acceptTokens(address recipeint, uint256 value) internal {
-        Account storage sp_account = s_accounts[recipeint];
+    function _acceptTokens(address recipient, uint256 value) internal {
+        Account storage sp_account = s_accounts[recipient];
         uint256 pending = sp_account.pending;
         require(pending > 0, "no pending tokens");
         require(pending == value, "value must equal issued tokens");
@@ -146,7 +153,7 @@ contract Pool is Claimable {
         Account storage sp_account = s_accounts[from]; 
         require(sp_account.balance >= value, "account balnace too low");
         return abi.encodePacked(
-            address(this),
+            s_uid,
             this.generatePaymentMessage.selector,
             from,
             value,
@@ -178,23 +185,23 @@ contract Pool is Claimable {
         emit Payment(from, value);
     }
 
-    function generateAcceptTokensMessage(address recipeint, uint256 value, bytes32 secretHash)
+    function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
         public view 
         returns (bytes memory)
     {
-        require(s_accounts[recipeint].secretHash == secretHash, "wrong secret hash");
-        require(s_accounts[recipeint].pending == value, "value must equal pending(issued tokens)");
+        require(s_accounts[recipient].secretHash == secretHash, "wrong secret hash");
+        require(s_accounts[recipient].pending == value, "value must equal pending(issued tokens)");
         return abi.encodePacked(
-            address(this),
+            s_uid,
             this.generateAcceptTokensMessage.selector,
-            recipeint,
+            recipient,
             value,
             secretHash
         );
     }
 
     function validateAcceptTokens(
-        address recipeint,
+        address recipient,
         uint256 value,
         bytes32 secretHash,
         uint8 v,
@@ -205,14 +212,14 @@ contract Pool is Claimable {
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            keccak256(generateAcceptTokensMessage(recipeint, value, secretHash))
+            keccak256(generateAcceptTokensMessage(recipient, value, secretHash))
         );
         address addr = ecrecover(message, v, r, s);
-        return addr == recipeint;
+        return addr == recipient;
     }
 
     function executeAcceptTokens(
-        address recipeint,
+        address recipient,
         uint256 value,
         bytes calldata c_secret,
         uint8 v,
@@ -222,13 +229,13 @@ contract Pool is Claimable {
         public 
         onlyAdmins()
     {
-        require(s_accounts[recipeint].secretHash == keccak256(c_secret), "wrong secret");
+        require(s_accounts[recipient].secretHash == keccak256(c_secret), "wrong secret");
         require(
-            validateAcceptTokens(recipeint, value, keccak256(c_secret), v, r ,s),
+            validateAcceptTokens(recipient, value, keccak256(c_secret), v, r ,s),
             "wrong signature or data"
         );
-        _acceptTokens(recipeint, value);
-        emit TokensAccepted(recipeint, false);
+        _acceptTokens(recipient, value);
+        emit TokensAccepted(recipient, false);
     }
 
     function setManager(address manager) public onlyOwner() {

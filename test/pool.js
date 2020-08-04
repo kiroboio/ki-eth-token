@@ -13,23 +13,40 @@ const getPrivateKey = (address) => {
   return `0x${wallet._privKey.toString('hex')}`
 }
 
+// const parseAcceptTokensMessage = (message) => {
+//   return {
+//     pool: message.slice(2,42),
+//     selector: message.slice(42, 42+8),
+//     from: message.slice(50, 50+40),
+//     value: message.slice(90, 90+64),
+//     secretHash: message.slice(154, 154+64)  
+//   }
+// }
+
 const parseAcceptTokensMessage = (message) => {
   return {
-    pool: message.slice(2,42),
-    selector: message.slice(42, 42+8),
-    from: message.slice(50, 50+40),
-    value: message.slice(90, 90+64),
-    secretHash: message.slice(154, 154+64)  
+    version: message.slice(2, 2+2),
+    uid: message.slice(4, 4+22),
+    pool: message.slice(26,26+40),
+    selector: message.slice(66, 66+8),
+    from: message.slice(74, 74+40),
+    value: message.slice(114, 114+64),
+    secretHash: message.slice(178, 178+64),
+    taIL: message.slice(242)
   }
 }
 
+
 const parsePaymentMessage = (message) => {
   return {
-    pool: message.slice(2,42),
-    selector: message.slice(42, 42+8),
-    from: message.slice(50, 50+40),
-    value: message.slice(90, 90+64),
-    nonce: message.slice(154, 154+64)  
+    version: message.slice(2, 2+2),
+    uid: message.slice(4, 4+22),
+    pool: message.slice(26,26+40),
+    selector: message.slice(66, 66+8),
+    from: message.slice(74, 74+40),
+    value: message.slice(114, 114+64),
+    nonce: message.slice(178, 178+64),
+    tail: message.slice(242)
   }
 }
 
