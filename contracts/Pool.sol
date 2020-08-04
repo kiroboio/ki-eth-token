@@ -28,12 +28,6 @@ contract Pool is Claimable {
 
     mapping(address => Account) s_accounts;
 
-    constructor(address tokenContract) public {
-        s_tokenContract = tokenContract;
-        s_releaseDelay = 240;
-        s_maxTokensPerIssueCall = 10000;
-    }
-
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);
     event Payment(address indexed account, uint256 value);
@@ -49,6 +43,12 @@ contract Pool is Claimable {
         _;
     }
 
+    constructor(address tokenContract) public {
+        s_tokenContract = tokenContract;
+        s_releaseDelay = 240;
+        s_maxTokensPerIssueCall = 10000;
+    }
+
     function setReleaseDelay(uint256 blocks) public onlyOwner() {
         require(blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
         s_releaseDelay = blocks;
@@ -58,6 +58,13 @@ contract Pool is Claimable {
         s_maxTokensPerIssueCall = tokens;
     }
 
+    /**
+     * @dev Issueing tokens for an address to be used for payments.
+     * The owner of the receiving address must accept via a signed message or a direct call.
+     * @param to The tokens recipeint. 
+     * @param value The number of tokens to issue.
+     * @param secretHash The keccak256 of the confirmation secret.
+    */
     function issueTokens(address to, uint256 value, bytes32 secretHash) public onlyAdmins() {
         require(value <= availableSupply(), "not enough available tokens");
         require(value <= s_maxTokensPerIssueCall, "amount exeed max tokens per call");
@@ -124,7 +131,10 @@ contract Pool is Claimable {
         return s_accounts[account].balance; 
     }
 
-    function generatePaymentMessage(address from, uint256 value) public view returns (bytes memory) {
+    function generatePaymentMessage(address from, uint256 value)
+        public view
+        returns (bytes memory)
+    {
         Account storage sp_account = s_accounts[from]; 
         require(sp_account.balance >= value, "account balnace too low");
         return abi.encodePacked(
@@ -136,13 +146,21 @@ contract Pool is Claimable {
         );
     }
 
-    function validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generatePaymentMessage(from, value)));
+    function validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+        public view 
+        returns (bool)
+    {
+        bytes32 message  = _messageToRecover(
+            keccak256(generatePaymentMessage(from, value))
+        );
         address addr = ecrecover(message, v, r, s);
         return addr == from;      
     }
 
-    function executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s) public onlyAdmins() {
+    function executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+        public
+        onlyAdmins()
+    {
         require(validatePayment(from, value, v, r, s), "wrong signature or data");
         Account storage sp_account = s_accounts[from];
         require(sp_account.nonce != block.timestamp, "too soon");
@@ -152,7 +170,10 @@ contract Pool is Claimable {
         emit Payment(from, value);
     }
 
-    function generateAcceptTokensMessage(address recipeint, uint256 value, bytes32 secretHash) public view returns (bytes memory) {
+    function generateAcceptTokensMessage(address recipeint, uint256 value, bytes32 secretHash)
+        public view 
+        returns (bytes memory)
+    {
         require(s_accounts[recipeint].secret == secretHash, "wrong secret hash");
         require(s_accounts[recipeint].pending == value, "value must equal pending(issued tokens)");
         return abi.encodePacked(
@@ -164,15 +185,40 @@ contract Pool is Claimable {
         );
     }
 
-    function validateAcceptTokens(address recipeint, uint256 value, bytes32 secretHash, uint8 v, bytes32 r, bytes32 s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(recipeint, value, secretHash)));
+    function validateAcceptTokens(
+        address recipeint,
+        uint256 value,
+        bytes32 secretHash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public view 
+        returns (bool)
+    {
+        bytes32 message = _messageToRecover(
+            keccak256(generateAcceptTokensMessage(recipeint, value, secretHash))
+        );
         address addr = ecrecover(message, v, r, s);
         return addr == recipeint;
     }
 
-    function executeAcceptTokens(address recipeint, uint256 value, bytes calldata c_secret, uint8 v, bytes32 r, bytes32 s) public onlyAdmins() {
+    function executeAcceptTokens(
+        address recipeint,
+        uint256 value,
+        bytes calldata c_secret,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public 
+        onlyAdmins()
+    {
         require(s_accounts[recipeint].secret == keccak256(c_secret), "wrong secret");
-        require(validateAcceptTokens(recipeint, value, keccak256(c_secret), v, r ,s), "wrong signature or data");
+        require(
+            validateAcceptTokens(recipeint, value, keccak256(c_secret), v, r ,s),
+            "wrong signature or data"
+        );
         _acceptTokens(recipeint, value);
         emit TokensAccepted(recipeint, false);
     }
@@ -190,7 +236,10 @@ contract Pool is Claimable {
     }
 
     function deposit(uint256 value) public {
-        require(ERC20(s_tokenContract).allowance(msg.sender, address(this)) >= value, "ERC20 allowance too low");
+        require(
+            ERC20(s_tokenContract).allowance(msg.sender, address(this)) >= value,
+            "ERC20 allowance too low"
+        );
         ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
         s_accounts[msg.sender].balance += value;
         s_minSupply += value;
@@ -224,7 +273,9 @@ contract Pool is Claimable {
         emit Withdrawal(msg.sender, value);
     }
 
-    function _messageToRecover(bytes32 hashedUnsignedMessage) private pure returns (bytes32)
+    function _messageToRecover(bytes32 hashedUnsignedMessage)
+        private pure 
+        returns (bytes32)
     {
         bytes memory unsignedMessageBytes = _hashToAscii(
             hashedUnsignedMessage
