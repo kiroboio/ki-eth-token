@@ -34,6 +34,16 @@ contract Pool is Claimable {
         maxTokensPerIssueCall = 10000;
     }
 
+    event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
+    event TokensAccepted(address indexed account, bool directCall);
+    event Payment(address indexed account, uint256 value);
+    event Deposit(address indexed account, uint256 value);
+    event WithdrawalRequested(address indexed account, uint256 value);
+    event WithdrawalCanceled(address indexed account);
+    event Withdrawal(address indexed account, uint256 value);
+    event EtherTransfered(address indexed to, uint256 value);
+    event TokensTransfered(address indexed to, uint256 value);
+
     modifier onlyAdmins() {
         require(msg.sender == owner || msg.sender == manager, "not owner or manager");
         _;
@@ -48,31 +58,38 @@ contract Pool is Claimable {
         maxTokensPerIssueCall = _tokens;
     }
 
-    function issueTokens(address _to, uint256 _amount, bytes32 _secretHash) public onlyAdmins() {
-        require(_amount <= availableSupply(), "not enough available tokens");
-        require(_amount <= maxTokensPerIssueCall, "amount exeed max tokens per call");
+    function issueTokens(address _to, uint256 _value, bytes32 _secretHash) public onlyAdmins() {
+        require(_value <= availableSupply(), "not enough available tokens");
+        require(_value <= maxTokensPerIssueCall, "amount exeed max tokens per call");
         uint256 _currentAmount = accounts[_to].pending;
         accounts[_to].secret = _secretHash;
-        if (_currentAmount > _amount) {
-            accounts[_to].pending = _amount;
-            pendingSupply += _currentAmount - _amount;
-        } else if (_currentAmount < _amount) {
-            accounts[_to].pending = _amount;
-            pendingSupply += _amount - _currentAmount;
+        if (_currentAmount > _value) {
+            accounts[_to].pending = _value;
+            pendingSupply += _currentAmount - _value;
+        } else if (_currentAmount < _value) {
+            accounts[_to].pending = _value;
+            pendingSupply += _value - _currentAmount;
         }
+        emit TokensIssued(_to, _value, _secretHash);
     }
 
-    function _acceptTokens(address _account) internal {
+    function issuedPendingTokens(address _account) public view returns (uint256) {
+        return accounts[_account].pending;
+    }
+
+    function _acceptTokens(address _account, uint256 value) internal {
         uint256 _pending = accounts[_account].pending;
         require(_pending > 0, "no pending tokens");
+        require(_pending == value, "value must equal issued tokens");
         accounts[_account].pending = 0;
         accounts[_account].balance += _pending;
         accounts[_account].secret = 0;
         pendingSupply -= _pending;
     }
 
-    function acceptTokens() public {
-        _acceptTokens(msg.sender);
+    function acceptTokens(uint256 _value) public {
+        _acceptTokens(msg.sender, _value);
+        emit TokensAccepted(msg.sender, true);
     }
 
     function setEtherWallet(address payable _etherWallet) public onlyOwner() {
@@ -86,12 +103,14 @@ contract Pool is Claimable {
     function transferEther(uint256 _value) public onlyAdmins() {
         require(etherWallet != address(0), "ether wallet not set");
         etherWallet.transfer(_value);
+        emit EtherTransfered(etherWallet, _value);
     }
 
     function transferTokens(uint256 _value) public onlyAdmins() {
         require(tokenWallet != address(0), "token wallet not set");
         require(_value <= availableSupply(), "value larget than available tokens");
         ERC20(tokenContract).transfer(tokenWallet, _value);
+        emit TokensTransfered(tokenWallet, _value);
     }
 
     function accountNonce(address _account) public view returns (uint256) {
@@ -106,48 +125,66 @@ contract Pool is Claimable {
         Account memory _account = accounts[_from]; 
         require(_account.balance >= _value, "account balnace too low");
         return abi.encodePacked(
-                uint8(0x2),
-                this,
-                uint32(_account.nonce),
-                _from,
-                _value
+            address(this),
+            this.generatePaymentMessage.selector,
+            _from,
+            _value,
+            _account.nonce
         );
+        // return abi.encodePacked(
+        //         uint8(0x02),
+        //         this,
+        //         _account.nonce,
+        //         _from,
+        //         _value
+        // );
     }
 
-    function validatePaymentMessage(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+    function validatePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
         bytes32 message  = _messageToRecover(keccak256(generatePaymentMessage(_from, _value)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _from;      
     }
 
-    function payment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        require(validatePaymentMessage(_from, _value, _v, _r, _s), "wrong signature or data");
+    function executePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+        require(validatePayment(_from, _value, _v, _r, _s), "wrong signature or data");
         require(accounts[_from].nonce != block.timestamp, "too soon");
         accounts[_from].nonce = block.timestamp;
-        accounts[_from]. balance -= _value;
+        accounts[_from].balance -= _value;
         minSupply -= _value;
+        emit Payment(_from, _value);
     }
 
-    function generateAcceptTokensMessage(address _for, bytes32 _secretHash) public view returns (bytes memory) {
+    function generateAcceptTokensMessage(address _for, uint256 _value, bytes32 _secretHash) public view returns (bytes memory) {
         require(accounts[_for].secret == _secretHash, "wrong secret hash");
-        return  abi.encodePacked(
-                uint8(0x1),
-                this,
-                _secretHash,
-                _for
+        require(accounts[_for].pending == _value, "value must equal pending(issued tokens)");
+        return abi.encodePacked(
+            address(this),
+            this.generateAcceptTokensMessage.selector,
+            _for,
+            _value,
+            _secretHash
         );
+        // return  abi.encodePacked(
+        //         uint(0x01),
+        //         this,
+        //         _secretHash,
+        //         _value,
+        //         _for
+        // );
     }
 
-    function validateAcceptTokensMessage(address _for, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _secretHash)));
+    function validateAcceptTokens(address _for, uint256 _value, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _value, _secretHash)));
         address addr = ecrecover(message, _v, _r, _s);
         return addr == _for;
     }
 
-    function acceptTokens(address _for, bytes memory _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
+    function executeAcceptTokens(address _for, uint256 _value, bytes calldata _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
         require(accounts[_for].secret == keccak256(_secret), "wrong secret");
-        require(validateAcceptTokensMessage(_for, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
-        _acceptTokens(_for);
+        require(validateAcceptTokens(_for, _value, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
+        _acceptTokens(_for, _value);
+        emit TokensAccepted(_for, false);
     }
 
     function setManager(address _manager) public onlyOwner() {
@@ -162,23 +199,26 @@ contract Pool is Claimable {
         return ERC20(tokenContract).balanceOf(address(this)) - minSupply - pendingSupply;
     }
 
-    function deposit(uint256 value) public {
-        require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= value, "ERC20 allowance too low");
-        ERC20(tokenContract).transferFrom(msg.sender, address(this), value);
-        accounts[msg.sender].balance += value;
-        minSupply += value;
+    function deposit(uint256 _value) public {
+        require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= _value, "ERC20 allowance too low");
+        ERC20(tokenContract).transferFrom(msg.sender, address(this), _value);
+        accounts[msg.sender].balance += _value;
+        minSupply += _value;
+        emit Deposit(msg.sender, _value);
     }
 
-    function postWithdraw(uint256 value) public {
-        require(accounts[msg.sender].balance >= value, "not enough tokens");
-        require(value > 0, "cannot withdraw");
-        accounts[msg.sender].withdraw = value;
+    function requestWithdrawal(uint256 _value) public {
+        require(accounts[msg.sender].balance >= _value, "not enough tokens");
+        require(_value > 0, "cannot withdraw");
+        accounts[msg.sender].withdraw = _value;
         accounts[msg.sender].release = block.number + 240;
+        emit WithdrawalRequested(msg.sender, _value);
     }
 
-    function cancelWithdraw() public {
+    function cancelWithdrawal() public {
         accounts[msg.sender].withdraw = 0;
         accounts[msg.sender].release = 0;
+        emit WithdrawalCanceled(msg.sender);
     }
 
     function withdraw() public {
@@ -190,6 +230,7 @@ contract Pool is Claimable {
         accounts[msg.sender].balance -= value;
         minSupply -= value;
         ERC20(tokenContract).transfer(msg.sender, value);
+        emit Withdrawal(msg.sender, value);
     }
 
     function _messageToRecover(bytes32 hashedUnsignedMessage) private pure returns (bytes32)

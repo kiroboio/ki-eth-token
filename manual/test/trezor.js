@@ -146,7 +146,7 @@ contract("Trezor Test", async (accounts) => {
     // mlog.log("validating", `v is ${v} r is ${"0x" + r} s is ${"0x" + s}`);
 
     // assert(
-    //   await pool.validateAcceptTokensMessage(
+    //   await pool.validateAcceptTokens(
     //     address,
     //     200,
     //     v,
