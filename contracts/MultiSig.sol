@@ -60,7 +60,11 @@ abstract contract MultiSig {
       s_action.owner = address(0);
     }
 
-    function replaceOwner(address owner, address newOwner) public notSender(owner) multiSig2of3(0) {
+    function replaceOwner(address owner, address newOwner)
+      public 
+      notSender(owner)
+      multiSig2of3(0)
+    {
       require(s_owners[owner] == true, 'owner should exist');
       require(s_owners[newOwner] == false, 'new owner should not exist');
       s_owners[owner] = false;
