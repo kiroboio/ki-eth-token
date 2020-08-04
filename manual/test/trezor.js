@@ -22,6 +22,7 @@ const {
 } = require("../../test/lib/utils");
 
 const { hashMessage } = require('../../test/lib/hash');
+const { assert } = require("console");
 
 contract("Trezor Test", async (accounts) => {
 
@@ -117,7 +118,7 @@ contract("Trezor Test", async (accounts) => {
     mlog.log("toSign", toSign);
     trzMessage = toSign;
 
-    mlog.log('Click "Sign" in the browser');
+    mlog.log('Click "Sign Accept Tokens" in the browser');
     await pollCondition(() => (trzSignedMessage !== undefined), 200);
 
     mlog.log('signed Trezor manual', JSON.stringify(trzSignedMessage));
@@ -125,14 +126,6 @@ contract("Trezor Test", async (accounts) => {
     const r = "0x" + trzSignedMessage.substring(0, 64);
     const s = "0x" + trzSignedMessage.substring(64, 128);
     const v = "0x" + trzSignedMessage.substring(128, 130);
-
-    const hashedToSign = hashMessage(toSign);
-
-    const recovered = web3.eth.accounts.recover({
-      messageHash: hashedToSign,
-      v, r, s,
-    })
-    mlog.log("Recovered Trezor address", recovered);
 
     mlog.log("validating", `v is ${v} r is ${r} s is ${s}`);
 
@@ -147,6 +140,41 @@ contract("Trezor Test", async (accounts) => {
       "invalid ledger signature"
     );
     await pool.executeAcceptTokens(trzAddress, tokens, Buffer.from(secret), v, r, s, { from: poolOwner });
+    trzSignedMessage = undefined;
+  });
+
+  it('should be able to generate,validate & execute "payment" message', async () => {
+    assert(trzAddress, 'trzAddress must be sent from the browser');
+    mlog.log("trezor address", trzAddress);
+    await token.mint(trzAddress, val1, { from: tokenOwner })
+    const message = await pool.generatePaymentMessage(trzAddress, 200, { from: poolOwner })
+    mlog.log('message: ', message)
+
+    mlog.log("sha3(message)", web3.utils.sha3(message));
+
+    const toSign = Buffer.from(web3.utils.sha3(message).slice(2)).toString('hex');
+    trzMessage = toSign;
+    mlog.log("toSign", toSign);
+
+    await pollCondition(() => (trzSignedMessage !== undefined), 200);
+
+    mlog.log('signed Trezor manual', JSON.stringify(trzSignedMessage));
+
+    const r = "0x" + trzSignedMessage.substring(0, 64);
+    const s = "0x" + trzSignedMessage.substring(64, 128);
+    const v = "0x" + trzSignedMessage.substring(128, 130);
+
+    mlog.log("validating", `v is ${v} r is ${r} s is ${s}`);
+
+    assert(
+      await pool.validatePayment(
+        trzAddress,
+        200,
+        v, r, s,
+        { from: trzAddress }
+      ),
+      "invalid ledger signature"
+    );
   });
 
 });
