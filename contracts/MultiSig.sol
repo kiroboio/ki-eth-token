@@ -3,7 +3,7 @@
 pragma solidity 0.6.12;
 
 abstract contract MultiSig {
-    mapping(address => bool) owners;
+    mapping(address => bool) s_owners;
 
     struct Action {
         address owner;
@@ -11,7 +11,7 @@ abstract contract MultiSig {
         bytes   data;
     }
 
-    Action private action;
+    Action private s_action;
 
     constructor(address owner1, address owner2, address owner3) public {
 
@@ -23,47 +23,51 @@ abstract contract MultiSig {
         require(owner2 != owner3, "owner2 cannot be owner3");
         require(owner1 != owner3, "owner1 cannot be owner3");
 
-        owners[owner1] = true;
-        owners[owner2] = true;
-        owners[owner3] = true;
+        s_owners[owner1] = true;
+        s_owners[owner2] = true;
+        s_owners[owner3] = true;
     }
 
-    modifier notSender (address _addr) {
-      require(_addr != msg.sender, "sender address not allowed");
+    modifier notSender (address addr) {
+      require(addr != msg.sender, "sender address not allowed");
       _;
     }
 
-    modifier multiSig2of3 (uint256 _value) {
-      require(owners[msg.sender], 'only owners');
+    modifier multiSig2of3 (uint256 value) {
+      require(s_owners[msg.sender], 'only owners');
 
-      if (action.owner == address(0)) {
-          action.owner = msg.sender;
-          action.data = msg.data;
-          action.value = _value;
+      if (s_action.owner == address(0)) {
+          s_action.owner = msg.sender;
+          s_action.data = msg.data;
+          s_action.value = value;
           return;
       }
 
-      require(action.owner != msg.sender, 'same owner cannot sign twice');
-      require(action.value == _value, 'must sign the same value');
-      require(keccak256(action.data) == keccak256(msg.data), 'must sign the same data');
+      require(s_action.owner != msg.sender, 'same owner cannot sign twice');
+      require(s_action.value == value, 'must sign the same value');
+      require(keccak256(s_action.data) == keccak256(msg.data), 'must sign the same data');
 
-      action.owner = address(0);
+      s_action.owner = address(0);
       _;
     }
 
     function isOwner() public view returns (bool) {
-      return owners[msg.sender];
+      return s_owners[msg.sender];
     }
 
     function cancel() public {
-      require(owners[msg.sender], 'only owners');
-      action.owner = address(0);
+      require(s_owners[msg.sender], 'only owners');
+      s_action.owner = address(0);
     }
 
-    function replaceOwner(address _owner, address _newOwner) public notSender(_owner) multiSig2of3(0) {
-      require(owners[_owner] == true, 'owner should exist');
-      require(owners[_newOwner] == false, 'new owner should not exist');
-      owners[_owner] = false;
-      owners[_newOwner] = true;
+    function replaceOwner(address owner, address newOwner)
+      public 
+      notSender(owner)
+      multiSig2of3(0)
+    {
+      require(s_owners[owner] == true, 'owner should exist');
+      require(s_owners[newOwner] == false, 'new owner should not exist');
+      s_owners[owner] = false;
+      s_owners[newOwner] = true;
     }
 }

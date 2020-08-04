@@ -5,43 +5,57 @@ pragma solidity 0.6.12;
 import "./MultiSig.sol";
 
 contract Wallet is MultiSig {
-    address target;
+    address s_target;
 
     event Received(address indexed from, uint256 value);
     event Transfered(address indexed to, uint256 value);
 
-    function setOwnTarget_(address _target) public multiSig2of3(0) {
-        target = _target;
-    }
-
-    function getOwnTarget_() public view returns (address) {
-        return target;
-    }
-
-    fallback () external payable multiSig2of3(msg.value) {
-        require(target != address(0), "no target");
-
-        // solium-disable-next-line security/no-inline-assembly
-        assembly {
-                calldatacopy(0x00, 0x00, calldatasize())
-                let res := call(gas(), sload(target_slot), callvalue(), 0x00, calldatasize(), 0, 0)
-                returndatacopy(0x00, 0x00, returndatasize())
-                if res { return(0x00, returndatasize()) }
-                revert(0x00, returndatasize())
-            }
+    constructor(address owner1, address owner2, address owner3)
+        MultiSig(owner1, owner2, owner3)
+        public
+    {
     }
 
     receive () external payable {
         emit Received(msg.sender, msg.value);
     }
 
-    function transferOwnEther_(address payable _to, uint256 _value) public payable multiSig2of3(msg.value) {
-        _to.transfer(_value);
-        emit Transfered(_to, _value);
+    fallback () external payable multiSig2of3(msg.value) {
+        require(s_target != address(0), "no target");
+
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+                calldatacopy(0x00, 0x00, calldatasize())
+                let res := call(
+                    gas(),
+                    sload(s_target_slot),
+                    callvalue(),
+                    0x00,
+                    calldatasize(),
+                    0,
+                    0
+                )
+                returndatacopy(0x00, 0x00, returndatasize())
+                if res { return(0x00, returndatasize()) }
+                revert(0x00, returndatasize())
+            }
     }
 
-    constructor(address owner1, address owner2, address owner3) MultiSig(owner1, owner2, owner3) public {
+    function transferOwnEther_(address payable to, uint256 value) 
+        public 
+        payable 
+        multiSig2of3(msg.value)
+    {
+        to.transfer(value);
+        emit Transfered(to, value);
     }
 
+    function setOwnTarget_(address target) public multiSig2of3(0) {
+        s_target = target;
+    }
+
+    function getOwnTarget_() public view returns (address) {
+        return s_target;
+    }
   
 }

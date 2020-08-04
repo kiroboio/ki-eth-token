@@ -8,14 +8,14 @@ contract Pool is Claimable {
 
     uint256 constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
-    address tokenContract;
-    uint256 minSupply;
-    uint256 pendingSupply;
-    address manager;
-    address payable etherWallet;
-    address tokenWallet;
-    uint256 releaseDelay;
-    uint256 maxTokensPerIssueCall;
+    address s_tokenContract;
+    uint256 s_minSupply;
+    uint256 s_pendingSupply;
+    address s_manager;
+    address payable s_etherWallet;
+    address s_tokenWallet;
+    uint256 s_releaseDelay;
+    uint256 s_maxTokensPerIssueCall;
 
     struct Account {
         uint256 nonce;  
@@ -26,13 +26,7 @@ contract Pool is Claimable {
         bytes32 secret;
     }
 
-    mapping(address => Account) accounts;
-
-    constructor(address _tokenContract) public {
-        tokenContract = _tokenContract;
-        releaseDelay = 240;
-        maxTokensPerIssueCall = 10000;
-    }
+    mapping(address => Account) s_accounts;
 
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);
@@ -45,195 +39,243 @@ contract Pool is Claimable {
     event TokensTransfered(address indexed to, uint256 value);
 
     modifier onlyAdmins() {
-        require(msg.sender == owner || msg.sender == manager, "not owner or manager");
+        require(msg.sender == owner || msg.sender == s_manager, "not owner or manager");
         _;
     }
 
-    function setReleaseDelay(uint256 _blocks) public onlyOwner() {
-        require(_blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
-        releaseDelay = _blocks;
+    constructor(address tokenContract) public {
+        s_tokenContract = tokenContract;
+        s_releaseDelay = 240;
+        s_maxTokensPerIssueCall = 10000;
     }
 
-    function setMaxTokensPerIssueCall(uint256 _tokens) public onlyOwner() {
-        maxTokensPerIssueCall = _tokens;
+    function setReleaseDelay(uint256 blocks) public onlyOwner() {
+        require(blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
+        s_releaseDelay = blocks;
     }
 
-    function issueTokens(address _to, uint256 _value, bytes32 _secretHash) public onlyAdmins() {
-        require(_value <= availableSupply(), "not enough available tokens");
-        require(_value <= maxTokensPerIssueCall, "amount exeed max tokens per call");
-        uint256 _currentAmount = accounts[_to].pending;
-        accounts[_to].secret = _secretHash;
-        if (_currentAmount > _value) {
-            accounts[_to].pending = _value;
-            pendingSupply += _currentAmount - _value;
-        } else if (_currentAmount < _value) {
-            accounts[_to].pending = _value;
-            pendingSupply += _value - _currentAmount;
+    function setMaxTokensPerIssueCall(uint256 tokens) public onlyOwner() {
+        s_maxTokensPerIssueCall = tokens;
+    }
+
+    /**
+     * @dev Issueing tokens for an address to be used for payments.
+     * The owner of the receiving address must accept via a signed message or a direct call.
+     * @param to The tokens recipeint. 
+     * @param value The number of tokens to issue.
+     * @param secretHash The keccak256 of the confirmation secret.
+    */
+    function issueTokens(address to, uint256 value, bytes32 secretHash) public onlyAdmins() {
+        require(value <= availableSupply(), "not enough available tokens");
+        require(value <= s_maxTokensPerIssueCall, "amount exeed max tokens per call");
+        Account storage sp_account = s_accounts[to];
+        uint256 currentAmount = sp_account.pending;
+        sp_account.secret = secretHash;
+        if (currentAmount > value) {
+            sp_account.pending = value;
+            s_pendingSupply += currentAmount - value;
+        } else if (currentAmount < value) {
+            sp_account.pending = value;
+            s_pendingSupply += value - currentAmount;
         }
-        emit TokensIssued(_to, _value, _secretHash);
+        emit TokensIssued(to, value, secretHash);
     }
 
-    function issuedPendingTokens(address _account) public view returns (uint256) {
-        return accounts[_account].pending;
+
+    function issuedPendingTokens(address account) public view returns (uint256) {
+        return s_accounts[account].pending;
     }
 
-    function _acceptTokens(address _account, uint256 value) internal {
-        uint256 _pending = accounts[_account].pending;
-        require(_pending > 0, "no pending tokens");
-        require(_pending == value, "value must equal issued tokens");
-        accounts[_account].pending = 0;
-        accounts[_account].balance += _pending;
-        accounts[_account].secret = 0;
-        pendingSupply -= _pending;
+    function _acceptTokens(address recipeint, uint256 value) internal {
+        Account storage sp_account = s_accounts[recipeint];
+        uint256 pending = sp_account.pending;
+        require(pending > 0, "no pending tokens");
+        require(pending == value, "value must equal issued tokens");
+        sp_account.pending = 0;
+        sp_account.balance += pending;
+        sp_account.secret = 0;
+        s_pendingSupply -= pending;
     }
 
-    function acceptTokens(uint256 _value) public {
-        _acceptTokens(msg.sender, _value);
+    function acceptTokens(uint256 value) public {
+        _acceptTokens(msg.sender, value);
         emit TokensAccepted(msg.sender, true);
     }
 
-    function setEtherWallet(address payable _etherWallet) public onlyOwner() {
-        etherWallet = _etherWallet;
+    function setEtherWallet(address payable etherWallet) public onlyOwner() {
+        s_etherWallet = etherWallet;
     }
 
-    function setTokenWallet(address _tokenWallet) public onlyOwner() {
-        tokenWallet = _tokenWallet;
+    function setTokenWallet(address tokenWallet) public onlyOwner() {
+        s_tokenWallet = tokenWallet;
     }
 
-    function transferEther(uint256 _value) public onlyAdmins() {
-        require(etherWallet != address(0), "ether wallet not set");
-        etherWallet.transfer(_value);
-        emit EtherTransfered(etherWallet, _value);
+    function transferEther(uint256 value) public onlyAdmins() {
+        require(s_etherWallet != address(0), "ether wallet not set");
+        s_etherWallet.transfer(value);
+        emit EtherTransfered(s_etherWallet, value);
     }
 
-    function transferTokens(uint256 _value) public onlyAdmins() {
-        require(tokenWallet != address(0), "token wallet not set");
-        require(_value <= availableSupply(), "value larget than available tokens");
-        ERC20(tokenContract).transfer(tokenWallet, _value);
-        emit TokensTransfered(tokenWallet, _value);
+    function transferTokens(uint256 value) public onlyAdmins() {
+        require(s_tokenWallet != address(0), "token wallet not set");
+        require(value <= availableSupply(), "value larget than available tokens");
+        ERC20(s_tokenContract).transfer(s_tokenWallet, value);
+        emit TokensTransfered(s_tokenWallet, value);
     }
 
-    function accountNonce(address _account) public view returns (uint256) {
-        return accounts[_account].nonce; 
+    function accountNonce(address account) public view returns (uint256) {
+        return s_accounts[account].nonce; 
     }
 
-    function accountBalance(address _account) public view returns (uint256) {
-        return accounts[_account].balance; 
+    function accountBalance(address account) public view returns (uint256) {
+        return s_accounts[account].balance; 
     }
 
-    function generatePaymentMessage(address _from, uint256 _value) public view returns (bytes memory) {
-        Account memory _account = accounts[_from]; 
-        require(_account.balance >= _value, "account balnace too low");
+    function generatePaymentMessage(address from, uint256 value)
+        public view
+        returns (bytes memory)
+    {
+        Account storage sp_account = s_accounts[from]; 
+        require(sp_account.balance >= value, "account balnace too low");
         return abi.encodePacked(
             address(this),
             this.generatePaymentMessage.selector,
-            _from,
-            _value,
-            _account.nonce
+            from,
+            value,
+            sp_account.nonce
         );
-        // return abi.encodePacked(
-        //         uint8(0x02),
-        //         this,
-        //         _account.nonce,
-        //         _from,
-        //         _value
-        // );
     }
 
-    function validatePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generatePaymentMessage(_from, _value)));
-        address addr = ecrecover(message, _v, _r, _s);
-        return addr == _from;      
+    function validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+        public view 
+        returns (bool)
+    {
+        bytes32 message  = _messageToRecover(
+            keccak256(generatePaymentMessage(from, value))
+        );
+        address addr = ecrecover(message, v, r, s);
+        return addr == from;      
     }
 
-    function executePayment(address _from, uint256 _value, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        require(validatePayment(_from, _value, _v, _r, _s), "wrong signature or data");
-        require(accounts[_from].nonce != block.timestamp, "too soon");
-        accounts[_from].nonce = block.timestamp;
-        accounts[_from].balance -= _value;
-        minSupply -= _value;
-        emit Payment(_from, _value);
+    function executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+        public
+        onlyAdmins()
+    {
+        require(validatePayment(from, value, v, r, s), "wrong signature or data");
+        Account storage sp_account = s_accounts[from];
+        require(sp_account.nonce != block.timestamp, "too soon");
+        sp_account.nonce = block.timestamp;
+        sp_account.balance -= value;
+        s_minSupply -= value;
+        emit Payment(from, value);
     }
 
-    function generateAcceptTokensMessage(address _for, uint256 _value, bytes32 _secretHash) public view returns (bytes memory) {
-        require(accounts[_for].secret == _secretHash, "wrong secret hash");
-        require(accounts[_for].pending == _value, "value must equal pending(issued tokens)");
+    function generateAcceptTokensMessage(address recipeint, uint256 value, bytes32 secretHash)
+        public view 
+        returns (bytes memory)
+    {
+        require(s_accounts[recipeint].secret == secretHash, "wrong secret hash");
+        require(s_accounts[recipeint].pending == value, "value must equal pending(issued tokens)");
         return abi.encodePacked(
             address(this),
             this.generateAcceptTokensMessage.selector,
-            _for,
-            _value,
-            _secretHash
+            recipeint,
+            value,
+            secretHash
         );
-        // return  abi.encodePacked(
-        //         uint(0x01),
-        //         this,
-        //         _secretHash,
-        //         _value,
-        //         _for
-        // );
     }
 
-    function validateAcceptTokens(address _for, uint256 _value, bytes32 _secretHash, uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
-        bytes32 message  = _messageToRecover(keccak256(generateAcceptTokensMessage(_for, _value, _secretHash)));
-        address addr = ecrecover(message, _v, _r, _s);
-        return addr == _for;
+    function validateAcceptTokens(
+        address recipeint,
+        uint256 value,
+        bytes32 secretHash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public view 
+        returns (bool)
+    {
+        bytes32 message = _messageToRecover(
+            keccak256(generateAcceptTokensMessage(recipeint, value, secretHash))
+        );
+        address addr = ecrecover(message, v, r, s);
+        return addr == recipeint;
     }
 
-    function executeAcceptTokens(address _for, uint256 _value, bytes calldata _secret, uint8 _v, bytes32 _r, bytes32 _s) public onlyAdmins() {
-        require(accounts[_for].secret == keccak256(_secret), "wrong secret");
-        require(validateAcceptTokens(_for, _value, keccak256(_secret), _v, _r ,_s), "wrong signature or data");
-        _acceptTokens(_for, _value);
-        emit TokensAccepted(_for, false);
+    function executeAcceptTokens(
+        address recipeint,
+        uint256 value,
+        bytes calldata c_secret,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public 
+        onlyAdmins()
+    {
+        require(s_accounts[recipeint].secret == keccak256(c_secret), "wrong secret");
+        require(
+            validateAcceptTokens(recipeint, value, keccak256(c_secret), v, r ,s),
+            "wrong signature or data"
+        );
+        _acceptTokens(recipeint, value);
+        emit TokensAccepted(recipeint, false);
     }
 
-    function setManager(address _manager) public onlyOwner() {
-        manager = _manager; 
+    function setManager(address manager) public onlyOwner() {
+        s_manager = manager; 
     }
   
     function totalSupply() view public returns (uint256) {
-        return ERC20(tokenContract).balanceOf(address(this));
+        return ERC20(s_tokenContract).balanceOf(address(this));
     }
 
     function availableSupply() view public returns (uint256) {
-        return ERC20(tokenContract).balanceOf(address(this)) - minSupply - pendingSupply;
+        return ERC20(s_tokenContract).balanceOf(address(this)) - s_minSupply - s_pendingSupply;
     }
 
-    function deposit(uint256 _value) public {
-        require(ERC20(tokenContract).allowance(msg.sender, address(this)) >= _value, "ERC20 allowance too low");
-        ERC20(tokenContract).transferFrom(msg.sender, address(this), _value);
-        accounts[msg.sender].balance += _value;
-        minSupply += _value;
-        emit Deposit(msg.sender, _value);
+    function deposit(uint256 value) public {
+        require(
+            ERC20(s_tokenContract).allowance(msg.sender, address(this)) >= value,
+            "ERC20 allowance too low"
+        );
+        ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
+        s_accounts[msg.sender].balance += value;
+        s_minSupply += value;
+        emit Deposit(msg.sender, value);
     }
 
-    function requestWithdrawal(uint256 _value) public {
-        require(accounts[msg.sender].balance >= _value, "not enough tokens");
-        require(_value > 0, "cannot withdraw");
-        accounts[msg.sender].withdraw = _value;
-        accounts[msg.sender].release = block.number + 240;
-        emit WithdrawalRequested(msg.sender, _value);
+    function requestWithdrawal(uint256 value) public {
+        require(s_accounts[msg.sender].balance >= value, "not enough tokens");
+        require(value > 0, "cannot withdraw");
+        s_accounts[msg.sender].withdraw = value;
+        s_accounts[msg.sender].release = block.number + 240;
+        emit WithdrawalRequested(msg.sender, value);
     }
 
     function cancelWithdrawal() public {
-        accounts[msg.sender].withdraw = 0;
-        accounts[msg.sender].release = 0;
+        s_accounts[msg.sender].withdraw = 0;
+        s_accounts[msg.sender].release = 0;
         emit WithdrawalCanceled(msg.sender);
     }
 
     function withdraw() public {
-        require(accounts[msg.sender].release > 0, "no withdraw request");
-        require(accounts[msg.sender].release < block.number, "too soon");
-        uint256 value = accounts[msg.sender].withdraw;
-        accounts[msg.sender].withdraw = 0;
-        accounts[msg.sender].release = 0;
-        accounts[msg.sender].balance -= value;
-        minSupply -= value;
-        ERC20(tokenContract).transfer(msg.sender, value);
+        Account storage sp_account = s_accounts[msg.sender];   
+        require(sp_account.release > 0, "no withdraw request");
+        require(sp_account.release < block.number, "too soon");
+        uint256 value = sp_account.withdraw;
+        sp_account.withdraw = 0;
+        sp_account.release = 0;
+        sp_account.balance -= value;
+        s_minSupply -= value;
+        ERC20(s_tokenContract).transfer(msg.sender, value);
         emit Withdrawal(msg.sender, value);
     }
 
-    function _messageToRecover(bytes32 hashedUnsignedMessage) private pure returns (bytes32)
+    function _messageToRecover(bytes32 hashedUnsignedMessage)
+        private pure 
+        returns (bytes32)
     {
         bytes memory unsignedMessageBytes = _hashToAscii(
             hashedUnsignedMessage
