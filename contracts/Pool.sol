@@ -23,7 +23,7 @@ contract Pool is Claimable {
         uint256 pending;
         uint256 withdraw;
         uint256 release;
-        bytes32 secret;
+        bytes32 secretHash;
     }
 
     mapping(address => Account) s_accounts;
@@ -49,6 +49,27 @@ contract Pool is Claimable {
         s_maxTokensPerIssueCall = 10000;
     }
 
+    function account(address addr) public view
+        returns (
+            uint256 nonce,  
+            uint256 balance,
+            uint256 pending,
+            uint256 withdraw,
+            uint256 release,
+            bytes32 secretHash
+        ) 
+    {
+        Account storage sp_account = s_accounts[addr];
+        return (
+            sp_account.nonce,
+            sp_account.balance,
+            sp_account.pending,
+            sp_account.withdraw,
+            sp_account.release,
+            sp_account.secretHash
+        );
+    }
+
     function setReleaseDelay(uint256 blocks) public onlyOwner() {
         require(blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
         s_releaseDelay = blocks;
@@ -70,7 +91,7 @@ contract Pool is Claimable {
         require(value <= s_maxTokensPerIssueCall, "amount exeed max tokens per call");
         Account storage sp_account = s_accounts[to];
         uint256 currentAmount = sp_account.pending;
-        sp_account.secret = secretHash;
+        sp_account.secretHash = secretHash;
         if (currentAmount > value) {
             sp_account.pending = value;
             s_pendingSupply += currentAmount - value;
@@ -81,11 +102,6 @@ contract Pool is Claimable {
         emit TokensIssued(to, value, secretHash);
     }
 
-
-    function issuedPendingTokens(address account) public view returns (uint256) {
-        return s_accounts[account].pending;
-    }
-
     function _acceptTokens(address recipeint, uint256 value) internal {
         Account storage sp_account = s_accounts[recipeint];
         uint256 pending = sp_account.pending;
@@ -93,7 +109,7 @@ contract Pool is Claimable {
         require(pending == value, "value must equal issued tokens");
         sp_account.pending = 0;
         sp_account.balance += pending;
-        sp_account.secret = 0;
+        sp_account.secretHash = 0;
         s_pendingSupply -= pending;
     }
 
@@ -121,14 +137,6 @@ contract Pool is Claimable {
         require(value <= availableSupply(), "value larget than available tokens");
         ERC20(s_tokenContract).transfer(s_tokenWallet, value);
         emit TokensTransfered(s_tokenWallet, value);
-    }
-
-    function accountNonce(address account) public view returns (uint256) {
-        return s_accounts[account].nonce; 
-    }
-
-    function accountBalance(address account) public view returns (uint256) {
-        return s_accounts[account].balance; 
     }
 
     function generatePaymentMessage(address from, uint256 value)
@@ -174,7 +182,7 @@ contract Pool is Claimable {
         public view 
         returns (bytes memory)
     {
-        require(s_accounts[recipeint].secret == secretHash, "wrong secret hash");
+        require(s_accounts[recipeint].secretHash == secretHash, "wrong secret hash");
         require(s_accounts[recipeint].pending == value, "value must equal pending(issued tokens)");
         return abi.encodePacked(
             address(this),
@@ -214,7 +222,7 @@ contract Pool is Claimable {
         public 
         onlyAdmins()
     {
-        require(s_accounts[recipeint].secret == keccak256(c_secret), "wrong secret");
+        require(s_accounts[recipeint].secretHash == keccak256(c_secret), "wrong secret");
         require(
             validateAcceptTokens(recipeint, value, keccak256(c_secret), v, r ,s),
             "wrong signature or data"
