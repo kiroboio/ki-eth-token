@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://connect.trezor.io/7/trezor-connect.js"></script>
+    <title>Trezor Test</title>
+  </head>
+  <body>
+    <script>
+      window.onload = () => {
+        TrezorConnect.manifest({
+          email: "developer@xyz.com",
+          appUrl: "http://your.application.com",
+        });
+      };
+
+      function generateAddress() {
+        window.TrezorConnect.ethereumGetAddress({
+          path: "m/44'/60'/0'/0/0",
+        }).then((response) => {
+          console.dir(response);
+          fetch(
+            `http://localhost:3000/address?address=${response.payload.address}`,
+            {
+              method: "post",
+            }
+          );
+        });
+      }
+
+      function signMessage() {
+        fetch("http://localhost:3000/message")
+          .then((res) => res.json())
+          .then(({ message }) =>
+            window.TrezorConnect.ethereumSignMessage({
+              path: "m/44'/60'/0'/0/0",
+              message,
+              hex: true,
+            })
+          )
+          .then((res) => {
+            console.dir(res);
+            fetch(`http://localhost:3000/signed?sig=${res.payload.signature}`, {
+              method: "post",
+            });
+          });
+      }
+    </script>
+    <button onclick="generateAddress()">
+      Generate Address
+    </button>
+    <button onclick="signMessage()">Sign</button>
+  </body>
+</html>

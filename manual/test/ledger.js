@@ -9,7 +9,6 @@ const Token = artifacts.require("KiroboToken");
 const mlog = require("mocha-logger");
 const hidTransport = require("@ledgerhq/hw-transport-node-hid").default;
 const App = require("@ledgerhq/hw-app-eth").default;
-const ethUtil = require("ethereumjs-util");
 
 const {
   assertRevert,
@@ -26,14 +25,8 @@ const {
 const { hashMessage } = require('../../test/lib/hash');
 
 
-const getPrivateKey = (address) => {
-  const wallet = web3.currentProvider.wallets[address.toLowerCase()]
-  return `0x${wallet._privKey.toString('hex')}`
-}
-
 contract("Ledger Test", async (accounts) => {
   let ethApp, token, pool;
-  let _web3;
 
   const tokenOwner = accounts[1];
   const poolOwner = accounts[2];
@@ -89,11 +82,12 @@ contract("Ledger Test", async (accounts) => {
 
   it("should be able to generate, validate and execute 'token accept' message", async () => {
     await token.mint(pool.address, val1, { from: tokenOwner })
-    const secret = Buffer.from("my secret")
+    const secret = "my secret";
+    const tokens = 500;
     const { address: ldgAddress } = await ethApp.getAddress(PATH);
     mlog.log("ledger address", ldgAddress);
-    await pool.issueTokens(ldgAddress, 500, web3.utils.sha3(secret), { from: poolOwner })
-    const message = await pool.generateAcceptTokensMessage(ldgAddress, web3.utils.sha3(secret), { from: poolOwner })
+    await pool.issueTokens(ldgAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
+    const message = await pool.generateAcceptTokensMessage(ldgAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
     mlog.log("message", message);
 
     const toSign = Buffer.from(web3.utils.sha3(message).slice(2)).toString('hex');
@@ -124,6 +118,7 @@ contract("Ledger Test", async (accounts) => {
     assert(
       await pool.validateAcceptTokens(
         ldgAddress,
+        tokens,
         web3.utils.sha3(secret),
         v,
         "0x" + signedLedger.r,
@@ -132,7 +127,7 @@ contract("Ledger Test", async (accounts) => {
       ),
       "invalid ledger signature"
     );
-    await pool.executeAcceptTokens(ldgAddress, secret, v, "0x" + signedLedger.r, "0x" + signedLedger.s, { from: poolOwner })
+    await pool.executeAcceptTokens(ldgAddress, tokens, Buffer.from(secret), v, "0x" + signedLedger.r, "0x" + signedLedger.s, { from: poolOwner })
   });
 
   it('should be able to generate,validate & execute "payment" message', async () => {

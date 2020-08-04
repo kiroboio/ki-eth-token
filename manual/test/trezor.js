@@ -3,7 +3,9 @@
 const Pool = artifacts.require("Pool");
 const Token = artifacts.require("KiroboToken");
 const mlog = require("mocha-logger");
-const TrezorConnect = require("trezor-connect").default;
+const express = require("express");
+const open = require("open");
+const path = require("path");
 
 const {
   assertRevert,
@@ -11,15 +13,21 @@ const {
   assertPayable,
   assetEvent_getArgs,
 } = require("../../test/lib/asserts");
+
 const {
   advanceBlock,
   advanceTime,
   advanceTimeAndBlock,
+  pollCondition,
 } = require("../../test/lib/utils");
 
+const { hashMessage } = require('../../test/lib/hash');
+
 contract("Trezor Test", async (accounts) => {
-  let ethApp, token, pool;
-  let _web3;
+
+  let token, pool;
+
+  let trzAddress, trzMessage, trzSignedMessage;
 
   const tokenOwner = accounts[1];
   const poolOwner = accounts[2];
@@ -63,13 +71,82 @@ contract("Trezor Test", async (accounts) => {
   });
 
   before("setup trezor", async () => {
-    // start a web server
-    ;
+    const app = express();
+    const port = 3000;
+
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    app.use(express.static(path.join(__dirname, 'public')))
+
+    app.listen(port, () => {
+      mlog.log(`Trezor test server listening at http://localhost:${port}`)
+    });
+
+    app.post('/address', (req, res) => {
+      mlog.log('received address', req.query.address);
+      trzAddress = req.query.address;
+    });
+
+    app.get('/message', (req, res) => {
+      mlog.log(`returning message to sign`, trzMessage);
+      res.json({ message: trzMessage });
+    });
+
+    app.post('/signed', (req, res) => {
+      mlog.log('received signed Trezor message, signature', req.query.sig)
+      trzSignedMessage = req.query.sig;
+    })
+
+    await open('http://localhost:3000/index.html', { app: ['google chrome'] });
+    mlog.log('Press "Generate Address" button in the browser');
+    await pollCondition(() => (trzAddress !== undefined), 200);
   });
 
+  it("should be able to generate, validate and execute 'token accept' message", async () => {
 
-  it("should be able to generate message", async () => {
+    await token.mint(pool.address, val1, { from: tokenOwner });
+    const secret = "my secret";
+    const tokens = 500;
+    assert(trzAddress, 'trzAddress must be sent from the browser');
+    mlog.log("trzAddress", trzAddress);
+    await pool.issueTokens(trzAddress, 500, web3.utils.sha3(secret), { from: poolOwner })
+    trzMessage = await pool.generateAcceptTokensMessage(trzAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
+    mlog.log("message", trzMessage);
 
-    assert(2 === 2);
+    const toSign = Buffer.from(web3.utils.sha3(trzMessage).slice(2)).toString('hex');
+    mlog.log("toSign", toSign);
+    trzMessage = toSign;
+
+    mlog.log('Click "Sign" in the browser');
+    await pollCondition(() => (trzSignedMessage !== undefined), 200);
+
+    mlog.log('signed Trezor manual', JSON.stringify(trzSignedMessage));
+
+    const r = "0x" + trzSignedMessage.substring(0, 64);
+    const s = "0x" + trzSignedMessage.substring(64, 128);
+    const v = "0x" + trzSignedMessage.substring(128, 130);
+
+    const hashedToSign = hashMessage(toSign);
+
+    const recovered = web3.eth.accounts.recover({
+      messageHash: hashedToSign,
+      v, r, s,
+    })
+    mlog.log("Recovered Trezor address", recovered);
+
+    mlog.log("validating", `v is ${v} r is ${r} s is ${s}`);
+
+    assert(
+      await pool.validateAcceptTokens(
+        trzAddress,
+        tokens,
+        web3.utils.sha3(secret),
+        v, r, s,
+        { from: trzAddress }
+      ),
+      "invalid ledger signature"
+    );
+    await pool.executeAcceptTokens(trzAddress, tokens, Buffer.from(secret), v, r, s, { from: poolOwner });
   });
+
 });

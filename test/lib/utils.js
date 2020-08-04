@@ -4,18 +4,18 @@ const sleep = (milliseconds) => {
   return new Promise((r, j) => setTimeout(() => { r() }, milliseconds))
 }
 
-const getLatestBlockTimestamp = async (timeUnitInSeconds=1) => {
+const getLatestBlockTimestamp = async (timeUnitInSeconds = 1) => {
   const timestamp = await new Promise(
     (r, j) => web3.eth.getBlock('latest', (err, block) => r(block.timestamp)))
-  return Math.floor(timestamp/timeUnitInSeconds)
+  return Math.floor(timestamp / timeUnitInSeconds)
 }
 
 const mine = async (account) => {
-  web3.eth.sendTransaction({ value: 0, from: account, to: account})
+  web3.eth.sendTransaction({ value: 0, from: account, to: account })
 };
 
 const isBackupActivated = async (wallet) => {
-    return (await wallet.getBackupState()).eq(await wallet.BACKUP_STATE_ACTIVATED())
+  return (await wallet.getBackupState()).eq(await wallet.BACKUP_STATE_ACTIVATED())
 }
 
 const advanceTime = (time) => { // taken from https://medium.com/fluidity/standing-the-time-of-test-b906fcc374a9
@@ -80,6 +80,17 @@ const advanceTimeAndBlock = async (time) => {
   return Promise.resolve(web3.eth.getBlock('latest'))
 }
 
+function pollCondition(cb, timeout) {
+  return new Promise(resolve => {
+    const checkCondition = () => {
+      if (cb()) resolve();
+      else setTimeout(checkCondition, timeout);
+    };
+
+    checkCondition();
+  });
+}
+
 module.exports = {
   sleep,
   getLatestBlockTimestamp,
@@ -90,4 +101,5 @@ module.exports = {
   advanceTimeAndBlock,
   takeSnapshot,
   revertToSnapShot,
+  pollCondition,
 }
