@@ -1,5 +1,9 @@
 "use strict";
 
+/**
+ * Need to be connected to ETH app in ledger to run this test
+ */
+
 const Pool = artifacts.require("Pool");
 const Token = artifacts.require("KiroboToken");
 const mlog = require("mocha-logger");
