@@ -152,6 +152,7 @@ contract('Pool', async accounts => {
         s: rlp.s,
     }))
     assert(await pool.validatePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
   });
 
 });

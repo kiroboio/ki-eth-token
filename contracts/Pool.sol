@@ -150,7 +150,7 @@ contract Pool is Claimable {
         require(validatePayment(_from, _value, _v, _r, _s), "wrong signature or data");
         require(accounts[_from].nonce != block.timestamp, "too soon");
         accounts[_from].nonce = block.timestamp;
-        accounts[_from]. balance -= _value;
+        accounts[_from].balance -= _value;
         minSupply -= _value;
         emit Payment(_from, _value);
     }
