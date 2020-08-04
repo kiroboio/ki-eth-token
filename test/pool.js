@@ -116,14 +116,15 @@ contract('Pool', async accounts => {
   });
 
   it('should be able to generate,validate & execute "accept tokens" message', async () => {
-    const secret = 'my secret'
     const tokens = 500
-    await pool.issueTokens(user1, tokens, web3.utils.sha3(secret), { from: poolOwner })
-    const message = await pool.generateAcceptTokensMessage(user1, tokens, web3.utils.sha3(secret), { from: poolOwner })
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await pool.issueTokens(user1, tokens, secretHash, { from: poolOwner })
+    const message = await pool.generateAcceptTokensMessage(user1, tokens, secretHash, { from: poolOwner })
     mlog.log('message: ', message)
-    mlog.log(`extract message: ${JSON.stringify(parseAcceptTokensMessage(message))}`)
-    
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user1))
+    mlog.log(`parsed message: ${JSON.stringify(parseAcceptTokensMessage(message))}`)
+    const messageHash = web3.utils.sha3(message)
+    const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user1))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
         messageHash: rlp.messageHash,
@@ -131,7 +132,7 @@ contract('Pool', async accounts => {
         r: rlp.r,
         s: rlp.s,
     }))
-    assert(await pool.validateAcceptTokens(user1, tokens, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
   });
@@ -142,7 +143,7 @@ contract('Pool', async accounts => {
     await pool.deposit(val3, { from: user2 })
     const message = await pool.generatePaymentMessage(user2, 200, { from: poolOwner })
     mlog.log('message: ', message)
-    mlog.log(`extract message: ${JSON.stringify(parsePaymentMessage(message))}`)
+    mlog.log(`parsed message: ${JSON.stringify(parsePaymentMessage(message))}`)
     const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
