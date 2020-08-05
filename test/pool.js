@@ -97,7 +97,7 @@ contract('Pool', async accounts => {
   it('user should be able to deposit tokens', async () => {
     await token.mint(user1, val2, { from: tokenOwner })
     await token.approve(pool.address, val3, { from: user1 })
-    await pool.deposit(val3, { from: user1 })
+    await pool.depositTokens(val3, { from: user1 })
     const totalSupply = await pool.totalSupply({ from: poolOwner })
     assert.equal((BigInt(val1) + BigInt(val3)).toString(), totalSupply.toString())
     const availableSupply = await pool.availableSupply({ from: poolOwner })
@@ -109,7 +109,7 @@ contract('Pool', async accounts => {
     for (let i=0; i<240; ++i) {
       await advanceBlock()
     }
-    await pool.withdraw({ from: user1 })
+    await pool.withdrawTokens({ from: user1 })
     const totalSupply = await pool.totalSupply({ from: poolOwner })
     assert.equal((BigInt(val1)).toString(), totalSupply.toString())
     const availableSupply = await pool.availableSupply({ from: poolOwner })
@@ -142,7 +142,7 @@ contract('Pool', async accounts => {
   it('should be able to generate,validate & execute "payment" message', async () => {
     await token.mint(user2, val1, { from: tokenOwner })
     await token.approve(pool.address, val2, { from: user2 })
-    await pool.deposit(val3, { from: user2 })
+    await pool.depositTokens(val3, { from: user2 })
     const message = await pool.generatePaymentMessage(user2, 200, { from: poolOwner })
     mlog.log('message: ', message)
     mlog.log(`parsed message: ${JSON.stringify(parsePaymentMessage(message))}`)

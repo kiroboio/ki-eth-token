@@ -25,24 +25,24 @@ contract Wallet is MultiSig {
 
         // solium-disable-next-line security/no-inline-assembly
         assembly {
-                calldatacopy(0x00, 0x00, calldatasize())
-                let res := call(
-                    gas(),
-                    sload(s_target_slot),
-                    callvalue(),
-                    0x00,
-                    calldatasize(),
-                    0,
-                    0
-                )
-                returndatacopy(0x00, 0x00, returndatasize())
-                if res { return(0x00, returndatasize()) }
-                revert(0x00, returndatasize())
-            }
+            calldatacopy(0x00, 0x00, calldatasize())
+            let res := call(
+                gas(),
+                sload(s_target_slot),
+                callvalue(),
+                0x00,
+                calldatasize(),
+                0,
+                0
+            )
+            returndatacopy(0x00, 0x00, returndatasize())
+            if res { return(0x00, returndatasize()) }
+            revert(0x00, returndatasize())
+        }
     }
 
     function transferOwnEther_(address payable to, uint256 value) 
-        public 
+        external 
         payable 
         multiSig2of3(msg.value)
     {
@@ -50,11 +50,11 @@ contract Wallet is MultiSig {
         emit Transfered(to, value);
     }
 
-    function setOwnTarget_(address target) public multiSig2of3(0) {
+    function setOwnTarget_(address target) external multiSig2of3(0) {
         s_target = target;
     }
 
-    function getOwnTarget_() public view returns (address) {
+    function getOwnTarget_() external view returns (address) {
         return s_target;
     }
   
