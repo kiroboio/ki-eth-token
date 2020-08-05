@@ -4,27 +4,51 @@ pragma solidity 0.6.12;
 import "./IERC20.sol";
 import "./Claimable.sol";
 
-contract Pool is Claimable {
+struct Account {
+    uint256 nonce;  
+    uint256 balance;
+    uint256 pending;
+    uint256 withdraw;
+    uint256 release;
+    bytes32 secretHash;
+}
 
-    uint256 constant MAX_RELEASE_DELAY = 11_520; // about 48h
+library AccountUtils {
+    function initNonce(Account storage self) internal {
+        if (self.nonce == 0) {
+            self.nonce =
+                uint256(1) << 240 |
+                uint256(blockhash(block.number-1)) << 80 >> 32 |
+                block.timestamp;
+        }
+    }
+    function updateNonce(Account storage self) internal {
+        uint256 count = self.nonce >> 240;
+        uint256 nonce = 
+            ++count << 240 |
+            uint256(blockhash(block.number-1)) << 80 >> 32 |
+            block.timestamp;
+        require(uint16(self.nonce) != uint16(nonce), "too soon");
+        self.nonce = nonce;
+    }
+}
+
+contract Pool is Claimable {
+    using AccountUtils for Account;
+
+    uint8 public constant VERSION = 0x1;
+    uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
-    address s_tokenContract;
+    uint256 s_uid;
+    uint256 s_totalSupply;
     uint256 s_minSupply;
     uint256 s_pendingSupply;
-    address s_manager;
-    address payable s_etherWallet;
-    address s_tokenWallet;
     uint256 s_releaseDelay;
-    uint256 s_maxTokensPerIssueCall;
-
-    struct Account {
-        uint256 nonce;  
-        uint256 balance;
-        uint256 pending;
-        uint256 withdraw;
-        uint256 release;
-        bytes32 secret;
-    }
+    uint256 s_maxTokensPerIssue;
+    address s_manager;
+    address s_tokenContract;
+    address s_tokenWallet;
+    address payable s_etherWallet;
 
     mapping(address => Account) s_accounts;
 
@@ -46,7 +70,34 @@ contract Pool is Claimable {
     constructor(address tokenContract) public {
         s_tokenContract = tokenContract;
         s_releaseDelay = 240;
-        s_maxTokensPerIssueCall = 10000;
+        s_maxTokensPerIssue = 10000;
+        s_uid = (
+          uint256(VERSION) << 248 |
+          uint256(blockhash(block.number-1)) << 192 >> 16 |
+          uint256(address(this))
+        );
+        s_totalSupply = ERC20(tokenContract).balanceOf(address(this));
+    }
+
+    function account(address addr) public view
+        returns (
+            uint256 nonce,  
+            uint256 balance,
+            uint256 pending,
+            uint256 withdraw,
+            uint256 release,
+            bytes32 secretHash
+        ) 
+    {
+        Account storage sp_account = s_accounts[addr];
+        return (
+            sp_account.nonce,
+            sp_account.balance,
+            sp_account.pending,
+            sp_account.withdraw,
+            sp_account.release,
+            sp_account.secretHash
+        );
     }
 
     function setReleaseDelay(uint256 blocks) public onlyOwner() {
@@ -54,23 +105,23 @@ contract Pool is Claimable {
         s_releaseDelay = blocks;
     }
 
-    function setMaxTokensPerIssueCall(uint256 tokens) public onlyOwner() {
-        s_maxTokensPerIssueCall = tokens;
+    function setMaxTokensPerIssue(uint256 tokens) public onlyOwner() {
+        s_maxTokensPerIssue = tokens;
     }
 
     /**
      * @dev Issueing tokens for an address to be used for payments.
      * The owner of the receiving address must accept via a signed message or a direct call.
-     * @param to The tokens recipeint. 
+     * @param to The tokens recipient. 
      * @param value The number of tokens to issue.
      * @param secretHash The keccak256 of the confirmation secret.
     */
     function issueTokens(address to, uint256 value, bytes32 secretHash) public onlyAdmins() {
         require(value <= availableSupply(), "not enough available tokens");
-        require(value <= s_maxTokensPerIssueCall, "amount exeed max tokens per call");
+        require(value <= s_maxTokensPerIssue, "amount exeed max tokens per call");
         Account storage sp_account = s_accounts[to];
         uint256 currentAmount = sp_account.pending;
-        sp_account.secret = secretHash;
+        sp_account.secretHash = secretHash;
         if (currentAmount > value) {
             sp_account.pending = value;
             s_pendingSupply += currentAmount - value;
@@ -78,22 +129,18 @@ contract Pool is Claimable {
             sp_account.pending = value;
             s_pendingSupply += value - currentAmount;
         }
+        sp_account.initNonce();
         emit TokensIssued(to, value, secretHash);
     }
 
-
-    function issuedPendingTokens(address account) public view returns (uint256) {
-        return s_accounts[account].pending;
-    }
-
-    function _acceptTokens(address recipeint, uint256 value) internal {
-        Account storage sp_account = s_accounts[recipeint];
+    function _acceptTokens(address recipient, uint256 value) internal {
+        Account storage sp_account = s_accounts[recipient];
         uint256 pending = sp_account.pending;
         require(pending > 0, "no pending tokens");
         require(pending == value, "value must equal issued tokens");
+        sp_account.secretHash = 0;
         sp_account.pending = 0;
         sp_account.balance += pending;
-        sp_account.secret = 0;
         s_pendingSupply -= pending;
     }
 
@@ -119,16 +166,9 @@ contract Pool is Claimable {
     function transferTokens(uint256 value) public onlyAdmins() {
         require(s_tokenWallet != address(0), "token wallet not set");
         require(value <= availableSupply(), "value larget than available tokens");
+        s_totalSupply -= value;
         ERC20(s_tokenContract).transfer(s_tokenWallet, value);
         emit TokensTransfered(s_tokenWallet, value);
-    }
-
-    function accountNonce(address account) public view returns (uint256) {
-        return s_accounts[account].nonce; 
-    }
-
-    function accountBalance(address account) public view returns (uint256) {
-        return s_accounts[account].balance; 
     }
 
     function generatePaymentMessage(address from, uint256 value)
@@ -138,7 +178,7 @@ contract Pool is Claimable {
         Account storage sp_account = s_accounts[from]; 
         require(sp_account.balance >= value, "account balnace too low");
         return abi.encodePacked(
-            address(this),
+            s_uid,
             this.generatePaymentMessage.selector,
             from,
             value,
@@ -163,30 +203,30 @@ contract Pool is Claimable {
     {
         require(validatePayment(from, value, v, r, s), "wrong signature or data");
         Account storage sp_account = s_accounts[from];
-        require(sp_account.nonce != block.timestamp, "too soon");
-        sp_account.nonce = block.timestamp;
+        sp_account.updateNonce();
         sp_account.balance -= value;
         s_minSupply -= value;
+        s_totalSupply -= value;
         emit Payment(from, value);
     }
 
-    function generateAcceptTokensMessage(address recipeint, uint256 value, bytes32 secretHash)
+    function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
         public view 
         returns (bytes memory)
     {
-        require(s_accounts[recipeint].secret == secretHash, "wrong secret hash");
-        require(s_accounts[recipeint].pending == value, "value must equal pending(issued tokens)");
+        require(s_accounts[recipient].secretHash == secretHash, "wrong secret hash");
+        require(s_accounts[recipient].pending == value, "value must equal pending(issued tokens)");
         return abi.encodePacked(
-            address(this),
+            s_uid,
             this.generateAcceptTokensMessage.selector,
-            recipeint,
+            recipient,
             value,
             secretHash
         );
     }
 
     function validateAcceptTokens(
-        address recipeint,
+        address recipient,
         uint256 value,
         bytes32 secretHash,
         uint8 v,
@@ -197,14 +237,14 @@ contract Pool is Claimable {
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            keccak256(generateAcceptTokensMessage(recipeint, value, secretHash))
+            keccak256(generateAcceptTokensMessage(recipient, value, secretHash))
         );
         address addr = ecrecover(message, v, r, s);
-        return addr == recipeint;
+        return addr == recipient;
     }
 
     function executeAcceptTokens(
-        address recipeint,
+        address recipient,
         uint256 value,
         bytes calldata c_secret,
         uint8 v,
@@ -214,25 +254,30 @@ contract Pool is Claimable {
         public 
         onlyAdmins()
     {
-        require(s_accounts[recipeint].secret == keccak256(c_secret), "wrong secret");
+        require(s_accounts[recipient].secretHash == keccak256(c_secret), "wrong secret");
         require(
-            validateAcceptTokens(recipeint, value, keccak256(c_secret), v, r ,s),
+            validateAcceptTokens(recipient, value, keccak256(c_secret), v, r ,s),
             "wrong signature or data"
         );
-        _acceptTokens(recipeint, value);
-        emit TokensAccepted(recipeint, false);
+        _acceptTokens(recipient, value);
+        emit TokensAccepted(recipient, false);
     }
 
     function setManager(address manager) public onlyOwner() {
         s_manager = manager; 
     }
   
+    function resyncTotalSupply() public onlyAdmins() returns (uint256) {
+        s_totalSupply = ERC20(s_tokenContract).balanceOf(address(this));
+    }
+
     function totalSupply() view public returns (uint256) {
-        return ERC20(s_tokenContract).balanceOf(address(this));
+        return s_totalSupply;
     }
 
     function availableSupply() view public returns (uint256) {
-        return ERC20(s_tokenContract).balanceOf(address(this)) - s_minSupply - s_pendingSupply;
+        require(s_totalSupply >= s_minSupply + s_pendingSupply, 'internal error');
+        return s_totalSupply - s_minSupply - s_pendingSupply;
     }
 
     function deposit(uint256 value) public {
@@ -240,9 +285,12 @@ contract Pool is Claimable {
             ERC20(s_tokenContract).allowance(msg.sender, address(this)) >= value,
             "ERC20 allowance too low"
         );
-        ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
-        s_accounts[msg.sender].balance += value;
+        Account storage sp_account = s_accounts[msg.sender]; 
+        sp_account.balance += value;
+        sp_account.initNonce();
         s_minSupply += value;
+        s_totalSupply += value;
+        ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
         emit Deposit(msg.sender, value);
     }
 
@@ -269,6 +317,7 @@ contract Pool is Claimable {
         sp_account.release = 0;
         sp_account.balance -= value;
         s_minSupply -= value;
+        s_totalSupply -= value;
         ERC20(s_tokenContract).transfer(msg.sender, value);
         emit Withdrawal(msg.sender, value);
     }

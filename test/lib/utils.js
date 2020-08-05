@@ -91,6 +91,37 @@ function pollCondition(cb, timeout) {
   });
 }
 
+const parseAcceptTokensMessage = (message) => {
+  return {
+    uid: message.slice(2, 66),
+    selector: message.slice(66, 66+8),
+    from: message.slice(74, 74+40),
+    value: message.slice(114, 114+64),
+    secretHash: message.slice(178, 178+64),
+    taiL: message.slice(242)
+  }
+}
+
+const parsePaymentMessage = (message) => {
+  return {
+    uid: message.slice(2, 66),
+    selector: message.slice(66, 66+8),
+    from: message.slice(74, 74+40),
+    value: message.slice(114, 114+64),
+    nonce: message.slice(178, 178+64),
+    tail: message.slice(242)
+  }
+}
+
+const parseNonce = (nonce) => {
+  const n = nonce.toString('hex')
+  return {
+    count: n.slice(0, -60),
+    salt: n.slice(-60, -8),
+    timestamp: n.slice(-8),
+  }
+}
+
 module.exports = {
   sleep,
   getLatestBlockTimestamp,
@@ -102,4 +133,7 @@ module.exports = {
   takeSnapshot,
   revertToSnapShot,
   pollCondition,
+  parseAcceptTokensMessage,
+  parsePaymentMessage,
+  parseNonce,
 }

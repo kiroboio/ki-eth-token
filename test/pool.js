@@ -5,7 +5,16 @@ const Token = artifacts.require("KiroboToken")
 const mlog = require('mocha-logger')
 
 const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } = require('./lib/asserts')
-const { advanceBlock, advanceTime, advanceTimeAndBlock } = require('./lib/utils')
+const { 
+  advanceBlock,
+  advanceTime,
+  advanceTimeAndBlock,
+  parsePaymentMessage,
+  parseAcceptTokensMessage,
+  parseNonce,
+  sleep
+} = require('./lib/utils')
+
 const { get } = require('lodash')
 
 const getPrivateKey = (address) => {
@@ -13,25 +22,16 @@ const getPrivateKey = (address) => {
   return `0x${wallet._privKey.toString('hex')}`
 }
 
-const parseAcceptTokensMessage = (message) => {
-  return {
-    pool: message.slice(2,42),
-    selector: message.slice(42, 42+8),
-    from: message.slice(50, 50+40),
-    value: message.slice(90, 90+64),
-    secretHash: message.slice(154, 154+64)  
-  }
-}
+// const parseAcceptTokensMessage = (message) => {
+//   return {
+//     pool: message.slice(2,42),
+//     selector: message.slice(42, 42+8),
+//     from: message.slice(50, 50+40),
+//     value: message.slice(90, 90+64),
+//     secretHash: message.slice(154, 154+64)  
+//   }
+// }
 
-const parsePaymentMessage = (message) => {
-  return {
-    pool: message.slice(2,42),
-    selector: message.slice(42, 42+8),
-    from: message.slice(50, 50+40),
-    value: message.slice(90, 90+64),
-    nonce: message.slice(154, 154+64)  
-  }
-}
 
 contract('Pool', async accounts => {
   let token, pool
@@ -85,6 +85,7 @@ contract('Pool', async accounts => {
 
   it('pool should accept tokens', async () => {
     await token.mint(pool.address, val1, { from: tokenOwner })
+    await pool.resyncTotalSupply({ from: poolOwner })
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
     const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
@@ -127,12 +128,13 @@ contract('Pool', async accounts => {
     const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user1))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
-        messageHash: rlp.messageHash,
-        v: rlp.v,
-        r: rlp.r,
-        s: rlp.s,
+      messageHash: rlp.messageHash,
+      v: rlp.v,
+      r: rlp.r,
+      s: rlp.s,
     }))
     assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
   });
@@ -153,7 +155,12 @@ contract('Pool', async accounts => {
         s: rlp.s,
     }))
     assert(await pool.validatePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
+    mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
+    await advanceTime(1)
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
+    mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   });
 
 });
