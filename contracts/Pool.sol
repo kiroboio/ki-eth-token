@@ -134,14 +134,17 @@ struct Entities {
     requestWithdrawal(uint256 value) public
     cancelWithdrawal() public
     withdrawTokens() public
-    accountInfo(address addr) public view
-    supplyInfo() view external returns (uint256 total, uint256 minimum, uint256 pending) {
+    account(address addr) public view
+    supply() view external returns (uint256 total, uint256 minimum, uint256 pending) {
+    limits()
+    entities()
+    availableSupply() view public returns (uint256)
+    totalSupply() view public returns (uint256)
     
     Public
-    availableSupply() view public returns (uint256)
     generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash) public view
-    validateAcceptTokens(address recipient, uint256 value, bytes32 secretHash, uint8 v, bytes32 r, bytes32 s) public view 
     generatePaymentMessage(address from, uint256 value) public view
+    validateAcceptTokens(address recipient, uint256 value, bytes32 secretHash, uint8 v, bytes32 r, bytes32 s) public view 
     validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s) public view
     
     Private
