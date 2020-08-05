@@ -12,6 +12,7 @@ const {
   parsePaymentMessage,
   parseAcceptTokensMessage,
   parseNonce,
+  sleep
 } = require('./lib/utils')
 
 const { get } = require('lodash')
@@ -84,6 +85,7 @@ contract('Pool', async accounts => {
 
   it('pool should accept tokens', async () => {
     await token.mint(pool.address, val1, { from: tokenOwner })
+    await pool.resyncTotalSupply({ from: poolOwner })
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
     const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
@@ -126,10 +128,10 @@ contract('Pool', async accounts => {
     const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user1))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
-        messageHash: rlp.messageHash,
-        v: rlp.v,
-        r: rlp.r,
-        s: rlp.s,
+      messageHash: rlp.messageHash,
+      v: rlp.v,
+      r: rlp.r,
+      s: rlp.s,
     }))
     assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
     mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
@@ -157,6 +159,7 @@ contract('Pool', async accounts => {
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
     await advanceTime(1)
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    await sleep(20000)
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   });

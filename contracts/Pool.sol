@@ -10,6 +10,7 @@ contract Pool is Claimable {
     uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
     uint256 s_uid;
+    uint256 s_totalSupply;
     uint256 s_minSupply;
     uint256 s_pendingSupply;
     uint256 s_releaseDelay;
@@ -54,6 +55,7 @@ contract Pool is Claimable {
           uint256(blockhash(block.number-1)) << 192 >> 16 |
           uint256(address(this))
         );
+        s_totalSupply = ERC20(tokenContract).balanceOf(address(this));
     }
 
     function account(address addr) public view
@@ -120,9 +122,9 @@ contract Pool is Claimable {
         uint256 pending = sp_account.pending;
         require(pending > 0, "no pending tokens");
         require(pending == value, "value must equal issued tokens");
+        sp_account.secretHash = 0;
         sp_account.pending = 0;
         sp_account.balance += pending;
-        sp_account.secretHash = 0;
         s_pendingSupply -= pending;
     }
 
@@ -148,6 +150,7 @@ contract Pool is Claimable {
     function transferTokens(uint256 value) public onlyAdmins() {
         require(s_tokenWallet != address(0), "token wallet not set");
         require(value <= availableSupply(), "value larget than available tokens");
+        s_totalSupply -= value;
         ERC20(s_tokenContract).transfer(s_tokenWallet, value);
         emit TokensTransfered(s_tokenWallet, value);
     }
@@ -195,6 +198,7 @@ contract Pool is Claimable {
         sp_account.nonce = nonce;
         sp_account.balance -= value;
         s_minSupply -= value;
+        s_totalSupply -= value;
         emit Payment(from, value);
     }
 
@@ -255,12 +259,17 @@ contract Pool is Claimable {
         s_manager = manager; 
     }
   
+    function resyncTotalSupply() public onlyAdmins() returns (uint256) {
+        s_totalSupply = ERC20(s_tokenContract).balanceOf(address(this));
+    }
+
     function totalSupply() view public returns (uint256) {
-        return ERC20(s_tokenContract).balanceOf(address(this));
+        return s_totalSupply;
     }
 
     function availableSupply() view public returns (uint256) {
-        return ERC20(s_tokenContract).balanceOf(address(this)) - s_minSupply - s_pendingSupply;
+        require(s_totalSupply >= s_minSupply + s_pendingSupply, 'internal error');
+        return s_totalSupply - s_minSupply - s_pendingSupply;
     }
 
     function deposit(uint256 value) public {
@@ -268,7 +277,6 @@ contract Pool is Claimable {
             ERC20(s_tokenContract).allowance(msg.sender, address(this)) >= value,
             "ERC20 allowance too low"
         );
-        ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
         Account storage sp_account = s_accounts[msg.sender]; 
         sp_account.balance += value;
         if (sp_account.nonce == 0) {
@@ -278,7 +286,8 @@ contract Pool is Claimable {
                 block.timestamp;
         }
         s_minSupply += value;
-        
+        s_totalSupply += value;
+        ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
         emit Deposit(msg.sender, value);
     }
 
@@ -305,6 +314,7 @@ contract Pool is Claimable {
         sp_account.release = 0;
         sp_account.balance -= value;
         s_minSupply -= value;
+        s_totalSupply -= value;
         ERC20(s_tokenContract).transfer(msg.sender, value);
         emit Withdrawal(msg.sender, value);
     }

@@ -20,6 +20,7 @@ module.exports = function(deployer, network, accounts) {
     await token.disableTransfers(false, { from: tokenOwner })
     if (liveTestNetworks[network]) {
       await token.mint(pool.address, 100000, { from: tokenOwner })
+      await pool.refreshSupply({ from: poolOwner })
     }
   })
 
