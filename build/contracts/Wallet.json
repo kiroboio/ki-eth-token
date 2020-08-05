@@ -62,7 +62,8 @@
     },
     {
       "stateMutability": "payable",
-      "type": "fallback"
+      "type": "fallback",
+      "payable": true
     },
     {
       "inputs": [],
@@ -82,7 +83,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [
@@ -104,7 +106,8 @@
     },
     {
       "stateMutability": "payable",
-      "type": "receive"
+      "type": "receive",
+      "payable": true
     },
     {
       "inputs": [
@@ -122,7 +125,8 @@
       "name": "transferOwnEther_",
       "outputs": [],
       "stateMutability": "payable",
-      "type": "function"
+      "type": "function",
+      "payable": true
     },
     {
       "inputs": [
@@ -148,7 +152,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner1\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner2\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner3\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Received\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Transfered\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[],\"name\":\"cancel\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getOwnTarget_\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"replaceOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"setOwnTarget_\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address payable\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"transferOwnEther_\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Wallet.sol\":\"Wallet\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol\":{\"keccak256\":\"0x1b021879a9f16ad9d8e6b2562941c397086c3e8f6958ca406d9708b21640965a\",\"license\":\"UNLICENSED\",\"urls\":[\"bzz-raw://cf81753a292afb588f257b8b50459f3257ad8f9c2aaf53773fe7130802322929\",\"dweb:/ipfs/QmTs8N4iNforh1kwzD27ubLjNEihKrVQ67pUiMXNzupf1x\"]},\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Wallet.sol\":{\"keccak256\":\"0xc759a47ad6ea067b60b6472cf4cc19522c1ea0b9e9ba8f64452b37784616b53f\",\"license\":\"UNLICENSED\",\"urls\":[\"bzz-raw://cc309bf63133d26b090c2c7e66c877d19b6d66c668f054e5fc6930ad29388ec7\",\"dweb:/ipfs/QmXNdgfmDeJPUzJxpZTffcWmcECEtjmiBMrQVR8wus5dN2\"]}},\"version\":1}",
@@ -3422,12 +3427,13 @@
         }
       },
       "links": {},
-      "address": "0xF0075ba0904c273f21E23B9177dA93218afAC630",
-      "transactionHash": "0x9048b6c9e4a0aad4197a38a9ebae5f9fceb8344396bbea5aa055dc8a00e5cf5f"
+      "address": "0x60639Fc52c63020728B9385de4B3130C17fd2155",
+      "transactionHash": "0xac70346d2302ffbf95e71fc1bd92f713966b5b8ee6ef1d8b475d31c93e73d0e5"
     }
   },
   "schemaVersion": "3.2.0",
-  "updatedAt": "2020-08-05T09:14:27.209Z",
+  "updatedAt": "2020-08-05T12:04:45.238Z",
+  "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
     "methods": {},
