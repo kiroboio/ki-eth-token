@@ -159,7 +159,6 @@ contract('Pool', async accounts => {
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
     await advanceTime(1)
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
-    await sleep(20000)
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   });

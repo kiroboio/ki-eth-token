@@ -4,7 +4,37 @@ pragma solidity 0.6.12;
 import "./IERC20.sol";
 import "./Claimable.sol";
 
+struct Account {
+    uint256 nonce;  
+    uint256 balance;
+    uint256 pending;
+    uint256 withdraw;
+    uint256 release;
+    bytes32 secretHash;
+}
+
+library AccountUtils {
+    function initNonce(Account storage self) internal {
+        if (self.nonce == 0) {
+            self.nonce =
+                uint256(1) << 240 |
+                uint256(blockhash(block.number-1)) << 80 >> 32 |
+                block.timestamp;
+        }
+    }
+    function updateNonce(Account storage self) internal {
+        uint256 count = self.nonce >> 240;
+        uint256 nonce = 
+            ++count << 240 |
+            uint256(blockhash(block.number-1)) << 80 >> 32 |
+            block.timestamp;
+        require(uint16(self.nonce) != uint16(nonce), "too soon");
+        self.nonce = nonce;
+    }
+}
+
 contract Pool is Claimable {
+    using AccountUtils for Account;
 
     uint8 public constant VERSION = 0x1;
     uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
@@ -19,15 +49,6 @@ contract Pool is Claimable {
     address s_tokenContract;
     address s_tokenWallet;
     address payable s_etherWallet;
-
-    struct Account {
-        uint256 nonce;  
-        uint256 balance;
-        uint256 pending;
-        uint256 withdraw;
-        uint256 release;
-        bytes32 secretHash;
-    }
 
     mapping(address => Account) s_accounts;
 
@@ -108,12 +129,7 @@ contract Pool is Claimable {
             sp_account.pending = value;
             s_pendingSupply += value - currentAmount;
         }
-        if (sp_account.nonce == 0) {
-            sp_account.nonce = 
-                uint256(1) << 240 |
-                uint256(blockhash(block.number-1)) << 80 >> 32 |
-                block.timestamp;
-        }
+        sp_account.initNonce();
         emit TokensIssued(to, value, secretHash);
     }
 
@@ -187,15 +203,7 @@ contract Pool is Claimable {
     {
         require(validatePayment(from, value, v, r, s), "wrong signature or data");
         Account storage sp_account = s_accounts[from];
-        uint256 count = sp_account.nonce >> 240;
-        uint256 nonce = 
-            ++count << 240 |
-            uint256(blockhash(block.number-1)) << 80 >> 32 |
-            block.timestamp;
-
-        require(uint16(sp_account.nonce) != uint16(nonce), "too soon");
-        
-        sp_account.nonce = nonce;
+        sp_account.updateNonce();
         sp_account.balance -= value;
         s_minSupply -= value;
         s_totalSupply -= value;
@@ -279,12 +287,7 @@ contract Pool is Claimable {
         );
         Account storage sp_account = s_accounts[msg.sender]; 
         sp_account.balance += value;
-        if (sp_account.nonce == 0) {
-            sp_account.nonce = 
-                uint256(1) << 240 |
-                uint256(blockhash(block.number-1)) << 80 >> 32 |
-                block.timestamp;
-        }
+        sp_account.initNonce();
         s_minSupply += value;
         s_totalSupply += value;
         ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
