@@ -5,7 +5,15 @@ const Token = artifacts.require("KiroboToken")
 const mlog = require('mocha-logger')
 
 const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } = require('./lib/asserts')
-const { advanceBlock, advanceTime, advanceTimeAndBlock } = require('./lib/utils')
+const { 
+  advanceBlock,
+  advanceTime,
+  advanceTimeAndBlock,
+  parsePaymentMessage,
+  parseAcceptTokensMessage,
+  parseNonce,
+} = require('./lib/utils')
+
 const { get } = require('lodash')
 
 const getPrivateKey = (address) => {
@@ -23,32 +31,6 @@ const getPrivateKey = (address) => {
 //   }
 // }
 
-const parseAcceptTokensMessage = (message) => {
-  return {
-    version: message.slice(2, 2+2),
-    uid: message.slice(4, 4+22),
-    pool: message.slice(26,26+40),
-    selector: message.slice(66, 66+8),
-    from: message.slice(74, 74+40),
-    value: message.slice(114, 114+64),
-    secretHash: message.slice(178, 178+64),
-    taIL: message.slice(242)
-  }
-}
-
-
-const parsePaymentMessage = (message) => {
-  return {
-    version: message.slice(2, 2+2),
-    uid: message.slice(4, 4+22),
-    pool: message.slice(26,26+40),
-    selector: message.slice(66, 66+8),
-    from: message.slice(74, 74+40),
-    value: message.slice(114, 114+64),
-    nonce: message.slice(178, 178+64),
-    tail: message.slice(242)
-  }
-}
 
 contract('Pool', async accounts => {
   let token, pool
@@ -172,9 +154,11 @@ contract('Pool', async accounts => {
     }))
     assert(await pool.validatePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
+    mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
     await advanceTime(1)
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
+    mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   });
 
 });
