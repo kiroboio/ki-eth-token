@@ -175,6 +175,7 @@ contract("Trezor Test", async (accounts) => {
       ),
       "invalid ledger signature"
     );
+    await pool.executePayment(trzAddress, 200, v, r, s, { from: poolOwner });
   });
 
 });
