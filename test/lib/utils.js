@@ -93,9 +93,7 @@ function pollCondition(cb, timeout) {
 
 const parseAcceptTokensMessage = (message) => {
   return {
-    version: message.slice(2, 2+2),
-    uid: message.slice(4+2, 4+22-4),
-    pool: message.slice(26,26+40),
+    uid: message.slice(2, 66),
     selector: message.slice(66, 66+8),
     from: message.slice(74, 74+40),
     value: message.slice(114, 114+64),
@@ -106,9 +104,7 @@ const parseAcceptTokensMessage = (message) => {
 
 const parsePaymentMessage = (message) => {
   return {
-    version: message.slice(2, 2+2),
-    uid: message.slice(4+2, 4+22-4),
-    pool: message.slice(26,26+40),
+    uid: message.slice(2, 66),
     selector: message.slice(66, 66+8),
     from: message.slice(74, 74+40),
     value: message.slice(114, 114+64),
