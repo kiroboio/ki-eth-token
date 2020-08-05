@@ -82,6 +82,7 @@ contract("Ledger Test", async (accounts) => {
 
   it("should be able to generate, validate and execute 'token accept' message", async () => {
     await token.mint(pool.address, val1, { from: tokenOwner })
+    await pool.resyncTotalSupply({ from: poolOwner })
     const secret = "my secret";
     const tokens = 500;
     const { address: ldgAddress } = await ethApp.getAddress(PATH);
