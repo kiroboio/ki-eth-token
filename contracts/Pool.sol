@@ -106,6 +106,12 @@ contract Pool is Claimable {
             sp_account.pending = value;
             s_pendingSupply += value - currentAmount;
         }
+        if (sp_account.nonce == 0) {
+            sp_account.nonce = 
+                uint256(1) << 240 |
+                uint256(blockhash(block.number-1)) << 80 >> 32 |
+                block.timestamp;
+        }
         emit TokensIssued(to, value, secretHash);
     }
 
@@ -178,8 +184,15 @@ contract Pool is Claimable {
     {
         require(validatePayment(from, value, v, r, s), "wrong signature or data");
         Account storage sp_account = s_accounts[from];
-        require(sp_account.nonce != block.timestamp, "too soon");
-        sp_account.nonce = block.timestamp;
+        uint256 count = sp_account.nonce >> 240;
+        uint256 nonce = 
+            ++count << 240 |
+            uint256(blockhash(block.number-1)) << 80 >> 32 |
+            block.timestamp;
+
+        require(uint16(sp_account.nonce) != uint16(nonce), "too soon");
+        
+        sp_account.nonce = nonce;
         sp_account.balance -= value;
         s_minSupply -= value;
         emit Payment(from, value);
@@ -256,8 +269,16 @@ contract Pool is Claimable {
             "ERC20 allowance too low"
         );
         ERC20(s_tokenContract).transferFrom(msg.sender, address(this), value);
-        s_accounts[msg.sender].balance += value;
+        Account storage sp_account = s_accounts[msg.sender]; 
+        sp_account.balance += value;
+        if (sp_account.nonce == 0) {
+            sp_account.nonce = 
+                uint256(1) << 240 |
+                uint256(blockhash(block.number-1)) << 80 >> 32 |
+                block.timestamp;
+        }
         s_minSupply += value;
+        
         emit Deposit(msg.sender, value);
     }
 

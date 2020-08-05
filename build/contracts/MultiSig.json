@@ -61,15 +61,16 @@
       "type": "function"
     }
   ],
-  "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner1\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner2\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner3\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"cancel\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"replaceOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/home/tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol\":\"MultiSig\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol\":{\"keccak256\":\"0x1b021879a9f16ad9d8e6b2562941c397086c3e8f6958ca406d9708b21640965a\",\"license\":\"UNLICENSED\",\"urls\":[\"bzz-raw://cf81753a292afb588f257b8b50459f3257ad8f9c2aaf53773fe7130802322929\",\"dweb:/ipfs/QmTs8N4iNforh1kwzD27ubLjNEihKrVQ67pUiMXNzupf1x\"]}},\"version\":1}",
+  "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner1\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner2\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner3\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"cancel\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"replaceOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol\":\"MultiSig\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol\":{\"keccak256\":\"0x1b021879a9f16ad9d8e6b2562941c397086c3e8f6958ca406d9708b21640965a\",\"license\":\"UNLICENSED\",\"urls\":[\"bzz-raw://cf81753a292afb588f257b8b50459f3257ad8f9c2aaf53773fe7130802322929\",\"dweb:/ipfs/QmTs8N4iNforh1kwzD27ubLjNEihKrVQ67pUiMXNzupf1x\"]}},\"version\":1}",
   "bytecode": "0x",
   "deployedBytecode": "0x",
+  "immutableReferences": {},
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "// SPDX-License-Identifier: UNLICENSED\n\npragma solidity 0.6.12;\n\nabstract contract MultiSig {\n    mapping(address => bool) s_owners;\n\n    struct Action {\n        address owner;\n        uint256 value;\n        bytes   data;\n    }\n\n    Action private s_action;\n\n    constructor(address owner1, address owner2, address owner3) public {\n\n        require(owner1 != address(0), \"owner1 cannot be 0\");\n        require(owner2 != address(0), \"owner2 cannot be 0\");\n        require(owner3 != address(0), \"owner3 cannot be 0\");\n\n        require(owner1 != owner2, \"owner1 cannot be owner2\");\n        require(owner2 != owner3, \"owner2 cannot be owner3\");\n        require(owner1 != owner3, \"owner1 cannot be owner3\");\n\n        s_owners[owner1] = true;\n        s_owners[owner2] = true;\n        s_owners[owner3] = true;\n    }\n\n    modifier notSender (address addr) {\n      require(addr != msg.sender, \"sender address not allowed\");\n      _;\n    }\n\n    modifier multiSig2of3 (uint256 value) {\n      require(s_owners[msg.sender], 'only owners');\n\n      if (s_action.owner == address(0)) {\n          s_action.owner = msg.sender;\n          s_action.data = msg.data;\n          s_action.value = value;\n          return;\n      }\n\n      require(s_action.owner != msg.sender, 'same owner cannot sign twice');\n      require(s_action.value == value, 'must sign the same value');\n      require(keccak256(s_action.data) == keccak256(msg.data), 'must sign the same data');\n\n      s_action.owner = address(0);\n      _;\n    }\n\n    function isOwner() public view returns (bool) {\n      return s_owners[msg.sender];\n    }\n\n    function cancel() public {\n      require(s_owners[msg.sender], 'only owners');\n      s_action.owner = address(0);\n    }\n\n    function replaceOwner(address owner, address newOwner)\n      public \n      notSender(owner)\n      multiSig2of3(0)\n    {\n      require(s_owners[owner] == true, 'owner should exist');\n      require(s_owners[newOwner] == false, 'new owner should not exist');\n      s_owners[owner] = false;\n      s_owners[newOwner] = true;\n    }\n}",
-  "sourcePath": "/home/tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol",
+  "sourcePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol",
   "ast": {
-    "absolutePath": "/home/tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol",
+    "absolutePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol",
     "exportedSymbols": {
       "MultiSig": [
         1510
@@ -3803,7 +3804,7 @@
     "src": "40:2004:4"
   },
   "legacyAST": {
-    "absolutePath": "/home/tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol",
+    "absolutePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/MultiSig.sol",
     "exportedSymbols": {
       "MultiSig": [
         1510
@@ -7541,8 +7542,8 @@
     "version": "0.6.12+commit.27d51765.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "3.0.23",
-  "updatedAt": "2020-08-04T11:20:15.073Z",
+  "schemaVersion": "3.2.0",
+  "updatedAt": "2020-08-05T09:14:27.179Z",
   "devdoc": {
     "kind": "dev",
     "methods": {},

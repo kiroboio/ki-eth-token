@@ -150,6 +150,7 @@ contract('Pool', async accounts => {
         s: rlp.s,
     }))
     assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
   });
@@ -170,7 +171,10 @@ contract('Pool', async accounts => {
         s: rlp.s,
     }))
     assert(await pool.validatePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
+    await advanceTime(1)
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
   });
 
 });
