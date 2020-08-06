@@ -288,17 +288,17 @@ contract('Pool', async accounts => {
     assert.equal(0, availableSupply.toString())
   })
 
-  it ('should change nonce when issuing or depositing tokens if nonce was not initialized yet', async () => {
+  it ('should change account\'s nonce when issuing or depositing tokens if nonce was not initialized yet', async () => {
     let account = await pool.account(user3)
-    assert.equal(account.nonce, 0)
+    assert.equal(account.nonce + '', 0)
     await token.mint(user3, val1, { from: tokenOwner })
     await token.approve(pool.address, val2, { from: user3 })
     await pool.depositTokens(val3, { from: user3 })
     account = await pool.account(user3)
-    assert.notEqual(account.nonce, 0)
+    assert.notEqual(account.nonce + '', 0)
     
     account = await pool.account(user4)
-    assert.equal(account.nonce, 0)
+    assert.equal(account.nonce + '', 0)
     const secret = 'my secret 2'
     const secretHash = web3.utils.sha3(secret)
     await token.mint(pool.address, val1, { from: tokenOwner })
@@ -306,7 +306,35 @@ contract('Pool', async accounts => {
     await pool.issueTokens(user4, 600, secretHash, { from: manager })
     await pool.acceptTokens(600, Buffer.from('my secret 2'), { from: user4 })
     account = await pool.account(user4)
-    assert.notEqual(account.nonce, 0)
+    assert.notEqual(account.nonce + '', 0)
   })
+
+  it ('should not change account\'s nonce when issuing or depositing tokens if nonce was set', async () => {
+    let account = await pool.account(user3)
+    let nonce = account.nonce + ''
+    await token.mint(user3, val1, { from: tokenOwner })
+    await token.approve(pool.address, val2, { from: user3 })
+    await pool.depositTokens(val3, { from: user3 })
+    account = await pool.account(user3)
+    assert.equal(account.nonce + '', nonce)
+    
+    account = await pool.account(user4)
+    nonce = account.nonce + ''
+    const secret = 'my secret 3'
+    const secretHash = web3.utils.sha3(secret)
+    await pool.issueTokens(user4, 700, secretHash, { from: manager })
+    await pool.acceptTokens(700, Buffer.from('my secret 3'), { from: user4 })
+    account = await pool.account(user4)
+    assert.equal(account.nonce + '', nonce)
+  })
+
+  it ('should change account\'s nonce when executing payment')
+  it ('should sync pending supply when issuing tokens multiple times')
+  it ('should sync pending supply when issuing tokens to multiple account')
+  it ('account should not be able to withdraw before release delay has been reached')
+  it ('account should always be able to cancel withdrawal')
+  it ('account should be able to withdraw all non-pending balance')
+  it ('limits should be accurate after extensive usage of the system')
+  it ('account\'s info should be accurate after extensive usage of the system')
 
 })
