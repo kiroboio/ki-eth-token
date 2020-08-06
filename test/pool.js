@@ -65,10 +65,10 @@ contract('Pool', async accounts => {
       assert(typeof user1       == 'string', 'user1 should be string')
       assert(typeof user2       == 'string', 'user2 should be string')
       assert(typeof user3       == 'string', 'user3 should be string')
-      assert(typeof val1        == 'string', 'val1  should be big number')
+      assert(typeof val1        == 'string', 'val1  should be string')
       assert(typeof val2        == 'string', 'val2  should be string')
       assert(typeof val3        == 'string', 'val2  should be string')
-      assert(valBN instanceof web3.utils.BN, 'valBN should be big number')
+      assert(valBN instanceof web3.utils.BN, 'valBN should be string')
   })
 
   before('setup contract for the test', async () => {
@@ -161,8 +161,11 @@ contract('Pool', async accounts => {
     assert.equal(limits.maxTokensPerIssue, 1200)    
   })
 
-  it('pool should accept tokens', async () => {
+  it('pool should be able to accept tokens', async () => {
     const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await pool.resyncTotalSupply({ from: poolOwner })
+    const initPoolTokens = await token.balanceOf(pool.address, { from: poolOwner })
+    assert.equal(initPoolTokens.toString(), 0)
     await token.mint(pool.address, val1, { from: tokenOwner, nonce })
     await pool.resyncTotalSupply({ from: poolOwner })
     const balance = await web3.eth.getBalance(pool.address)
@@ -173,14 +176,25 @@ contract('Pool', async accounts => {
     assert.equal(totalSupply.toString(), val1)
   })
 
+  it('pool should be able to postpone tokens acceptance', async () => {
+    await token.mint(pool.address, val2, { from: tokenOwner })
+    const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
+    assert.equal(poolTokens.toString(), (BigInt(val1) + BigInt(val2)).toString())
+    const initTotalSupply = await pool.totalSupply({ from: poolOwner })
+    assert.equal(initTotalSupply.toString(), val1)
+    await pool.resyncTotalSupply({ from: poolOwner })
+    const totalSupply = await pool.totalSupply({ from: poolOwner })
+    assert.equal(totalSupply.toString(), (BigInt(val1) + BigInt(val2)).toString())
+  })
+
   it('user should be able to deposit tokens', async () => {
     await token.mint(user1, val2, { from: tokenOwner })
     await token.approve(pool.address, val3, { from: user1 })
     await pool.depositTokens(val3, { from: user1 })
     const totalSupply = await pool.totalSupply({ from: poolOwner })
-    assert.equal((BigInt(val1) + BigInt(val3)).toString(), totalSupply.toString())
+    assert.equal((BigInt(val1) + BigInt(val2) + BigInt(val3)).toString(), totalSupply.toString())
     const availableSupply = await pool.availableSupply({ from: poolOwner })
-    assert.equal(BigInt(val1).toString(), availableSupply.toString())
+    assert.equal((BigInt(val1) + BigInt(val2)).toString(), availableSupply.toString())
   })
 
   it('user should be able to withdraw tokens', async () => {
@@ -190,9 +204,9 @@ contract('Pool', async accounts => {
     }
     await pool.withdrawTokens({ from: user1 })
     const totalSupply = await pool.totalSupply({ from: poolOwner })
-    assert.equal((BigInt(val1)).toString(), totalSupply.toString())
+    assert.equal((BigInt(val1) + BigInt(val2)).toString(), totalSupply.toString())
     const availableSupply = await pool.availableSupply({ from: poolOwner })
-    assert.equal(BigInt(val1).toString(), availableSupply.toString())
+    assert.equal((BigInt(val1) + BigInt(val2)).toString(), availableSupply.toString())
   })
 
   it('should be able to generate,validate & execute "accept tokens" message', async () => {

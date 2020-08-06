@@ -136,7 +136,6 @@ struct Entities {
     executeAcceptTokens(address recipient, uint256 value, bytes calldata c_secret, uint8 v, bytes32 r, bytes32 s) public onlyAdmins()
     executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s) public onlyAdmins()
     transferTokens(uint256 value) public onlyAdmins()
-    transferEther(uint256 value) public onlyAdmins()
     
     External
     acceptTokens(uint256 value) public
