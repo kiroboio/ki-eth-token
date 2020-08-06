@@ -4,19 +4,12 @@ const mlog = require('mocha-logger');
 const hidTransport = require("@ledgerhq/hw-transport-node-hid").default;
 const App = require("@ledgerhq/hw-app-eth").default;
 
-const ETH_ACC = '0x6a13b7F1Ec6e94cE5d77563ce12702da8E4E84B8';
 const LOCAL_POOL = 'http://127.0.0.1:3030/v1/eth/rinkeby/pool';
-
 const DEV_POOL = 'https://testapi.kirobo.me/v1/eth/rinkeby/pool';
 
 const SERVER = DEV_POOL;
 
 const PATH = "44'/60'/0'/0/0";
-
-const getPrivateKey = (address) => {
-  const wallet = web3.currentProvider.wallets[address.toLowerCase()]
-  return `0x${wallet._privKey.toString('hex')}`
-}
 
 contract("Ledger E2E: issue tokens and generate payment", async accounts => {
 
