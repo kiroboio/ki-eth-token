@@ -297,7 +297,8 @@ contract Pool is Claimable {
     // ----------- External Functions ------------
 
 
-    function acceptTokens(uint256 value) external {
+    function acceptTokens(uint256 value, bytes calldata c_secret) external {
+        require(s_accounts[msg.sender].secretHash == keccak256(c_secret), "wrong secret");
         _acceptTokens(msg.sender, value);
         emit TokensAccepted(msg.sender, true);
     }

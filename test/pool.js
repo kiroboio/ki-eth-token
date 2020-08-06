@@ -49,8 +49,9 @@ contract('Pool', async accounts => {
   const user1 = accounts[3]
   const user2 = accounts[4]
   const user3 = accounts[5]
-  const manager = accounts[6]
-  const wallet = accounts[7]
+  const user4 = accounts[6]
+  const manager = accounts[7]
+  const wallet = accounts[8]
 
   const val1  = web3.utils.toWei('0.5', 'gwei')
   const val2  = web3.utils.toWei('0.4', 'gwei')
@@ -65,6 +66,7 @@ contract('Pool', async accounts => {
       assert(typeof user1       == 'string', 'user1 should be string')
       assert(typeof user2       == 'string', 'user2 should be string')
       assert(typeof user3       == 'string', 'user3 should be string')
+      assert(typeof user4       == 'string', 'user4 should be string')
       assert(typeof val1        == 'string', 'val1  should be string')
       assert(typeof val2        == 'string', 'val2  should be string')
       assert(typeof val3        == 'string', 'val2  should be string')
@@ -81,6 +83,7 @@ contract('Pool', async accounts => {
     mlog.log('user1          ', user1)
     mlog.log('user2          ', user2)
     mlog.log('user3          ', user3)
+    mlog.log('user4          ', user4)
     mlog.log('val1           ', val1)
     mlog.log('val2           ', val2)
     mlog.log('val3           ', val3)
@@ -209,6 +212,20 @@ contract('Pool', async accounts => {
     assert.equal((BigInt(val1) + BigInt(val2)).toString(), availableSupply.toString())
   })
 
+  it('only admins should be able to transfer tokens', async () => {
+    let nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await mustRevert(async ()=> {
+      await pool.transferTokens(480, { from: tokenOwner, nonce })
+    })
+    await mustRevert(async ()=> {
+      await pool.transferTokens(480, { from: user1 })
+    })
+    nonce = await web3.eth.getTransactionCount(poolOwner)
+    await pool.transferTokens(100, { from: poolOwner, nonce })
+    nonce = await web3.eth.getTransactionCount(manager)
+    await pool.transferTokens(200, { from: manager, nonce })
+  })
+
   it('should be able to generate,validate & execute "accept tokens" message', async () => {
     const tokens = 500
     const secret = 'my secret'
@@ -233,7 +250,8 @@ contract('Pool', async accounts => {
   })
 
   it('should be able to generate,validate & execute "payment" message', async () => {
-    await token.mint(user2, val1, { from: tokenOwner })
+    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await token.mint(user2, val1, { from: tokenOwner, nonce })
     await token.approve(pool.address, val2, { from: user2 })
     await pool.depositTokens(val3, { from: user2 })
     const message = await pool.generatePaymentMessage(user2, 200, { from: poolOwner })
@@ -254,6 +272,41 @@ contract('Pool', async accounts => {
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
+  })
+
+  it('only available supply can be transferred', async () => {
+    let availableSupply = await pool.availableSupply({ from: manager })
+    await mustRevert(async ()=> {
+      await pool.transferTokens((BigInt(availableSupply) + 1n).toString(), { from: manager })
+    })
+    let nonce = await web3.eth.getTransactionCount(manager)
+    await pool.transferTokens(200, { from: manager, nonce })
+    assert.equal(BigInt(availableSupply) - 200n, await pool.availableSupply({ from: manager }))
+    availableSupply = await pool.availableSupply({ from: manager })
+    await pool.transferTokens(availableSupply.toString(), { from: manager})
+    availableSupply = await pool.availableSupply({ from: manager })
+    assert.equal(0, availableSupply.toString())
+  })
+
+  it ('should change nonce when issuing or depositing tokens if nonce was not initialized yet', async () => {
+    let account = await pool.account(user3)
+    assert.equal(account.nonce, 0)
+    await token.mint(user3, val1, { from: tokenOwner })
+    await token.approve(pool.address, val2, { from: user3 })
+    await pool.depositTokens(val3, { from: user3 })
+    account = await pool.account(user3)
+    assert.notEqual(account.nonce, 0)
+    
+    account = await pool.account(user4)
+    assert.equal(account.nonce, 0)
+    const secret = 'my secret 2'
+    const secretHash = web3.utils.sha3(secret)
+    await token.mint(pool.address, val1, { from: tokenOwner })
+    await pool.resyncTotalSupply({ from: poolOwner })
+    await pool.issueTokens(user4, 600, secretHash, { from: manager })
+    await pool.acceptTokens(600, Buffer.from('my secret 2'), { from: user4 })
+    account = await pool.account(user4)
+    assert.notEqual(account.nonce, 0)
   })
 
 })
