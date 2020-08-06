@@ -3,6 +3,7 @@ pragma solidity 0.6.12;
 
 import "./IERC20.sol";
 import "./Claimable.sol";
+import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 
 struct Account {
     uint256 nonce;  
@@ -14,6 +15,8 @@ struct Account {
 }
 
 library AccountUtils {
+    using SafeMath for uint256;
+
     function initNonce(Account storage self) internal {
         if (self.nonce == 0) {
             self.nonce =
@@ -39,21 +42,21 @@ library AccountUtils {
         require(pending == value, "value must equal issued tokens");
         self.secretHash = 0;
         self.pending = 0;
-        self.balance += pending;
+        self.balance = self.balance.add(pending);
     }
 
     function payment(Account storage self, uint256 value) internal {
-        self.balance -= value;
+        self.balance = self.balance.sub(value);
     }
 
     function deposit(Account storage self, uint256 value) internal {
-        self.balance += value;
+        self.balance = self.balance.add(value);
     }
 
     function withdraw(Account storage self, uint256 value) internal {
         self.withdrawal = 0;
         self.release = 0;
-        self.balance -= value;
+        self.balance = self.balance.sub(value);
     }
 }
 
@@ -64,38 +67,38 @@ struct Supply {
 }
 
 library SupplyUtils {
-    function updatePending(Supply storage self, uint256 from, uint256 to) internal {        
-        if (from > to) {
-            // require(self.pending >= (from-to), "pending too low");
-            self.pending -= (from-to);
-        } else if (from < to) {
-            self.pending += (to-from);
-        }
+    using SafeMath for uint256;
+
+    function updatePending(Supply storage self, uint256 from, uint256 to) internal { 
+        self.pending = self.pending.add(to).sub(from);       
     }
 
     function acceptPending(Supply storage self, uint256 value) internal {
-        // require(self.pending >= value, "not enough pending");
-        self.pending -= value;
-        self.minimum += value;
+        self.pending = self.pending.sub(value, "not enough pending");
+        self.minimum = self.minimum.add(value);
     }
 
     function payment(Supply storage self, uint256 value) internal {
-        self.minimum -= value;
+        self.minimum > value ? self.minimum -= value : self.minimum = 0; 
     }
 
     function deposit(Supply storage self, uint256 value) internal {
-        self.minimum += value;
-        self.total += value;
+        self.minimum = self.minimum.add(value);
+        self.total = self.total.add(value);
     }
 
     function widthdraw(Supply storage self, uint256 value) internal {
-        self.minimum -= value;
-        self.total -= value;
+        self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+        self.total = self.total.sub(value);
+    }
+
+    function decrease(Supply storage self, uint256 value) internal {
+        self.total = self.total.sub(value);
+        require(self.total >= self.minimum, "minimum passed");
     }
 
     function available(Supply storage self) internal view returns (uint256) {
-        require(self.total >= (self.minimum + self.pending), 'internal error');
-        return self.total - self.minimum - self.pending;
+        return self.total.sub(self.minimum.add(self.pending));
     }
 }
 
@@ -106,9 +109,8 @@ struct Limits {
 
 struct Entities {
     address manager;
-    address tokenContract;
-    address tokenWallet;
-    address payable etherWallet;
+    address token;
+    address wallet;
 }
 
 /*
@@ -185,7 +187,7 @@ contract Pool is Claimable {
     }
 
     constructor(address tokenContract) public {
-        s_entities.tokenContract = tokenContract;
+        s_entities.token = tokenContract;
         s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10000*(10**18)});
         s_uid = (
           uint256(VERSION) << 248 |
@@ -195,12 +197,20 @@ contract Pool is Claimable {
         s_supply.total = ERC20(tokenContract).balanceOf(address(this));
     }
 
+    receive () external payable {
+        require(false, "not accepting ether");
+    }
+
 
     // ----------- Owner Functions ------------
 
 
     function setManager(address manager) external onlyOwner() {
         s_entities.manager = manager; 
+    }
+
+    function setWallet(address wallet) external onlyOwner() {
+        s_entities.wallet = wallet;
     }
 
     function setReleaseDelay(uint256 blocks) external onlyOwner() {
@@ -213,33 +223,19 @@ contract Pool is Claimable {
     }
 
     function resyncTotalSupply() external onlyAdmins() returns (uint256) {
-        s_supply.total = ERC20(s_entities.tokenContract).balanceOf(address(this));
-    }
-
-    function setTokenWallet(address tokenWallet) external onlyOwner() {
-        s_entities.tokenWallet = tokenWallet;
-    }
-
-    function setEtherWallet(address payable etherWallet) external onlyOwner() {
-        s_entities.etherWallet = etherWallet;
+        s_supply.total = ERC20(s_entities.token).balanceOf(address(this));
     }
 
 
     // ----------- Admins Functions ------------
 
 
-    function transferEther(uint256 value) external onlyAdmins() {
-        require(s_entities.etherWallet != address(0), "ether wallet not set");
-        s_entities.etherWallet.transfer(value);
-        emit EtherTransfered(s_entities.etherWallet, value);
-    }
-
     function transferTokens(uint256 value) external onlyAdmins() {
-        require(s_entities.tokenWallet != address(0), "token wallet not set");
-        require(value <= s_supply.available(), "value larget than available tokens");
-        s_supply.total -= value;
-        ERC20(s_entities.tokenContract).transfer(s_entities.tokenWallet, value);
-        emit TokensTransfered(s_entities.tokenWallet, value);
+        require(s_entities.wallet != address(0), "token wallet not set");
+        s_supply.decrease(value);
+        require(s_supply.available() >= 0, "value larger than available tokens");
+        ERC20(s_entities.token).transfer(s_entities.wallet, value);
+        emit TokensTransfered(s_entities.wallet, value);
     }
 
     /**
@@ -250,7 +246,6 @@ contract Pool is Claimable {
      * @param secretHash The keccak256 of the confirmation secret.
     */
     function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyAdmins() {
-        require(value <= s_supply.available(), "not enough available tokens");
         require(value <= s_limits.maxTokensPerIssue, "amount exeed max tokens per call");
         Account storage sp_account = s_accounts[to];
         uint256 prevPending = sp_account.pending;
@@ -258,6 +253,7 @@ contract Pool is Claimable {
         sp_account.secretHash = secretHash;
         sp_account.pending = value;
         s_supply.updatePending(prevPending, value);
+        require(s_supply.available() >= 0, "not enough available tokens");
         emit TokensIssued(to, value, secretHash);
     }
 
@@ -304,14 +300,14 @@ contract Pool is Claimable {
 
     function depositTokens(uint256 value) external {
         require(
-            ERC20(s_entities.tokenContract).allowance(msg.sender, address(this)) >= value,
+            ERC20(s_entities.token).allowance(msg.sender, address(this)) >= value,
             "ERC20 allowance too low"
         );
         Account storage sp_account = s_accounts[msg.sender]; 
         sp_account.initNonce();
         sp_account.deposit(value);
         s_supply.deposit(value);
-        ERC20(s_entities.tokenContract).transferFrom(msg.sender, address(this), value);
+        ERC20(s_entities.token).transferFrom(msg.sender, address(this), value);
         emit Deposit(msg.sender, value);
     }
 
@@ -336,7 +332,7 @@ contract Pool is Claimable {
         uint256 value = sp_account.withdrawal;
         sp_account.withdraw(value);
         s_supply.widthdraw(value);
-        ERC20(s_entities.tokenContract).transfer(msg.sender, value);
+        ERC20(s_entities.token).transfer(msg.sender, value);
         emit Withdrawal(msg.sender, value);
     }
 
@@ -364,16 +360,14 @@ contract Pool is Claimable {
     function entities() view external
         returns (
             address manager,
-            address tokenContract,
-            address tokenWallet,
-            address payable etherWallet
+            address token,
+            address wallet
         )
     {
         return (
             s_entities.manager,
-            s_entities.tokenContract,
-            s_entities.tokenWallet,
-            s_entities.etherWallet
+            s_entities.token,
+            s_entities.wallet
         );
     }
 
