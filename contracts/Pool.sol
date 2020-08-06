@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 import "./IERC20.sol";
 import "./Claimable.sol";
-import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 
 struct Account {
     uint256 nonce;  
@@ -69,8 +69,13 @@ struct Supply {
 library SupplyUtils {
     using SafeMath for uint256;
 
-    function updatePending(Supply storage self, uint256 from, uint256 to) internal { 
-        self.pending = self.pending.add(to).sub(from);       
+    modifier checkAvailability(Supply storage self) {
+        _;
+        require(self.total >= self.minimum.add(self.pending), "not enough available tokens");
+    }
+
+    function updatePending(Supply storage self, uint256 from, uint256 to) internal checkAvailability(self) { 
+        self.pending = self.pending.add(to).sub(from, "not enough available tokens");       
     }
 
     function acceptPending(Supply storage self, uint256 value) internal {
@@ -87,14 +92,13 @@ library SupplyUtils {
         self.total = self.total.add(value);
     }
 
-    function widthdraw(Supply storage self, uint256 value) internal {
+    function widthdraw(Supply storage self, uint256 value) internal checkAvailability(self) {
         self.minimum > value ? self.minimum -= value : self.minimum = 0; 
         self.total = self.total.sub(value);
     }
 
-    function decrease(Supply storage self, uint256 value) internal {
-        self.total = self.total.sub(value);
-        require(self.total >= self.minimum, "minimum passed");
+    function decrease(Supply storage self, uint256 value) internal checkAvailability(self) {
+        self.total = self.total.sub(value, "value larger than total");
     }
 
     function available(Supply storage self) internal view returns (uint256) {
@@ -233,7 +237,6 @@ contract Pool is Claimable {
     function transferTokens(uint256 value) external onlyAdmins() {
         require(s_entities.wallet != address(0), "token wallet not set");
         s_supply.decrease(value);
-        require(s_supply.available() >= 0, "value larger than available tokens");
         ERC20(s_entities.token).transfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
     }
@@ -253,7 +256,6 @@ contract Pool is Claimable {
         sp_account.secretHash = secretHash;
         sp_account.pending = value;
         s_supply.updatePending(prevPending, value);
-        require(s_supply.available() >= 0, "not enough available tokens");
         emit TokensIssued(to, value, secretHash);
     }
 
