@@ -1,11 +1,3 @@
-/**
- * Have some eth on my balance ?
- * Send an issue tokens
- * Get message
- * Sign message
- * Send to ExecuteAcceptTokens
- */
-
 const axios = require('axios');
 const { assert } = require("console");
 const mlog = require('mocha-logger');
@@ -22,7 +14,7 @@ const getPrivateKey = (address) => {
   return `0x${wallet._privKey.toString('hex')}`
 }
 
-contract("Buy Tokens", async accounts => {
+contract("Local E2E: issue tokens and generate payment", async accounts => {
 
   const user1 = accounts[3];
   const user2 = accounts[4];
@@ -41,22 +33,6 @@ contract("Buy Tokens", async accounts => {
     mlog.log('user3          ', user3)
 
   });
-
-  // it("should be able to initiate issueTokens", async () => {
-  //   const secret = "supermegal117secretz";
-  //   const secretHash = web3.utils.sha3(secret);
-  //   const tokens = 500;
-  //   const response = await axios.post(DEV_POOL, {
-  //     cmd: "issueTokens",
-  //     data: {
-  //       recipient: ETH_ACC,
-  //       value: 500,
-  //       secretHash,
-  //     },
-  //   });
-  //   mlog.log("Got response", JSON.stringify(response.data));
-  //   assert(response.data.message.parsed.from.toLowerCase() === user1.toLowerCase());
-  // });
 
   it("should be able to issueTokens ", async () => {
     const secret = "my secret";
