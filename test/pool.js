@@ -4,7 +4,16 @@ const Pool = artifacts.require("Pool")
 const Token = artifacts.require("KiroboToken")
 const mlog = require('mocha-logger')
 
-const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } = require('./lib/asserts')
+const {
+  assertRevert,
+  assertInvalidOpcode,
+  assertPayable,
+  assetEvent_getArgs,
+  assertFunction, 
+  mustFail,
+  mustRevert,
+} = require('./lib/asserts')
+
 const { 
   advanceBlock,
   advanceTime,
@@ -40,6 +49,8 @@ contract('Pool', async accounts => {
   const user1 = accounts[3]
   const user2 = accounts[4]
   const user3 = accounts[5]
+  const manager = accounts[6]
+  const wallet = accounts[7]
 
   const val1  = web3.utils.toWei('0.5', 'gwei')
   const val2  = web3.utils.toWei('0.4', 'gwei')
@@ -49,6 +60,8 @@ contract('Pool', async accounts => {
   before('checking constants', async () => {
       assert(typeof tokenOwner  == 'string', 'tokenOwner should be string')
       assert(typeof poolOwner   == 'string', 'poolOwner should be string')
+      assert(typeof manager     == 'string', 'manager should be string')
+      assert(typeof wallet      == 'string', 'wallet should be string')
       assert(typeof user1       == 'string', 'user1 should be string')
       assert(typeof user2       == 'string', 'user2 should be string')
       assert(typeof user3       == 'string', 'user3 should be string')
@@ -56,13 +69,15 @@ contract('Pool', async accounts => {
       assert(typeof val2        == 'string', 'val2  should be string')
       assert(typeof val3        == 'string', 'val2  should be string')
       assert(valBN instanceof web3.utils.BN, 'valBN should be big number')
-  });
+  })
 
   before('setup contract for the test', async () => {
     
     mlog.log('web3           ', web3.version)
     mlog.log('tokenOwner     ', tokenOwner)
     mlog.log('poolOwner      ', poolOwner)
+    mlog.log('manager        ', manager)
+    mlog.log('wallet         ', wallet)
     mlog.log('user1          ', user1)
     mlog.log('user2          ', user2)
     mlog.log('user3          ', user3)
@@ -76,15 +91,79 @@ contract('Pool', async accounts => {
     mlog.log('token contract ', token.address)
     mlog.log('pool contract  ', pool.address)
 
-  });
+  })
 
-  it('should create empty pool', async () => {
+  it('should create an empty pool', async () => {
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
-  });
+  })
+
+  it('should not accept ether', async () => {
+    await mustFail(async ()=> {
+      await web3.eth.sendTransaction({ from: poolOwner, to: pool.address, value: 10 })
+    })
+  })
+
+  it('should not set manager address on creation', async () => {
+    const entities = await pool.entities({ from: poolOwner })
+    assert.equal(entities.manager, 0)
+  })
+
+  it('should not set wallet address on creation', async () => {
+    const entities = await pool.entities({ from: poolOwner })
+    assert.equal(entities.wallet, 0)
+  })
+
+  it('should set token on creation', async () => {
+    const entities = await pool.entities({ from: poolOwner })
+    assert.equal(entities.token, token.address)
+  })
+
+  it('only owner should be able to replace manager', async () => {
+    await mustRevert(async ()=> {
+      await pool.setManager(manager, { from: tokenOwner })
+    })
+    await pool.setManager(manager, { from: poolOwner })
+    const entities = await pool.entities({ from: poolOwner })
+    assert.equal(entities.manager, manager)    
+  })
+
+  it('only owner should be able to replace wallet', async () => {
+    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await mustRevert(async ()=> {
+      await pool.setWallet(wallet, { from: tokenOwner, nonce })
+    }, tokenOwner)
+
+    await pool.setWallet(wallet, { from: poolOwner })
+    const entities = await pool.entities({ from: poolOwner })
+    assert.equal(entities.wallet, wallet)    
+  })
+
+  it('only owner should be able to set the release delay', async () => {
+    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await mustRevert(async ()=> {
+      await pool.setReleaseDelay(480, { from: tokenOwner, nonce })
+    }, tokenOwner)
+
+    await pool.setReleaseDelay(120, { from: poolOwner })
+    const limits = await pool.limits({ from: poolOwner })
+    assert.equal(limits.releaseDelay, 120)    
+  })
+
+  it('only owner should be able to set the max tokens per issue', async () => {
+    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await mustRevert(async ()=> {
+      await pool.setMaxTokensPerIssue(2000, { from: tokenOwner, nonce })
+    }, tokenOwner)
+
+    await pool.setMaxTokensPerIssue(1200, { from: poolOwner })
+    const limits = await pool.limits({ from: poolOwner })
+    assert.equal(limits.maxTokensPerIssue, 1200)    
+  })
 
   it('pool should accept tokens', async () => {
-    await token.mint(pool.address, val1, { from: tokenOwner })
+    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    await token.mint(pool.address, val1, { from: tokenOwner, nonce })
     await pool.resyncTotalSupply({ from: poolOwner })
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
@@ -92,7 +171,7 @@ contract('Pool', async accounts => {
     assert.equal(poolTokens.toString(), val1)
     const totalSupply = await pool.totalSupply({ from: poolOwner })
     assert.equal(totalSupply.toString(), val1)
-  });
+  })
 
   it('user should be able to deposit tokens', async () => {
     await token.mint(user1, val2, { from: tokenOwner })
@@ -102,7 +181,7 @@ contract('Pool', async accounts => {
     assert.equal((BigInt(val1) + BigInt(val3)).toString(), totalSupply.toString())
     const availableSupply = await pool.availableSupply({ from: poolOwner })
     assert.equal(BigInt(val1).toString(), availableSupply.toString())
-  });
+  })
 
   it('user should be able to withdraw tokens', async () => {
     await pool.requestWithdrawal(val3, { from: user1 })
@@ -114,7 +193,7 @@ contract('Pool', async accounts => {
     assert.equal((BigInt(val1)).toString(), totalSupply.toString())
     const availableSupply = await pool.availableSupply({ from: poolOwner })
     assert.equal(BigInt(val1).toString(), availableSupply.toString())
-  });
+  })
 
   it('should be able to generate,validate & execute "accept tokens" message', async () => {
     const tokens = 500
@@ -137,7 +216,7 @@ contract('Pool', async accounts => {
     mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
-  });
+  })
 
   it('should be able to generate,validate & execute "payment" message', async () => {
     await token.mint(user2, val1, { from: tokenOwner })
@@ -161,6 +240,6 @@ contract('Pool', async accounts => {
     await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
-  });
+  })
 
-});
+})

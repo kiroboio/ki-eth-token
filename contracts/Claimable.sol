@@ -9,31 +9,31 @@ import "./Ownable.sol";
  * This allows the new owner to accept the transfer.
  */
 abstract contract Claimable is Ownable {
-  address pendingOwner;
+  address s_pendingOwner;
 
   /**
    * @dev Modifier throws if called by any account other than the pendingOwner.
    */
   modifier onlyPendingOwner() {
-    require(msg.sender == pendingOwner, "not pending owner");
+    require(msg.sender == s_pendingOwner, "not pending owner");
     _;
   }
 
   /**
    * @dev Allows the current owner to set the pendingOwner address.
-   * @param _newOwner The address to transfer ownership to.
+   * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address _newOwner) public onlyOwner override {
-    pendingOwner = _newOwner;
+  function transferOwnership(address newOwner) public onlyOwner override {
+    s_pendingOwner = newOwner;
   }
 
   /**
    * @dev Allows the pendingOwner address to finalize the transfer.
    */
   function claimOwnership() public onlyPendingOwner {
-    emit OwnershipTransferred(owner, pendingOwner);
-    owner = pendingOwner;
-    pendingOwner = address(0);
+    emit OwnershipTransferred(s_owner, s_pendingOwner);
+    s_owner = s_pendingOwner;
+    s_pendingOwner = address(0);
   }
 }
 

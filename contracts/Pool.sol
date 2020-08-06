@@ -101,6 +101,10 @@ library SupplyUtils {
         self.total = self.total.sub(value, "value larger than total");
     }
 
+    function update(Supply storage self, uint256 value) internal checkAvailability(self) {
+        self.total = value;
+    }
+
     function available(Supply storage self) internal view returns (uint256) {
         return self.total.sub(self.minimum.add(self.pending));
     }
@@ -186,7 +190,7 @@ contract Pool is Claimable {
     event TokensTransfered(address indexed to, uint256 value);
 
     modifier onlyAdmins() {
-        require(msg.sender == owner || msg.sender == s_entities.manager, "not owner or manager");
+        require(msg.sender == s_owner || msg.sender == s_entities.manager, "not owner or manager");
         _;
     }
 
@@ -198,7 +202,6 @@ contract Pool is Claimable {
           uint256(blockhash(block.number-1)) << 192 >> 16 |
           uint256(address(this))
         );
-        s_supply.total = ERC20(tokenContract).balanceOf(address(this));
     }
 
     receive () external payable {
@@ -227,7 +230,7 @@ contract Pool is Claimable {
     }
 
     function resyncTotalSupply() external onlyAdmins() returns (uint256) {
-        s_supply.total = ERC20(s_entities.token).balanceOf(address(this));
+        s_supply.update(ownedTokens());
     }
 
 
@@ -472,6 +475,10 @@ contract Pool is Claimable {
         );
         address addr = ecrecover(message, v, r, s);
         return addr == from;      
+    }
+
+    function ownedTokens() view public returns (uint256) {
+        return ERC20(s_entities.token).balanceOf(address(this));
     }
 
 

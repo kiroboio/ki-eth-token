@@ -1,5 +1,9 @@
 'use strict'
 
+const mochaLogger = require("mocha-logger");
+
+// const { assert } = require("console");
+
 const assertRevert = (err) => {
   if (web3.version.startsWith("1")) {
     // console.log(JSON.stringify(err))
@@ -33,7 +37,7 @@ const assertFunction = (err) => {
     assert.ok(err && err.message && err.message.includes('is not a function'))
 
   }
-};
+}
 
 const assetEvent_getArgs = (logs, eventName) => {
   assert.ok(logs instanceof Array, 'logs should be an array')
@@ -41,7 +45,27 @@ const assetEvent_getArgs = (logs, eventName) => {
   const log = logs[0]
   assert.equal(log.event, eventName, 'event')
   return log.args
-};
+}
+
+const mustFail = async (func) => {
+  try{
+    await func()
+  } catch(e) {
+    return
+  }
+  assert(false, `function should fail: ${func.toString()}`)
+}
+
+const mustRevert = async (func) => {
+  try{
+    await func()
+  } catch(e) {
+    assertRevert(e)
+    return
+  }
+  assert(false, `function should raise revert: ${func.toString()}`)
+}
+
 
 
 module.exports = {
@@ -49,5 +73,7 @@ module.exports = {
   assertInvalidOpcode,
   assertPayable,
   assertFunction,
-  assetEvent_getArgs
+  assetEvent_getArgs,
+  mustFail,
+  mustRevert,
 }
