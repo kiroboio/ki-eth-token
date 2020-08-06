@@ -35,7 +35,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
   });
 
   it("should be able to issueTokens ", async () => {
-    const secret = "my secret";
+    const secret = "my secret is very secret";
     const secretHash = web3.utils.sha3(secret);
     const secretHex = "0x" + Buffer.from(secret).toString("hex");
     const tokens = 500;

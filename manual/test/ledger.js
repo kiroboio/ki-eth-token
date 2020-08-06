@@ -93,6 +93,10 @@ contract("Ledger Test", async (accounts) => {
 
     const toSign = Buffer.from(web3.utils.sha3(message).slice(2)).toString('hex');
     mlog.log("toSign", toSign);
+    const hashedToSign = hashMessage(toSign);
+    mlog.log("message hash", hashToSign);
+
+
     const signedLedger = await ethApp.signPersonalMessage(
       PATH,
       toSign,
@@ -103,8 +107,6 @@ contract("Ledger Test", async (accounts) => {
     let v = '0x' + signedLedger.v.toString(16);
 
     let { r, s } = signedLedger;
-
-    const hashedToSign = hashMessage(toSign);
 
     const recovered = web3.eth.accounts.recover({
       messageHash: hashedToSign,
@@ -142,6 +144,11 @@ contract("Ledger Test", async (accounts) => {
 
     const toSign = Buffer.from(web3.utils.sha3(message).slice(2)).toString('hex');
     mlog.log("toSign", toSign);
+
+    const hashedToSign = hashMessage(toSign);
+
+    mlog.log("message hash", hashedToSign);
+
     const signedLedger = await ethApp.signPersonalMessage(
       PATH,
       toSign,
@@ -152,8 +159,6 @@ contract("Ledger Test", async (accounts) => {
     let v = '0x' + signedLedger.v.toString(16);
 
     let { r, s } = signedLedger;
-
-    const hashedToSign = hashMessage(toSign);
 
     const recovered = web3.eth.accounts.recover({
       messageHash: hashedToSign,
