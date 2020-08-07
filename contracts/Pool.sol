@@ -212,10 +212,14 @@ contract Pool is Claimable {
 
 
     function setManager(address manager) external onlyOwner() {
+        require(manager != address(this), "pool cannot be mananger");
+        require(manager != s_entities.token, "token cannot be manager");
         s_entities.manager = manager; 
     }
 
     function setWallet(address wallet) external onlyOwner() {
+        require(wallet != address(this), "pool cannot be wallet");
+        require(wallet != s_entities.token, "token cannot be wallt");
         s_entities.wallet = wallet;
     }
 

@@ -131,6 +131,8 @@ contract('Pool', async accounts => {
     assert.equal(entities.manager, manager)    
   })
 
+  it ('should not be able to set manager to pool or token address')
+
   it('only owner should be able to replace wallet', async () => {
     const nonce = await web3.eth.getTransactionCount(tokenOwner)
     await mustRevert(async ()=> {
@@ -142,6 +144,8 @@ contract('Pool', async accounts => {
     assert.equal(entities.wallet, wallet)    
   })
 
+  it ('should not be able to set wallet to pool or token address')
+
   it('only owner should be able to set the release delay', async () => {
     const nonce = await web3.eth.getTransactionCount(tokenOwner)
     await mustRevert(async ()=> {
@@ -152,6 +156,8 @@ contract('Pool', async accounts => {
     const limits = await pool.limits({ from: poolOwner })
     assert.equal(limits.releaseDelay, 120)    
   })
+
+  it ('release delay should not be able to exceed the max release delay')
 
   it('only owner should be able to set the max tokens per issue', async () => {
     const nonce = await web3.eth.getTransactionCount(tokenOwner)
@@ -225,7 +231,7 @@ contract('Pool', async accounts => {
     nonce = await web3.eth.getTransactionCount(manager)
     await pool.transferTokens(200, { from: manager, nonce })
   })
-
+  
   it('should be able to generate,validate & execute "accept tokens" message', async () => {
     const tokens = 500
     const secret = 'my secret'
@@ -248,7 +254,9 @@ contract('Pool', async accounts => {
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
   })
-
+  
+  it ('should not be able to accept when address, value or secretHash do not match')
+  
   it('should be able to generate,validate & execute "payment" message', async () => {
     const nonce = await web3.eth.getTransactionCount(tokenOwner)
     await token.mint(user2, val1, { from: tokenOwner, nonce })
@@ -273,6 +281,10 @@ contract('Pool', async accounts => {
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   })
+
+  it ('should not be able to executing the same payment twice')
+  it ('should not be able to executing unused passed payments')
+
 
   it('only available supply can be transferred', async () => {
     let availableSupply = await pool.availableSupply({ from: manager })
