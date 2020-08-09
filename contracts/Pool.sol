@@ -187,6 +187,10 @@ contract Pool is Claimable {
     event Withdrawal(address indexed account, uint256 value);
     event EtherTransfered(address indexed to, uint256 value);
     event TokensTransfered(address indexed to, uint256 value);
+    event ManagerChanged(address from, address to);
+    event WalletChanged(address from, address to);
+    event ReleaseDelayChanged(uint256 from, uint256 to);
+    event MaxTokensPerIssueChanged(uint256 from, uint256 to);
 
     modifier onlyAdmins() {
         require(msg.sender == s_owner || msg.sender == s_entities.manager, "not owner or manager");
@@ -214,21 +218,25 @@ contract Pool is Claimable {
     function setManager(address manager) external onlyOwner() {
         require(manager != address(this), "pool cannot be mananger");
         require(manager != s_entities.token, "token cannot be manager");
-        s_entities.manager = manager; 
+        emit ManagerChanged(s_entities.manager, manager);
+        s_entities.manager = manager;
     }
 
     function setWallet(address wallet) external onlyOwner() {
         require(wallet != address(this), "pool cannot be wallet");
         require(wallet != s_entities.token, "token cannot be wallt");
+        emit WalletChanged(s_entities.wallet, wallet);
         s_entities.wallet = wallet;
     }
 
     function setReleaseDelay(uint256 blocks) external onlyOwner() {
         require(blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
+        emit ReleaseDelayChanged(s_limits.releaseDelay, blocks);
         s_limits.releaseDelay = blocks;
     }
 
     function setMaxTokensPerIssue(uint256 tokens) external onlyOwner() {
+        emit MaxTokensPerIssueChanged(s_limits.maxTokensPerIssue, tokens);
         s_limits.maxTokensPerIssue = tokens;
     }
 

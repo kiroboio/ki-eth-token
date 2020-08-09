@@ -282,16 +282,57 @@ contract('Pool', async accounts => {
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   })
 
-  it ('should not be able to executing the same payment twice')
-  it ('should not be able to executing unused passed payments')
+  it ('should not be able to executing the same payment twice', async () => {
+    const message = await pool.generatePaymentMessage(user2, 100, { from: manager })
+    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 100, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    const prevNonce = parseNonce((await pool.account(user2,{from: user2 })).nonce)
+    await advanceTime(1)
+    await pool.executePayment(user2, 100, rlp.v, rlp.r, rlp.s, { from: manager} )
+    assert.equal(await pool.validatePayment(user2, 100, rlp.v, rlp.r, rlp.s, { from: manager }), false)
+    await mustRevert(async () => {
+      await pool.executePayment(user2, 100, rlp.v, rlp.r, rlp.s, { from: manager} )
+    })
+    let nonce = await web3.eth.getTransactionCount(manager)
+    await advanceTime(1)
+    assert.equal(await pool.validatePayment(user2, 100, rlp.v, rlp.r, rlp.s, { from: manager }), false)
+    await mustRevert(async () => {
+      await pool.executePayment(user2, 100, rlp.v, rlp.r, rlp.s, { from: manager, nonce} )
+    })
+  })
+
+  it ('should not be able to executing unused passed payments', async () => {
+    let nonce = await web3.eth.getTransactionCount(manager)
+    const message = await pool.generatePaymentMessage(user2, 700, { from: manager })
+    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 700, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    const newMessage = await pool.generatePaymentMessage(user2, 800, { from: manager })
+    const newRlp = await web3.eth.accounts.sign(web3.utils.sha3(newMessage).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 800, newRlp.v, newRlp.r, newRlp.s, { from: manager }), 'invalid signature')
+    await pool.executePayment(user2, 800, newRlp.v, newRlp.r, newRlp.s, { from: manager, nonce} )
+
+    await mustRevert(async () => {
+      await pool.executePayment(user2, 700, rlp.v, rlp.r, rlp.s, { from: manager} )
+    })
+
+    await advanceTime(1)
+
+    nonce = await web3.eth.getTransactionCount(manager)
+    assert.equal(await pool.validatePayment(user2, 700, rlp.v, rlp.r, rlp.s, { from: manager }), false)
+    await mustRevert(async () => {
+      await pool.executePayment(user2, 700, rlp.v, rlp.r, rlp.s, { from: manager, nonce} )
+    })
+
+  })
 
 
   it('only available supply can be transferred', async () => {
+    let nonce = await web3.eth.getTransactionCount(manager)
     let availableSupply = await pool.availableSupply({ from: manager })
     await mustRevert(async ()=> {
-      await pool.transferTokens((BigInt(availableSupply) + 1n).toString(), { from: manager })
+      await pool.transferTokens((BigInt(availableSupply) + 1n).toString(), { from: manager, nonce })
     })
-    let nonce = await web3.eth.getTransactionCount(manager)
+    nonce = await web3.eth.getTransactionCount(manager)
     await pool.transferTokens(200, { from: manager, nonce })
     assert.equal(BigInt(availableSupply) - 200n, await pool.availableSupply({ from: manager }))
     availableSupply = await pool.availableSupply({ from: manager })
@@ -340,9 +381,22 @@ contract('Pool', async accounts => {
     assert.equal(account.nonce + '', nonce)
   })
 
-  it ('should change account\'s nonce when executing payment')
+  it ('should change account\'s nonce when executing payment', async() => {
+    const message = await pool.generatePaymentMessage(user2, 500, { from: poolOwner })
+    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 500, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
+    const prevNonce = parseNonce((await pool.account(user2,{from: user2 })).nonce)
+    await advanceTime(1)
+    await pool.executePayment(user2, 500, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    const newNonce = parseNonce((await pool.account(user2,{from: user2 })).nonce)
+    assert.notEqual(prevNonce.count, newNonce.count)
+    assert.notEqual(prevNonce.salt, newNonce.salt)
+    assert.notEqual(prevNonce.timestamp, newNonce.timestamp)
+  })
+
   it ('should sync pending supply when issuing tokens multiple times')
-  it ('should sync pending supply when issuing tokens to multiple account')
+  it ('should sync pending supply when issuing tokens to multiple accounts')
   it ('account should not be able to withdraw before release delay has been reached')
   it ('account should always be able to cancel withdrawal')
   it ('account should be able to withdraw all non-pending balance')
