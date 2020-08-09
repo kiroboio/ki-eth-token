@@ -105,6 +105,8 @@ contract("Ledger E2E: issue tokens and generate payment", async (accounts) => {
     mlog.log("toSign with Trezor:", toSign);
     trzMessage = toSign;
 
+    mlog.log("Trezor signing display:", Buffer.from(web3.utils.sha3(raw).slice(2)).toString('utf8'));
+
     mlog.log('Click "Sign Accept Tokens" in the browser...');
     await pollCondition(() => (trzSignedMessage !== undefined), 200);
     mlog.log('signed Trezor manual', JSON.stringify(trzSignedMessage));
@@ -176,6 +178,8 @@ contract("Ledger E2E: issue tokens and generate payment", async (accounts) => {
     const toSign = Buffer.from(web3.utils.sha3(raw).slice(2)).toString("hex");
     trzMessage = toSign;
     mlog.log("toSign with Trezor:", toSign);
+
+    mlog.log("Trezor signing display:", Buffer.from(web3.utils.sha3(raw).slice(2)).toString('utf8'));
 
     mlog.log("Click on Sign Payment in the browser...");
     trzSignedMessage = undefined;
