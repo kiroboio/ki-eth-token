@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { assert } = require("console");
+const crypto = require('crypto');
 const mlog = require('mocha-logger');
 const hidTransport = require("@ledgerhq/hw-transport-node-hid").default;
 const App = require("@ledgerhq/hw-app-eth").default;
@@ -67,9 +68,10 @@ contract("Ledger E2E: issue tokens and generate payment", async accounts => {
     const { raw, parsed } = response.data.message;
     mlog.log("got message to sign:", raw);
     mlog.log("got parsed message:", JSON.stringify(parsed));
-    // const rlp = await web3.eth.accounts.sign(web3.utils.sha3(raw).slice(2), getPrivateKey(user1));
     const toSign = Buffer.from(web3.utils.sha3(raw).slice(2)).toString('hex');
     mlog.log('toSign with ledger:', toSign);
+    const sha256_buf = crypto.createHash('sha256').update(Buffer.from(web3.utils.sha3(raw).slice(2))).digest('hex');
+    mlog.log('ledger display: ', sha256_buf.toUpperCase());
     const signedLedger = await ethApp.signPersonalMessage(
       PATH,
       toSign,
@@ -139,6 +141,8 @@ contract("Ledger E2E: issue tokens and generate payment", async accounts => {
 
     const toSign = Buffer.from(web3.utils.sha3(raw).slice(2)).toString('hex');
     mlog.log('toSign with ledger:', toSign);
+    const sha256_buf = crypto.createHash('sha256').update(Buffer.from(web3.utils.sha3(raw).slice(2))).digest('hex');
+    mlog.log('ledger display: ', sha256_buf.toUpperCase());
     const signedLedger = await ethApp.signPersonalMessage(
       PATH,
       toSign,
