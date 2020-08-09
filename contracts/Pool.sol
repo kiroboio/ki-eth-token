@@ -8,9 +8,10 @@ import "./Claimable.sol";
 struct Account {
     uint256 nonce;  
     uint256 balance;
+    uint256 issueBlock;
     uint256 pending;
     uint256 withdrawal;
-    uint256 release;
+    uint256 releaseBlock;
     bytes32 secretHash;
 }
 
@@ -42,6 +43,7 @@ library AccountUtils {
         require(pending == value, "value must equal issued tokens");
         self.secretHash = 0;
         self.pending = 0;
+        self.issueBlock = 0;
         self.balance = self.balance.add(pending);
     }
 
@@ -55,7 +57,7 @@ library AccountUtils {
 
     function withdraw(Account storage self, uint256 value) internal {
         self.withdrawal = 0;
-        self.release = 0;
+        self.releaseBlock = 0;
         self.balance = self.balance.sub(value);
     }
 }
@@ -269,6 +271,7 @@ contract Pool is Claimable {
         sp_account.initNonce();
         sp_account.secretHash = secretHash;
         sp_account.pending = value;
+        sp_account.issueBlock = block.number;
         s_supply.updatePending(prevPending, value);
         emit TokensIssued(to, value, secretHash);
     }
@@ -330,23 +333,23 @@ contract Pool is Claimable {
 
     function requestWithdrawal(uint256 value) external {
         require(s_accounts[msg.sender].balance >= value, "not enough tokens");
-        require(value > 0, "cannot withdraw");
+        require(value > 0, "withdrawal value must be larger then 0");
         s_accounts[msg.sender].withdrawal = value;
-        s_accounts[msg.sender].release = block.number + 240;
+        s_accounts[msg.sender].releaseBlock = block.number + s_limits.releaseDelay;
         emit WithdrawalRequested(msg.sender, value);
     }
 
     function cancelWithdrawal() external {
         s_accounts[msg.sender].withdrawal = 0;
-        s_accounts[msg.sender].release = 0;
+        s_accounts[msg.sender].releaseBlock = 0;
         emit WithdrawalCanceled(msg.sender);
     }
 
     function withdrawTokens() external {
         Account storage sp_account = s_accounts[msg.sender];   
-        require(sp_account.release > 0, "no withdraw request");
-        require(sp_account.release < block.number, "too soon");
-        uint256 value = sp_account.withdrawal;
+        require(sp_account.withdrawal > 0, "no withdraw request");
+        require(sp_account.releaseBlock <= block.number, "too soon");
+        uint256 value = sp_account.withdrawal > sp_account.balance ? sp_account.balance : sp_account.withdrawal;
         sp_account.withdraw(value);
         s_supply.widthdraw(value);
         ERC20(s_entities.token).transfer(msg.sender, value);
@@ -357,9 +360,10 @@ contract Pool is Claimable {
         returns (
             uint256 nonce,  
             uint256 balance,
+            uint256 issueBlock,
             uint256 pending,
             uint256 withdrawal,
-            uint256 release,
+            uint256 releaseBlock,
             bytes32 secretHash
         ) 
     {
@@ -367,9 +371,10 @@ contract Pool is Claimable {
         return (
             sp_account.nonce,
             sp_account.balance,
+            sp_account.issueBlock,
             sp_account.pending,
             sp_account.withdrawal,
-            sp_account.release,
+            sp_account.releaseBlock,
             sp_account.secretHash
         );
     }
@@ -498,6 +503,7 @@ contract Pool is Claimable {
 
 
     function _acceptTokens(address recipient, uint256 value) private {
+        require(s_accounts[recipient].issueBlock < block.number, "too soon");
         s_accounts[recipient].acceptPending(value);
         s_supply.acceptPending(value);
     }
