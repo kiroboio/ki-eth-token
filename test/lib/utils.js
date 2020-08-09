@@ -122,6 +122,14 @@ const parseNonce = (nonce) => {
   }
 }
 
+const trNonce = async (web3, address) => {
+  return await web3.eth.getTransactionCount(address)
+}
+
+const sender = async (web3, address) => {
+  return { from: address, nonce: await trNonce(web3, address) }
+}
+
 module.exports = {
   sleep,
   getLatestBlockTimestamp,
@@ -136,4 +144,6 @@ module.exports = {
   parseAcceptTokensMessage,
   parsePaymentMessage,
   parseNonce,
+  trNonce,
+  sender,
 }

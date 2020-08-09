@@ -21,7 +21,10 @@ const {
   parsePaymentMessage,
   parseAcceptTokensMessage,
   parseNonce,
-  sleep
+  sleep,
+  pollCondition,
+  trNonce,
+  sender,
 } = require('./lib/utils')
 
 const { get } = require('lodash')
@@ -130,43 +133,87 @@ contract('Pool', async accounts => {
       await pool.setManager(manager, { from: tokenOwner })
     })
     await pool.setManager(manager, { from: poolOwner })
+    await mustRevert(async ()=> {
+      await pool.setManager(user1, { from: manager })
+    })
     const entities = await pool.entities({ from: poolOwner })
     assert.equal(entities.manager, manager)    
   })
 
-  it ('should not be able to set manager to pool or token address')
+  it ('should not be able to set manager to pool or token address', async () => {
+    let nonce = await trNonce(web3, poolOwner)
+    await mustRevert(async ()=> {
+      await pool.setManager(token.address, { from: poolOwner, nonce })
+    })
+    nonce = await trNonce(web3, poolOwner)
+    await mustRevert(async ()=> {
+      await pool.setManager(pool.address, { from: poolOwner, nonce })
+    })
+  })
 
   it('only owner should be able to replace wallet', async () => {
-    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    let nonce = await trNonce(web3, tokenOwner)
     await mustRevert(async ()=> {
-      await pool.setWallet(wallet, { from: tokenOwner, nonce })
-    }, tokenOwner)
+      await pool.setWallet(wallet, { from: tokenOwner, nonce})
+    })
 
-    await pool.setWallet(wallet, { from: poolOwner })
+    nonce = await trNonce(web3, manager)
+    await mustRevert(async ()=> {
+      await pool.setWallet(wallet, { from: manager, nonce})
+    })
+
+    nonce = await trNonce(web3, poolOwner)
+    await pool.setWallet(wallet, { from: poolOwner, nonce })
     const entities = await pool.entities({ from: poolOwner })
     assert.equal(entities.wallet, wallet)    
   })
 
-  it ('should not be able to set wallet to pool or token address')
+  it ('should not be able to set wallet to pool or token address', async () => {
+    let nonce = await trNonce(web3, poolOwner)
+    await mustRevert(async ()=> {
+      await pool.setWallet(token.address, { from: poolOwner, nonce })
+    })
+    nonce = await trNonce(web3, poolOwner)
+    await mustRevert(async ()=> {
+      await pool.setWallet(pool.address, { from: poolOwner, nonce })
+    })
+  })
 
   it('only owner should be able to set the release delay', async () => {
-    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    let nonce = await web3.eth.getTransactionCount(tokenOwner)
     await mustRevert(async ()=> {
       await pool.setReleaseDelay(480, { from: tokenOwner, nonce })
-    }, tokenOwner)
+    })
 
-    await pool.setReleaseDelay(120, { from: poolOwner })
+    nonce = await web3.eth.getTransactionCount(manager)
+    await mustRevert(async ()=> {
+      await pool.setReleaseDelay(480, { from: manager, nonce })
+    })
+
+    nonce = await trNonce(web3, poolOwner)
+    await pool.setReleaseDelay(120, { from: poolOwner, nonce })
     const limits = await pool.limits({ from: poolOwner })
     assert.equal(limits.releaseDelay, 120)    
   })
 
-  it ('release delay should not be able to exceed the max release delay')
+  it ('release delay should not be able to exceed the max release delay', async () => {
+    // let nonce = await web3.eth.getTransactionCount(poolOwner)
+    // await mustRevert(async ()=> {
+    //   await pool.setReleaseDelay(480, { from: poolOwner, nonce })
+    // }, tokenOwner)
+
+  })
 
   it('only owner should be able to set the max tokens per issue', async () => {
-    const nonce = await web3.eth.getTransactionCount(tokenOwner)
+    let nonce = await web3.eth.getTransactionCount(tokenOwner)
     await mustRevert(async ()=> {
       await pool.setMaxTokensPerIssue(2000, { from: tokenOwner, nonce })
-    }, tokenOwner)
+    })
+
+    nonce = await web3.eth.getTransactionCount(manager)
+    await mustRevert(async ()=> {
+      await pool.setMaxTokensPerIssue(2000, { from: manager, nonce })
+    })
 
     await pool.setMaxTokensPerIssue(1200, { from: poolOwner })
     const limits = await pool.limits({ from: poolOwner })
@@ -224,16 +271,16 @@ contract('Pool', async accounts => {
   })
 
   it('only admins should be able to transfer tokens', async () => {
-    let nonce = await web3.eth.getTransactionCount(tokenOwner)
+    let nonce = await trNonce(web3, tokenOwner)
     await mustRevert(async ()=> {
       await pool.transferTokens(480, { from: tokenOwner, nonce })
     })
     await mustRevert(async ()=> {
       await pool.transferTokens(480, { from: user1 })
     })
-    nonce = await web3.eth.getTransactionCount(poolOwner)
+    nonce = await trNonce(web3, poolOwner)
     await pool.transferTokens(100, { from: poolOwner, nonce })
-    nonce = await web3.eth.getTransactionCount(manager)
+    nonce = await trNonce(web3, manager)
     await pool.transferTokens(200, { from: manager, nonce })
   })
   
@@ -573,11 +620,43 @@ contract('Pool', async accounts => {
     }
 
     await pool.withdrawTokens({ from: user5 })
-    assert.equal(balance - 300, +(await pool.account(user5)).balance)
+    assert.equal(balance-300, +(await pool.account(user5)).balance)
   })
 
-  it ('setting the release delay does not affect existing withdrawal requests')
-  it ('account should be able to withdraw all non-pending balance')
+  it ('setting the release delay does not affect existing withdrawal requests', async () => {
+    let balance = +(await pool.account(user5)).balance
+    let releaseDelay = +(await pool.limits()).releaseDelay
+    await pool.requestWithdrawal(300, { from: user5 })
+    await pool.setReleaseDelay(240, { from: poolOwner })
+    for (let i=0; i<releaseDelay-1; ++i) {
+      await advanceBlock()
+    }
+    await pool.withdrawTokens({ from: user5 })
+    assert.equal(balance-300, +(await pool.account(user5)).balance)
+
+    await pool.setReleaseDelay(120, { from: poolOwner })
+    releaseDelay = +(await pool.limits()).releaseDelay
+    await pool.requestWithdrawal(300, { from: user5 })
+    await pool.setReleaseDelay(100, { from: poolOwner })
+
+    for (let i=0; i<100-1; ++i) {
+      await advanceBlock()
+    }
+    await mustRevert(async ()=> {
+      await pool.withdrawTokens({ from: user5 })
+    })
+
+    for (let i=0; i<20-1; ++i) {
+      await advanceBlock()
+    }
+    let nonce = await web3.eth.getTransactionCount(user5)
+    await pool.withdrawTokens({ from: user5, nonce })
+    assert.equal(balance-600, +(await pool.account(user5)).balance)
+
+  })
+  it ('account should be able to withdraw all non-pending balance', async () => {
+
+  })
 
   it ('limits should be accurate after extensive usage of the system')
   it ('account\'s info should be accurate after extensive usage of the system')
