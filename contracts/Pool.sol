@@ -383,7 +383,7 @@ contract Pool is Claimable {
         ) 
     {
         Account storage sp_account = s_accounts[addr];
-        uint256 externalBalance = ERC20(s_entities.token).balanceOf(addr);
+        uint256 extBalance = ERC20(s_entities.token).balanceOf(addr);
         return (
             sp_account.nonce,
             sp_account.balance,
@@ -392,7 +392,7 @@ contract Pool is Claimable {
             sp_account.withdrawal,
             sp_account.releaseBlock,
             sp_account.secretHash,
-            externalBalance
+            extBalance
         );
     }
 
