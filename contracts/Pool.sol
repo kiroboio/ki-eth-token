@@ -71,9 +71,19 @@ struct Supply {
 library SupplyUtils {
     using SafeMath for uint256;
 
+    event MinimumReached(uint256 before, uint256 delta);
+
     modifier checkAvailability(Supply storage self) {
         _;
         require(self.total >= self.minimum.add(self.pending), "not enough available tokens");
+    }
+
+    modifier safeReduceMinimum(Supply storage self, uint256 value) {
+        self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+        if (self.minimum == 0) {
+          emit MinimumReached(self.minimum, value);
+        }
+        _;
     }
 
     function updatePending(Supply storage self, uint256 from, uint256 to) internal checkAvailability(self) { 
@@ -85,9 +95,8 @@ library SupplyUtils {
         self.minimum = self.minimum.add(value);
     }
 
-    function payment(Supply storage self, uint256 value) internal {
-        // self.minimum > value ? self.minimum -= value : self.minimum = 0; 
-        self.minimum = self.minimum.sub(value); 
+    function payment(Supply storage self, uint256 value) internal /*safeReduceMinimum(self, value)*/ {
+        self.minimum = self.minimum.sub(value);
     }
 
     function deposit(Supply storage self, uint256 value) internal {
@@ -95,8 +104,7 @@ library SupplyUtils {
         self.total = self.total.add(value);
     }
 
-    function widthdraw(Supply storage self, uint256 value) internal checkAvailability(self) {
-        // self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+    function widthdraw(Supply storage self, uint256 value) internal /*safeReduceMinimum(self, value)*/ checkAvailability(self) {
         self.minimum = self.minimum.sub(value); 
         self.total = self.total.sub(value);
     }
@@ -370,10 +378,12 @@ contract Pool is Claimable {
             uint256 pending,
             uint256 withdrawal,
             uint256 releaseBlock,
-            bytes32 secretHash
+            bytes32 secretHash,
+            uint256 externalBalance
         ) 
     {
         Account storage sp_account = s_accounts[addr];
+        uint256 externalBalance = ERC20(s_entities.token).balanceOf(addr);
         return (
             sp_account.nonce,
             sp_account.balance,
@@ -381,7 +391,8 @@ contract Pool is Claimable {
             sp_account.pending,
             sp_account.withdrawal,
             sp_account.releaseBlock,
-            sp_account.secretHash
+            sp_account.secretHash,
+            externalBalance
         );
     }
 
@@ -415,13 +426,15 @@ contract Pool is Claimable {
         returns (
             uint256 total,
             uint256 minimum,
-            uint256 pending
+            uint256 pending,
+            uint256 available
         ) 
     {
         return (
             s_supply.total,
             s_supply.minimum,
-            s_supply.pending
+            s_supply.pending,
+            s_supply.available()
         );
     }
 

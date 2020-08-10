@@ -329,7 +329,6 @@ contract('Pool', async accounts => {
     assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
     mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
-    // assert(await pool.validateAcceptTokensMessage(user1, web3.utils.sha3(secret), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
   })
   
   it ('should not be able to accept when address, value or secretHash do not match', async () => {
@@ -719,6 +718,23 @@ contract('Pool', async accounts => {
 
 
     // TODO: the actual test
+    await pool.issueTokens(user1, 600, web3.utils.sha3('secret1'), { from: manager })
+    await pool.acceptTokens(600, Buffer.from('secret1'), { from: user1 })
+
+    await pool.issueTokens(user2, 300, web3.utils.sha3('secret2'), { from: manager })
+    await pool.acceptTokens(300, Buffer.from('secret2'), { from: user2 })
+
+    await token.mint(user3, 700, { from: tokenOwner })
+    await token.approve(pool.address, 200, { from: user3 })
+    await pool.depositTokens(100, { from: user3 })
+
+    await pool.issueTokens(user4, 700, web3.utils.sha3('secret4'), { from: manager })
+    const message = await pool.generateAcceptTokensMessage(user4, 700, web3.utils.sha3('secret4'), { from: manager })
+    const messageHash = web3.utils.sha3(message)
+    const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user4))
+    assert(await pool.validateAcceptTokens(user4, 700, web3.utils.sha3('secret4'), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    await pool.executeAcceptTokens(user4, 700, Buffer.from('secret4'), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+
 
     const supply = await pool.supply()
     const user1Account = await pool.account(user1)
@@ -734,7 +750,7 @@ contract('Pool', async accounts => {
     assert.equal(+supply.total, +initSupply.total) 
     assert.equal(+supply.minimum, +initSupply.minimum) 
     assert.equal(+supply.pending, +initSupply.pending) 
-    assert.equal(+supply.pending, +initSupply.pending) 
+    assert.equal(+supply.available, +initSupply.available) 
     assert.equal(+user1Account.balance, +user1InitAccount.balance) 
     assert.equal(+user1Account.pending, +user1InitAccount.pending) 
     assert.equal(+user1Account.withdrawal, +user1InitAccount.withdrawal) 
