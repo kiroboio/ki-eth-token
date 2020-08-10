@@ -786,12 +786,16 @@ contract('Pool', async accounts => {
     assert.equal(+user5Account.balance, +user5InitAccount.balance + 880) 
     assert.equal(+user5Account.pending, +user5InitAccount.pending - 235) 
     assert.equal(+user5Account.withdrawal, +user5InitAccount.withdrawal) 
+    assert.equal(user1Tokens, +user1Account.externalBalance) 
+    assert.equal(user2Tokens, +user2Account.externalBalance) 
+    assert.equal(user3Tokens, +user3Account.externalBalance) 
+    assert.equal(user4Tokens, +user4Account.externalBalance) 
+    assert.equal(user5Tokens, +user5Account.externalBalance) 
     assert.equal(user1Tokens, user1InitTokens) 
     assert.equal(user2Tokens, user2InitTokens) 
     assert.equal(user3Tokens, user3InitTokens + 600) 
     assert.equal(user4Tokens, user4InitTokens + 200) 
     assert.equal(user5Tokens, user5InitTokens) 
   })
-
   
 })
