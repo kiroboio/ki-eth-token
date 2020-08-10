@@ -703,7 +703,8 @@ contract('Pool', async accounts => {
     assert.equal(user5Tokens, user5InitTokens + user5InitBalance - 20) 
   })
 
-  it.skip('supply & accounts info should be accurate after extensive use of the system', async () => {
+  it('supply & accounts info should be accurate after extensive use of the system', async () => {
+    await pool.issueTokens(user5, 235, web3.utils.sha3('secret'), { from: manager})
     const initSupply = await pool.supply()
     const user1InitAccount = await pool.account(user1)
     const user2InitAccount = await pool.account(user2)
@@ -715,21 +716,15 @@ contract('Pool', async accounts => {
     const user3InitTokens = +await token.balanceOf(user3)
     const user4InitTokens = +await token.balanceOf(user4)
     const user5InitTokens = +await token.balanceOf(user5)
-
-    // TODO: the actual test
     await pool.issueTokens(user1, 600, web3.utils.sha3('secret1'), { from: manager })
     await pool.acceptTokens(600, Buffer.from('secret1'), { from: user1 })
-
     await pool.issueTokens(user1, 100, web3.utils.sha3('secret1'), { from: manager })
     await pool.requestWithdrawal(200, { from: user1 })
-
     await pool.issueTokens(user2, 300, web3.utils.sha3('secret2'), { from: manager })
     await pool.acceptTokens(300, Buffer.from('secret2'), { from: user2 })
-
     await token.mint(user3, 700, { from: tokenOwner })
     await token.approve(pool.address, 200, { from: user3 })
     await pool.depositTokens(100, { from: user3 })
-
     await pool.issueTokens(user4, 700, web3.utils.sha3('secret4'), { from: manager })
     let message = await pool.generateAcceptTokensMessage(user4, 700, web3.utils.sha3('secret4'), { from: manager })
     let messageHash = web3.utils.sha3(message)
@@ -737,36 +732,30 @@ contract('Pool', async accounts => {
     assert(await pool.validateAcceptTokens(user4, 700, web3.utils.sha3('secret4'), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
     await pool.executeAcceptTokens(user4, 700, Buffer.from('secret4'), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
     await pool.issueTokens(user4, 100, web3.utils.sha3('secret4'), { from: manager })
-
     const releaseDelay = +(await pool.limits()).releaseDelay
     await pool.requestWithdrawal(200, { from: user4 })
-
     await token.mint(user4, 500, { from: tokenOwner })
     await token.approve(pool.address, 500, { from: user4 })
     await pool.depositTokens(500, { from: user4 })
-
+    await pool.transferTokens(300, { from: manager})
     for (let i=0; i<releaseDelay-1; ++i) {
       await advanceBlock()
     }
     await pool.withdrawTokens({ from: user4 })
-
     await token.mint(user5, 200, { from: tokenOwner })
     await token.approve(pool.address, 200, { from: user5 })
     await pool.depositTokens(200, { from: user5 })
-
     message = await pool.generatePaymentMessage(user5, 120, { from: manager })
     rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user5))
     assert(await pool.validatePayment(user5, 120, rlp.v, rlp.r, rlp.s, { from: manager }), 'invalid signature')
     await advanceTime(1)
     await pool.executePayment(user5, 120, rlp.v, rlp.r, rlp.s, { from: manager } )  
-
     await pool.issueTokens(user5, 800, web3.utils.sha3('secret5'), { from: manager })
     message = await pool.generateAcceptTokensMessage(user5, 800, web3.utils.sha3('secret5'), { from: manager })
     messageHash = web3.utils.sha3(message)
     rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user5))
-    assert(await pool.validateAcceptTokens(user5, 800, web3.utils.sha3('secret5'), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    assert(await pool.validateAcceptTokens(user5, 800, web3.utils.sha3('secret5'), rlp.v, rlp.r, rlp.s, { from: user5 }), 'invalid signature')
     await pool.executeAcceptTokens(user5, 800, Buffer.from('secret5'), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
-
     const supply = await pool.supply()
     const user1Account = await pool.account(user1)
     const user2Account = await pool.account(user2)
@@ -778,10 +767,10 @@ contract('Pool', async accounts => {
     const user3Tokens = +await token.balanceOf(user3)
     const user4Tokens = +await token.balanceOf(user4)
     const user5Tokens = +await token.balanceOf(user5)
-    // assert.equal(+supply.total, +initSupply.total) 
-    // assert.equal(+supply.minimum, +initSupply.minimum) 
-    // assert.equal(+supply.pending, +initSupply.pending) 
-    // assert.equal(+supply.available, +initSupply.available) 
+    assert.equal(+supply.total, +initSupply.total + 300) 
+    assert.equal(+supply.minimum, +initSupply.minimum + 2880) 
+    assert.equal(+supply.pending, +initSupply.pending - 35) 
+    assert.equal(+supply.available, +initSupply.available - 2545) 
     assert.equal(+user1Account.balance, +user1InitAccount.balance + 600)
     assert.equal(+user1Account.pending, +user1InitAccount.pending + 100) 
     assert.equal(+user1Account.withdrawal, +user1InitAccount.withdrawal + 200)
@@ -791,16 +780,16 @@ contract('Pool', async accounts => {
     assert.equal(+user3Account.balance, +user3InitAccount.balance + 100) 
     assert.equal(+user3Account.pending, +user3InitAccount.pending) 
     assert.equal(+user3Account.withdrawal, +user3InitAccount.withdrawal) 
-    assert.equal(+user4Account.balance, +user4InitAccount.balance + 1000) 
+    assert.equal(+user4Account.balance, +user4InitAccount.balance + 1000)
     assert.equal(+user4Account.pending, +user4InitAccount.pending + 100) 
     assert.equal(+user4Account.withdrawal, +user4InitAccount.withdrawal) 
-    assert.equal(+user5Account.balance, +user5InitAccount.balance) 
-    assert.equal(+user5Account.pending, +user5InitAccount.pending) 
+    assert.equal(+user5Account.balance, +user5InitAccount.balance + 880) 
+    assert.equal(+user5Account.pending, +user5InitAccount.pending - 235) 
     assert.equal(+user5Account.withdrawal, +user5InitAccount.withdrawal) 
     assert.equal(user1Tokens, user1InitTokens) 
     assert.equal(user2Tokens, user2InitTokens) 
-    assert.equal(user3Tokens, user3InitTokens) 
-    assert.equal(user4Tokens, user4InitTokens) 
+    assert.equal(user3Tokens, user3InitTokens + 600) 
+    assert.equal(user4Tokens, user4InitTokens + 200) 
     assert.equal(user5Tokens, user5InitTokens) 
   })
 

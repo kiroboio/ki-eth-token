@@ -71,20 +71,20 @@ struct Supply {
 library SupplyUtils {
     using SafeMath for uint256;
 
-    event MinimumReached(uint256 before, uint256 delta);
+    // event MinimumReached(uint256 before, uint256 delta);
 
     modifier checkAvailability(Supply storage self) {
         _;
         require(self.total >= self.minimum.add(self.pending), "not enough available tokens");
     }
 
-    modifier safeReduceMinimum(Supply storage self, uint256 value) {
-        self.minimum > value ? self.minimum -= value : self.minimum = 0; 
-        if (self.minimum == 0) {
-          emit MinimumReached(self.minimum, value);
-        }
-        _;
-    }
+    // modifier safeReduceMinimum(Supply storage self, uint256 value) {
+    //     self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+    //     if (self.minimum == 0) {
+    //       emit MinimumReached(self.minimum, value);
+    //     }
+    //     _;
+    // }
 
     function updatePending(Supply storage self, uint256 from, uint256 to) internal checkAvailability(self) { 
         self.pending = self.pending.add(to).sub(from, "not enough available tokens");       
@@ -96,7 +96,7 @@ library SupplyUtils {
     }
 
     function payment(Supply storage self, uint256 value) internal /*safeReduceMinimum(self, value)*/ {
-        self.minimum = self.minimum.sub(value);
+        self.minimum = self.minimum.sub(value); // this line should be remove if using safeReduceMinimum modifier
     }
 
     function deposit(Supply storage self, uint256 value) internal {
@@ -105,7 +105,7 @@ library SupplyUtils {
     }
 
     function widthdraw(Supply storage self, uint256 value) internal /*safeReduceMinimum(self, value)*/ checkAvailability(self) {
-        self.minimum = self.minimum.sub(value); 
+        self.minimum = self.minimum.sub(value); // this line should be remove if using safeReduceMinimum modifier
         self.total = self.total.sub(value);
     }
 
