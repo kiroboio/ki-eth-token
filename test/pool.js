@@ -223,12 +223,12 @@ contract('Pool', async accounts => {
   })
 
   it('pool should be able to accept tokens', async () => {
-    const nonce = await web3.eth.getTransactionCount(tokenOwner)
-    await pool.resyncTotalSupply({ from: poolOwner })
+    await pool.resyncTotalSupply(await pool.ownedTokens(), { from: poolOwner })
     const initPoolTokens = await token.balanceOf(pool.address, { from: poolOwner })
     assert.equal(initPoolTokens.toString(), 0)
+    const nonce = await web3.eth.getTransactionCount(tokenOwner)
     await token.mint(pool.address, val1, { from: tokenOwner, nonce })
-    await pool.resyncTotalSupply({ from: poolOwner })
+    await pool.resyncTotalSupply(await pool.ownedTokens(), { from: poolOwner })
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
     const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
@@ -237,13 +237,37 @@ contract('Pool', async accounts => {
     assert.equal(totalSupply.toString(), val1)
   })
 
+  it ('should be able to resync any value as long as (total_supply <= value <= total_tokens) holds', async () => {
+    await pool.resyncTotalSupply(await pool.ownedTokens(), { from: poolOwner })
+    const initialTokens = +await token.balanceOf(pool.address, { from: poolOwner })
+    const initialTotalSupply = +(await pool.supply({ from: poolOwner })).total
+    assert.equal(initialTokens, initialTotalSupply)
+    await token.mint(pool.address, 500, { from: tokenOwner })
+    await mustRevert(async ()=> {
+      await pool.resyncTotalSupply(initialTotalSupply-1, { from: poolOwner })
+    })
+    let nonce = await trNonce(web3, poolOwner)
+    await mustRevert(async ()=> {
+      await pool.resyncTotalSupply(initialTokens+501, { from: poolOwner, nonce })
+    })
+    nonce = await trNonce(web3, poolOwner)
+    await pool.resyncTotalSupply(initialTokens+200, { from: poolOwner, nonce })
+    let totalSupply = +(await pool.supply({ from: poolOwner })).total
+    assert.equal(totalSupply, initialTokens+200)
+    await pool.transferTokens(200, { from: poolOwner })
+    await pool.resyncTotalSupply(initialTokens+300, { from: poolOwner })
+    totalSupply = +(await pool.supply({ from: poolOwner })).total
+    assert.equal(totalSupply, initialTokens+300)
+    await pool.transferTokens(300, { from: poolOwner })
+  })
+
   it('pool should be able to postpone tokens acceptance', async () => {
     await token.mint(pool.address, val2, { from: tokenOwner })
     const poolTokens = await token.balanceOf(pool.address, { from: poolOwner })
     assert.equal(poolTokens.toString(), (BigInt(val1) + BigInt(val2)).toString())
     const initTotalSupply = await pool.totalSupply({ from: poolOwner })
     assert.equal(initTotalSupply.toString(), val1)
-    await pool.resyncTotalSupply({ from: poolOwner })
+    await pool.resyncTotalSupply(await pool.ownedTokens(), { from: poolOwner })
     const totalSupply = await pool.totalSupply({ from: poolOwner })
     assert.equal(totalSupply.toString(), (BigInt(val1) + BigInt(val2)).toString())
   })
@@ -401,7 +425,6 @@ contract('Pool', async accounts => {
     })
   })
 
-
   it('only available supply can be transferred', async () => {
     let nonce = await web3.eth.getTransactionCount(manager)
     let availableSupply = await pool.availableSupply({ from: manager })
@@ -430,7 +453,7 @@ contract('Pool', async accounts => {
     const secret = 'my secret 2'
     const secretHash = web3.utils.sha3(secret)
     await token.mint(pool.address, val1, { from: tokenOwner })
-    await pool.resyncTotalSupply({ from: poolOwner })
+    await pool.resyncTotalSupply(await pool.ownedTokens(), { from: poolOwner })
     await pool.issueTokens(user4, 600, secretHash, { from: manager })
     await pool.acceptTokens(600, Buffer.from('my secret 2'), { from: user4 })
     account = await pool.account(user4)
@@ -681,7 +704,7 @@ contract('Pool', async accounts => {
     assert.equal(user5Tokens, user5InitTokens + user5InitBalance - 20) 
   })
 
-  it ('supply & account\'s info should be accurate after extensive usage of the system', async () => {
+  it ('supply & accounts info should be accurate after extensive use of the system', async () => {
     const initSupply = await pool.supply()
     const user1InitAccount = await pool.account(user1)
     const user2InitAccount = await pool.account(user1)
@@ -734,5 +757,7 @@ contract('Pool', async accounts => {
     assert.equal(user5Tokens, user5InitTokens) 
   })
 
-  it ('supply & account\'s info should be accurate after extensive usage of the system')
+  it ('supply & accounts info should be accurate after extensive use of the system')
+  
+  
 })

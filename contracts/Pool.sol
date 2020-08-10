@@ -86,7 +86,8 @@ library SupplyUtils {
     }
 
     function payment(Supply storage self, uint256 value) internal {
-        self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+        // self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+        self.minimum = self.minimum.sub(value); 
     }
 
     function deposit(Supply storage self, uint256 value) internal {
@@ -95,7 +96,8 @@ library SupplyUtils {
     }
 
     function widthdraw(Supply storage self, uint256 value) internal checkAvailability(self) {
-        self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+        // self.minimum > value ? self.minimum -= value : self.minimum = 0; 
+        self.minimum = self.minimum.sub(value); 
         self.total = self.total.sub(value);
     }
 
@@ -242,8 +244,12 @@ contract Pool is Claimable {
         s_limits.maxTokensPerIssue = tokens;
     }
 
-    function resyncTotalSupply() external onlyAdmins() returns (uint256) {
-        s_supply.update(ownedTokens());
+    function resyncTotalSupply(uint256 value) external onlyAdmins() returns (uint256) {
+        uint256 tokens = ownedTokens();
+        require(tokens >= s_supply.total, "internal error, check contract logic"); 
+        require(value >= s_supply.total, "only transferTokens can decrease total supply");
+        require(value <= tokens, "not enough tokens");
+        s_supply.update(value);
     }
 
 
