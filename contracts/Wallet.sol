@@ -20,7 +20,7 @@ contract Wallet is MultiSig {
         emit Received(msg.sender, msg.value);
     }
 
-    fallback () external payable multiSig2of3(msg.value) {
+    fallback () external multiSig2of3(0) {
         require(s_target != address(0), "no target");
 
         // solium-disable-next-line security/no-inline-assembly
@@ -43,8 +43,7 @@ contract Wallet is MultiSig {
 
     function transferOwnEther_(address payable to, uint256 value) 
         external 
-        payable
-        multiSig2of3(msg.value)
+        multiSig2of3(0)
     {
         to.transfer(value);
         emit Transfered(to, value);
