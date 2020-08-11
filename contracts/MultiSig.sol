@@ -5,6 +5,8 @@ pragma solidity 0.6.12;
 abstract contract MultiSig {
     mapping(address => bool) s_owners;
 
+    address s_markedForRemoval;
+
     struct Action {
         address owner;
         uint256 value;
@@ -42,20 +44,29 @@ abstract contract MultiSig {
 
     function cancel() external {
       require(s_owners[msg.sender], 'only owners can cancel');
+      require(s_markedForRemoval != msg.sender, 'only owners that are not being replaced can cancel');
       s_action.owner = address(0);
+      s_markedForRemoval = address(0);
     }
 
-    function replaceOwner(address owner, address newOwner)
-      external
+    function _replaceOwner(address owner, address newOwner)
+      private 
       multiSig2of3(0)
-    {
+  {
+      s_owners[owner] = false;
+      s_owners[newOwner] = true;
+      s_markedForRemoval = address(0);
+    }
+
+    function replaceOwner(address owner, address newOwner) external {
       require(owner != address(0), 'owner cannot be 0');
       require(newOwner != address(0), 'new Owner cannot be 0');
       require(s_owners[owner] == true, 'owner must exist');
       require(owner != msg.sender, "senders cannot replace themselves");
       require(s_owners[newOwner] == false, 'new owner must not exist');
-      s_owners[owner] = false;
-      s_owners[newOwner] = true;
+      require(s_owners[msg.sender] == true, 'only owner can replace an owner');
+      s_markedForRemoval = owner;
+      _replaceOwner(owner, newOwner);
     }
 
     function isOwner() external view returns (bool) {
