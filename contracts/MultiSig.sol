@@ -28,7 +28,7 @@ abstract contract MultiSig {
     }
 
     modifier multiSig2of3 (uint256 value) {
-      require(s_owners[msg.sender], 'only owners');
+      require(s_owners[msg.sender] && msg.sender != s_markedForRemoval, 'only owners that are not being removed');
       if (s_action.owner == address(0)) {
           s_action.owner = msg.sender;
           s_action.data = msg.data;
@@ -52,7 +52,7 @@ abstract contract MultiSig {
     function _replaceOwner(address owner, address newOwner)
       private 
       multiSig2of3(0)
-  {
+    {
       s_owners[owner] = false;
       s_owners[newOwner] = true;
       s_markedForRemoval = address(0);
@@ -64,7 +64,6 @@ abstract contract MultiSig {
       require(s_owners[owner] == true, 'owner must exist');
       require(owner != msg.sender, "senders cannot replace themselves");
       require(s_owners[newOwner] == false, 'new owner must not exist');
-      require(s_owners[msg.sender] == true, 'only owner can replace an owner');
       s_markedForRemoval = owner;
       _replaceOwner(owner, newOwner);
     }
