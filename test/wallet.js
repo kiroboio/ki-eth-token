@@ -96,4 +96,16 @@ contract('Wallet', async accounts => {
     assert.equal(val2, (await token.balanceOf(user1)).toString())
   })
 
+  it('should be able to transfer all received ether', async () => {
+    assert.equal(0, +(await web3.eth.getBalance(wallet.address)))
+    await web3.eth.sendTransaction({from: user3, to: wallet.address, value: 20000 })
+    assert.equal(20000, +(await web3.eth.getBalance(wallet.address)))
+    await wallet.transferOwnEther_(user2, 5000, { from: walletOwner1 })
+    await wallet.transferOwnEther_(user2, 5000, { from: walletOwner2 })
+    assert.equal(15000, +(await web3.eth.getBalance(wallet.address)))
+    await wallet.transferOwnEther_(user2, 15000, { from: walletOwner1 })
+    await wallet.transferOwnEther_(user2, 15000, { from: walletOwner2 })
+    assert.equal(0, +(await web3.eth.getBalance(wallet.address)))
+  })
+
 })

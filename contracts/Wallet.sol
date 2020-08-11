@@ -43,7 +43,7 @@ contract Wallet is MultiSig {
 
     function transferOwnEther_(address payable to, uint256 value) 
         external 
-        payable 
+        payable
         multiSig2of3(msg.value)
     {
         to.transfer(value);
