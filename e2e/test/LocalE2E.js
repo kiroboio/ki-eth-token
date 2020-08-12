@@ -23,6 +23,9 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
   const tokenOwner = accounts[1]
   const poolOwner = accounts[2]
 
+  const USER = user3;
+  const PAYMENT = 120;
+
   before('setup contract for the test', async () => {
 
     mlog.log('web3           ', web3.version)
@@ -43,7 +46,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     let response = await axios.post(SERVER, {
       cmd: 'accountInfo',
       data: {
-        address: user1,
+        address: USER,
       }
     })
     const initialBalance = response.data.balance;
@@ -52,7 +55,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     response = await axios.post(SERVER, {
       cmd: "issueTokens",
       data: {
-        recipient: user1,
+        recipient: USER,
         value: tokens,
         secretHash,
       },
@@ -60,12 +63,12 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     const { raw, parsed } = response.data.message;
     mlog.log("got message to sign:", raw);
     mlog.log("got parsed message:", JSON.stringify(parsed));
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(raw).slice(2), getPrivateKey(user1));
+    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(raw).slice(2), getPrivateKey(USER));
     mlog.log("signed message: ", JSON.stringify(rlp));
     response = await axios.post(SERVER, {
       cmd: 'acceptTokens',
       data: {
-        recipient: user1,
+        recipient: USER,
         value: tokens,
         secretHex,
         v: rlp.v,
@@ -78,7 +81,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     response = await axios.post(SERVER, {
       cmd: 'accountInfo',
       data: {
-        address: user1,
+        address: USER,
       }
     })
     mlog.log("accountInfo response", JSON.stringify(response.data));
@@ -90,12 +93,11 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     const secret = "my secret";
     const secretHash = web3.utils.sha3(secret);
     const secretHex = "0x" + Buffer.from(secret).toString("hex");
-    const tokens = 120;
 
     let response = await axios.post(SERVER, {
       cmd: 'accountInfo',
       data: {
-        address: user1,
+        address: USER,
       }
     })
     const initialBalance = response.data.balance;
@@ -104,22 +106,22 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     response = await axios.post(SERVER, {
       cmd: "generatePayment",
       data: {
-        from: user1,
-        value: tokens,
+        from: USER,
+        value: PAYMENT,
       },
     });
 
     const { raw, parsed } = response.data.message;
     mlog.log("got message to sign:", raw);
     mlog.log("got parsed message:", JSON.stringify(parsed));
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(raw).slice(2), getPrivateKey(user1));
+    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(raw).slice(2), getPrivateKey(USER));
     mlog.log("signed message: ", JSON.stringify(rlp));
 
     response = await axios.post(SERVER, {
       cmd: 'validatePayment',
       data: {
-        from: user1,
-        value: tokens,
+        from: USER,
+        value: PAYMENT,
         v: rlp.v,
         r: rlp.r,
         s: rlp.s,
@@ -130,8 +132,8 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     response = await axios.post(SERVER, {
       cmd: 'executePayment',
       data: {
-        from: user1,
-        value: tokens,
+        from: USER,
+        value: PAYMENT,
         v: rlp.v,
         r: rlp.r,
         s: rlp.s,
@@ -144,11 +146,22 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     response = await axios.post(SERVER, {
       cmd: 'accountInfo',
       data: {
-        address: user1,
+        address: USER,
       }
     })
     mlog.log("accountInfo response", JSON.stringify(response.data));
-    assert(parseInt(response.data.balance) == parseInt(initialBalance) - tokens, "wrong balance");
+    assert(parseInt(response.data.balance) == parseInt(initialBalance) - PAYMENT, "wrong balance");
+  });
+
+  it("should be able to get previous payment", async () => {
+    response = await axios.post(SERVER, {
+      cmd: "lastPaymentInfo",
+      data: {
+        address: USER,
+      },
+    });
+    mlog.log('Previous Payment Info:', JSON.stringify(response.data));
+    assert(parseInt(response.data.message.parsed.value, 16) === PAYMENT);
   });
 
 });
