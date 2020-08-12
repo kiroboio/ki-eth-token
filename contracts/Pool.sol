@@ -47,6 +47,10 @@ library AccountUtils {
         self.balance = self.balance.add(pending);
     }
 
+    function take(Account storage self, uint256 value) internal {
+        self.balance = self.balance.add(value);
+    }
+
     function payment(Account storage self, uint256 value) internal {
         self.balance = self.balance.sub(value);
     }
@@ -92,6 +96,10 @@ library SupplyUtils {
 
     function acceptPending(Supply storage self, uint256 value) internal {
         self.pending = self.pending.sub(value, "not enough pending");
+        self.minimum = self.minimum.add(value);
+    }
+
+    function give(Supply storage self, uint256 value) internal checkAvailability(self) {
         self.minimum = self.minimum.add(value);
     }
 
@@ -192,6 +200,7 @@ contract Pool is Claimable {
     
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);
+    event TokensDistributed(address indexed account, uint256 value);
     event Payment(address indexed account, uint256 value);
     event Deposit(address indexed account, uint256 value);
     event WithdrawalRequested(address indexed account, uint256 value);
@@ -269,6 +278,15 @@ contract Pool is Claimable {
         s_supply.decrease(value);
         ERC20(s_entities.token).transfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
+    }
+
+    function distributeTokens(address to, uint256 value) external onlyAdmins() {
+        require(value <= s_limits.maxTokensPerIssue, "amount exeed max tokens per call");
+        Account storage sp_account = s_accounts[to];
+        sp_account.initNonce();
+        s_supply.give(value);
+        sp_account.take(value);
+        emit TokensDistributed(to, value);
     }
 
     /**

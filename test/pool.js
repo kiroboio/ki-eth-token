@@ -308,6 +308,28 @@ contract('Pool', async accounts => {
     nonce = await trNonce(web3, manager)
     await pool.transferTokens(200, { from: manager, nonce })
   })
+
+  it('only admins should be able to distribute tokens', async () => {
+    const initialSupply = await pool.supply()
+    const initialUser5Balance = +(await pool.account(user5)).balance
+    let nonce = await trNonce(web3, tokenOwner)
+    await mustRevert(async ()=> {
+      await pool.distributeTokens(user5, 480, { from: tokenOwner, nonce })
+    })
+    nonce = await trNonce(web3, user1)
+    await mustRevert(async ()=> {
+      await pool.distributeTokens(user5, 480, { from: user1, nonce })
+    })
+    nonce = await trNonce(web3, poolOwner)
+    await pool.distributeTokens(user5, 100, { from: poolOwner, nonce })
+    nonce = await trNonce(web3, manager)
+    await pool.distributeTokens(user5, 200, { from: manager, nonce })
+    const supply = await pool.supply()
+    const user5Balance = +(await pool.account(user5)).balance
+    assert.equal(+supply.minimum, initialSupply.minimum + 300)
+    assert.equal(+user5Balance, initialUser5Balance + 300)
+  })
+
   
   it('should be able to generate,validate & execute "accept tokens" message', async () => {
     const tokens = 500
@@ -574,6 +596,7 @@ contract('Pool', async accounts => {
     const releaseDelay = +(await pool.limits()).releaseDelay
     const secret = 'my secret 4'
     const secretHash = web3.utils.sha3(secret)
+    const user5InitialBalance = +(await pool.account(user5)).balance
     let nonce = await web3.eth.getTransactionCount(manager)
     await token.mint(user5, 500, { from: tokenOwner })
     await token.approve(pool.address, 400, { from: user5 })
@@ -581,7 +604,7 @@ contract('Pool', async accounts => {
     await pool.issueTokens(user5, 100, secretHash, { from: manager, nonce })
     await pool.acceptTokens(100, Buffer.from(secret), { from: user5 })
     let account = await pool.account(user5)
-    assert.equal(+account.balance, 400)
+    assert.equal(+account.balance, 400 + user5InitialBalance)
     await pool.requestWithdrawal(300, { from: user5 })
     nonce = await web3.eth.getTransactionCount(user5)
     await mustRevert(async ()=> {
