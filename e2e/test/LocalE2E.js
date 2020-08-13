@@ -89,6 +89,38 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
 
   });
 
+  it("should be able to distributeTokens ", async () => {
+    const tokens = 500;
+
+    let response = await axios.post(SERVER, {
+      cmd: 'accountInfo',
+      data: {
+        address: USER,
+      }
+    })
+    const initialBalance = response.data.balance;
+    mlog.log("got initial balance:", initialBalance);
+
+    response = await axios.post(SERVER, {
+      cmd: "distributeTokens",
+      data: {
+        recipient: USER,
+        value: tokens,
+      },
+    });
+    mlog.log("distributeTokens returned:", JSON.stringify(response.data));
+    assert(response.data.blockHash.length > 0);
+    response = await axios.post(SERVER, {
+      cmd: 'accountInfo',
+      data: {
+        address: USER,
+      }
+    })
+    mlog.log("accountInfo response", JSON.stringify(response.data));
+    assert(parseInt(response.data.balance) == parseInt(initialBalance) + tokens, "wrong balance");
+
+  });
+
   it("should be able to generate payment ", async () => {
     const secret = "my secret";
     const secretHash = web3.utils.sha3(secret);
