@@ -1,7 +1,7 @@
 'use strict'
 
 const Pool = artifacts.require("Pool")
-const Token = artifacts.require("KiroboToken")
+const Token = artifacts.require("Token")
 const Wallet = artifacts.require("Wallet")
 const mlog = require('mocha-logger')
 

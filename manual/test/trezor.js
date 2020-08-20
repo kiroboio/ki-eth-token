@@ -1,7 +1,7 @@
 "use strict";
 
 const Pool = artifacts.require("Pool");
-const Token = artifacts.require("KiroboToken");
+const Token = artifacts.require("Token");
 const mlog = require("mocha-logger");
 const express = require("express");
 const open = require("open");
@@ -56,7 +56,7 @@ contract("Trezor Test", async (accounts) => {
   before("setup contract for the test", async () => {
     token = await Token.new({ from: tokenOwner });
     pool = await Pool.new(token.address, { from: poolOwner });
-    await token.disableTransfers(false, { from: tokenOwner });
+    // await token.disableTransfers(false, { from: tokenOwner });
 
     mlog.log("web3           ", web3.version);
     mlog.log("token contract ", token.address);

@@ -2,7 +2,7 @@
 pragma solidity 0.6.12;
 
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
-import "./IERC20.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "./Claimable.sol";
 
 struct Account {
@@ -133,6 +133,7 @@ library SupplyUtils {
 struct Limits {
     uint256 releaseDelay;
     uint256 maxTokensPerIssue;
+    uint256 maxTokensPerBlock;
 }
 
 struct Entities {
@@ -187,13 +188,17 @@ struct Entities {
 contract Pool is Claimable {
     using AccountUtils for Account;
     using SupplyUtils for Supply;
+    using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
-    uint256 s_uid;
-    Supply s_supply;
-    Limits s_limits;
-    Entities s_entities;
-    
-    mapping(address => Account) s_accounts;
+    uint256 private s_uid;
+    Supply private s_supply;
+    Limits private s_limits;
+    Entities private s_entities;
+    uint256 private s_lastIssuedBlock;
+    uint256 private s_totalIssuedInBlock;
+
+    mapping(address => Account) private s_accounts;
 
     uint8 public constant VERSION = 0x1;
     uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
@@ -212,6 +217,7 @@ contract Pool is Claimable {
     event WalletChanged(address from, address to);
     event ReleaseDelayChanged(uint256 from, uint256 to);
     event MaxTokensPerIssueChanged(uint256 from, uint256 to);
+    event MaxTokensPerBlockChanged(uint256 from, uint256 to);
 
     modifier onlyAdmins() {
         require(msg.sender == s_owner || msg.sender == s_entities.manager, "not owner or manager");
@@ -220,7 +226,7 @@ contract Pool is Claimable {
 
     constructor(address tokenContract) public {
         s_entities.token = tokenContract;
-        s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10000*(10**18)});
+        s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10*1000*(10**18), maxTokensPerBlock: 50*1000*(10**18)});
         s_uid = (
           uint256(VERSION) << 248 |
           uint256(blockhash(block.number-1)) << 192 >> 16 |
@@ -261,6 +267,11 @@ contract Pool is Claimable {
         s_limits.maxTokensPerIssue = tokens;
     }
 
+    function setMaxTokensPerBlock(uint256 tokens) external onlyOwner() {
+        emit MaxTokensPerBlockChanged(s_limits.maxTokensPerBlock, tokens);
+        s_limits.maxTokensPerBlock = tokens;
+    }
+
     function resyncTotalSupply(uint256 value) external onlyAdmins() returns (uint256) {
         uint256 tokens = ownedTokens();
         require(tokens >= s_supply.total, "internal error, check contract logic"); 
@@ -276,12 +287,14 @@ contract Pool is Claimable {
     function transferTokens(uint256 value) external onlyAdmins() {
         require(s_entities.wallet != address(0), "token wallet not set");
         s_supply.decrease(value);
-        ERC20(s_entities.token).transfer(s_entities.wallet, value);
+        IERC20(s_entities.token).safeTransfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
     }
 
     function distributeTokens(address to, uint256 value) external onlyAdmins() {
-        require(value <= s_limits.maxTokensPerIssue, "amount exeed max tokens per call");
+        require(value <= s_limits.maxTokensPerIssue, "exeeds max tokens per call");
+        require(s_accounts[to].issueBlock < block.number, "too soon");
+        _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
         sp_account.initNonce();
         s_supply.give(value);
@@ -297,7 +310,8 @@ contract Pool is Claimable {
      * @param secretHash The keccak256 of the confirmation secret.
     */
     function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyAdmins() {
-        require(value <= s_limits.maxTokensPerIssue, "amount exeed max tokens per call");
+        require(value <= s_limits.maxTokensPerIssue, "exeeds max tokens per call");
+        _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
         uint256 prevPending = sp_account.pending;
         sp_account.initNonce();
@@ -351,15 +365,15 @@ contract Pool is Claimable {
     }
 
     function depositTokens(uint256 value) external {
-        require(
-            ERC20(s_entities.token).allowance(msg.sender, address(this)) >= value,
-            "ERC20 allowance too low"
-        );
+        // require(
+        //     IERC20(s_entities.token).allowance(msg.sender, address(this)) >= value,
+        //    "IERC20 allowance too low"
+        // );
         Account storage sp_account = s_accounts[msg.sender]; 
         sp_account.initNonce();
         sp_account.deposit(value);
         s_supply.deposit(value);
-        ERC20(s_entities.token).transferFrom(msg.sender, address(this), value);
+        IERC20(s_entities.token).safeTransferFrom(msg.sender, address(this), value);
         emit Deposit(msg.sender, value);
     }
 
@@ -384,7 +398,7 @@ contract Pool is Claimable {
         uint256 value = sp_account.withdrawal > sp_account.balance ? sp_account.balance : sp_account.withdrawal;
         sp_account.withdraw(value);
         s_supply.widthdraw(value);
-        ERC20(s_entities.token).transfer(msg.sender, value);
+        IERC20(s_entities.token).safeTransfer(msg.sender, value);
         emit Withdrawal(msg.sender, value);
     }
 
@@ -401,7 +415,7 @@ contract Pool is Claimable {
         ) 
     {
         Account storage sp_account = s_accounts[addr];
-        uint256 extBalance = ERC20(s_entities.token).balanceOf(addr);
+        uint256 extBalance = IERC20(s_entities.token).balanceOf(addr);
         return (
             sp_account.nonce,
             sp_account.balance,
@@ -431,12 +445,14 @@ contract Pool is Claimable {
     function limits() external view
         returns (
             uint256 releaseDelay, 
-            uint256 maxTokensPerIssue
+            uint256 maxTokensPerIssue,
+            uint256 maxTokensPerBlock
         )
     {
         return (
             s_limits.releaseDelay,
-            s_limits.maxTokensPerIssue
+            s_limits.maxTokensPerIssue,
+            s_limits.maxTokensPerBlock
         );
     }
 
@@ -532,12 +548,22 @@ contract Pool is Claimable {
     }
 
     function ownedTokens() view public returns (uint256) {
-        return ERC20(s_entities.token).balanceOf(address(this));
+        return IERC20(s_entities.token).balanceOf(address(this));
     }
 
 
     // ----------- Private Functions ------------
 
+
+    function _validateTokensPerBlock(uint256 value) private {
+        if (s_lastIssuedBlock < block.number) {
+            s_lastIssuedBlock = block.number;
+            s_totalIssuedInBlock = value;
+        } else {
+            s_totalIssuedInBlock.add(value);
+        }
+        require(s_totalIssuedInBlock <= s_limits.maxTokensPerBlock, "exeeds max tokens per block");
+    }
 
     function _acceptTokens(address recipient, uint256 value) private {
         require(s_accounts[recipient].issueBlock < block.number, "too soon");

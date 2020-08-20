@@ -5,7 +5,7 @@
  */
 
 const Pool = artifacts.require("Pool");
-const Token = artifacts.require("KiroboToken");
+const Token = artifacts.require("Token");
 const mlog = require("mocha-logger");
 const hidTransport = require("@ledgerhq/hw-transport-node-hid").default;
 const App = require("@ledgerhq/hw-app-eth").default;
