@@ -94,7 +94,7 @@ contract("Ledger Test", async (accounts) => {
     const toSign = Buffer.from(web3.utils.sha3(message).slice(2)).toString('hex');
     mlog.log("toSign", toSign);
     const hashedToSign = hashMessage(toSign);
-    mlog.log("message hash", hashToSign);
+    // mlog.log("message hash", hashToSign);
 
 
     const signedLedger = await ethApp.signPersonalMessage(
