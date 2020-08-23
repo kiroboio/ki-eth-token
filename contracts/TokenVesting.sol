@@ -23,12 +23,15 @@ contract TokenVesting {
     // timestamp when token release is enabled
     uint256 private s_releaseTime;
 
-    constructor (IERC20 token, address beneficiary, uint256 releaseTime) public {
+    address private s_issuer;
+
+    constructor (IERC20 token, address beneficiary, uint256 releaseTime, address issuer) public {
         // solhint-disable-next-line not-rely-on-time
         require(releaseTime > block.timestamp, "TokenVesting: release time is before current time");
         s_token = token;
         s_beneficiary = beneficiary;
         s_releaseTime = releaseTime;
+        s_issuer = issuer;
     }
 
     /**
@@ -52,6 +55,10 @@ contract TokenVesting {
         return s_releaseTime;
     }
 
+    function issuer() public view returns (address) {
+        return s_issuer;
+    }
+
     /**
      * @notice Transfers tokens held by timelock to beneficiary.
      */
@@ -64,4 +71,16 @@ contract TokenVesting {
 
         s_token.safeTransfer(s_beneficiary, amount);
     }
+
+    function cancel() public virtual {
+        // solhint-disable-next-line not-rely-on-time
+        require(block.timestamp < s_releaseTime, "TokenVesting: current time is after release time");
+        require(msg.sender == s_issuer, "TokenVesting: not issuer");
+        
+        uint256 amount = s_token.balanceOf(address(this));
+        require(amount > 0, "TokenVesting: no tokens to release");
+        
+        s_token.safeTransfer(s_issuer, amount);
+    }
+
 }

@@ -14,13 +14,14 @@ module.exports = function(deployer, network, accounts) {
   const walletOwner3  = accounts[8]
 
   deployer.then(async () => {
-	  const token   = await deployer.deploy(Token, { from: tokenOwner })
+	const token   = await deployer.deploy(Token, { from: tokenOwner })
   	const pool    = await deployer.deploy(Pool, token.address, { from: poolOwner })
     const wallet  = await deployer.deploy(Wallet, walletOwner1, walletOwner2, walletOwner3, { from: poolOwner })
     // await token.disableTransfers(false, { from: tokenOwner })
     if (liveTestNetworks[network]) {
-      await token.mint(pool.address, 100000, { from: tokenOwner })
-      await pool.resyncTotalSupply(100000, { from: poolOwner })
+      const supply = 100000n * 10n**18n
+      await token.mint(pool.address, supply.toString(), { from: tokenOwner })
+      await pool.resyncTotalSupply(supply.toString(), { from: poolOwner })
     }
   })
 
