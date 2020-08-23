@@ -43,7 +43,6 @@ library AccountUtils {
         require(pending == value, "value must equal issued tokens");
         self.secretHash = 0;
         self.pending = 0;
-        self.issueBlock = 0;
         self.balance = self.balance.add(pending);
     }
 
@@ -296,6 +295,7 @@ contract Pool is Claimable {
         require(s_accounts[to].issueBlock < block.number, "too soon");
         _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
+        sp_account.issueBlock = block.number;
         sp_account.initNonce();
         s_supply.give(value);
         sp_account.take(value);
