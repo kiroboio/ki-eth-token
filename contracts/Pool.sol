@@ -191,7 +191,6 @@ contract Pool is Claimable {
     using SafeMath for uint256;
 
     uint256 private s_uid;
-    bytes32 public s_domainSeparator;
     Supply private s_supply;
     Limits private s_limits;
     Entities private s_entities;
@@ -203,6 +202,7 @@ contract Pool is Claimable {
     uint8 public constant VERSION = 0x1;
     uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
+    bytes32 public DOMAIN_SEPARATOR;
     // keccak256("acceptTokens(address recipient,uint256 value,bytes32 secretHash)");
     bytes32 public constant ACCEPT_TYPEHASH = 0xf728cfc064674dacd2ced2a03acd588dfd299d5e4716726c6d5ec364d16406eb;
 
@@ -244,7 +244,7 @@ contract Pool is Claimable {
           uint256(address(this))
         );
 
-        s_domainSeparator = keccak256(
+        DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract, bytes32 salt)"),
                 keccak256(bytes("Kirobo Pool")),
@@ -622,8 +622,8 @@ contract Pool is Claimable {
             hashedUnsignedMessage
         );
         if (eip712) {
-            return keccak256(abi.encodePacked("\x19\x01", s_domainSeparator, hashedUnsignedMessage));
-            // return keccak256(abi.encodePacked("\x19\x01", s_domainSeparator, unsignedMessageBytes));
+            return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashedUnsignedMessage));
+            // return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, unsignedMessageBytes));
         }
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n64", unsignedMessageBytes));
     }
