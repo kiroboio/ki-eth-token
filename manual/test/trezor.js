@@ -112,7 +112,7 @@ contract("Trezor Test", async (accounts) => {
     assert(trzAddress, 'trzAddress must be sent from the browser');
     mlog.log("trzAddress", trzAddress);
     await pool.issueTokens(trzAddress, 500, web3.utils.sha3(secret), { from: poolOwner })
-    trzMessage = await pool.generateAcceptTokensMessage(trzAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
+    trzMessage = await pool.generateAcceptTokensMessage(false, trzAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
     mlog.log("message", trzMessage);
 
     const toSign = Buffer.from(web3.utils.sha3(trzMessage).slice(2)).toString('hex');
@@ -132,6 +132,7 @@ contract("Trezor Test", async (accounts) => {
 
     assert(
       await pool.validateAcceptTokens(
+        false,
         trzAddress,
         tokens,
         web3.utils.sha3(secret),
@@ -140,7 +141,7 @@ contract("Trezor Test", async (accounts) => {
       ),
       "invalid ledger signature"
     );
-    await pool.executeAcceptTokens(trzAddress, tokens, Buffer.from(secret), v, r, s, { from: poolOwner });
+    await pool.executeAcceptTokens(false, trzAddress, tokens, Buffer.from(secret), v, r, s, { from: poolOwner });
     trzSignedMessage = undefined;
   });
 
@@ -148,7 +149,7 @@ contract("Trezor Test", async (accounts) => {
     assert(trzAddress, 'trzAddress must be sent from the browser');
     mlog.log("trezor address", trzAddress);
     await token.mint(trzAddress, val1, { from: tokenOwner })
-    const message = await pool.generatePaymentMessage(trzAddress, 200, { from: poolOwner })
+    const message = await pool.generatePaymentMessage(false, trzAddress, 200, { from: poolOwner })
     mlog.log('message: ', message)
 
     mlog.log("sha3(message)", web3.utils.sha3(message));
@@ -169,6 +170,7 @@ contract("Trezor Test", async (accounts) => {
 
     assert(
       await pool.validatePayment(
+        false,
         trzAddress,
         200,
         v, r, s,
@@ -176,7 +178,7 @@ contract("Trezor Test", async (accounts) => {
       ),
       "invalid ledger signature"
     );
-    await pool.executePayment(trzAddress, 200, v, r, s, { from: poolOwner });
+    await pool.executePayment(false, trzAddress, 200, v, r, s, { from: poolOwner });
   });
 
 });

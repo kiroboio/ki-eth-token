@@ -191,6 +191,7 @@ contract Pool is Claimable {
     using SafeMath for uint256;
 
     uint256 private s_uid;
+    bytes32 public s_domainSeparator;
     Supply private s_supply;
     Limits private s_limits;
     Entities private s_entities;
@@ -202,6 +203,12 @@ contract Pool is Claimable {
     uint8 public constant VERSION = 0x1;
     uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
     
+    // keccak256("acceptTokens(address recipient,uint256 value,bytes32 secretHash)");
+    bytes32 public constant ACCEPT_TYPEHASH = 0xf728cfc064674dacd2ced2a03acd588dfd299d5e4716726c6d5ec364d16406eb;
+
+    // keccak256("payment(address from,uint256 value,uint256 nonce)");
+    bytes32 public constant PAYMENT_TYPEHASH = 0x841d82f71fa4558203bb763733f6b3326ecaf324143e12fb9b6a9ed958fc4ee0;
+
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);
     event TokensDistributed(address indexed account, uint256 value);
@@ -224,12 +231,28 @@ contract Pool is Claimable {
     }
 
     constructor(address tokenContract) public {
+        uint chainId;
+        assembly {
+            chainId := chainid()
+        }
+     
         s_entities.token = tokenContract;
         s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10*1000*(10**18), maxTokensPerBlock: 50*1000*(10**18)});
         s_uid = (
           uint256(VERSION) << 248 |
           uint256(blockhash(block.number-1)) << 192 >> 16 |
           uint256(address(this))
+        );
+
+        s_domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract, bytes32 salt)"),
+                keccak256(bytes("Kirobo Pool")),
+                keccak256(bytes('1')),
+                chainId,
+                address(this),
+                s_uid
+            )
         );
     }
 
@@ -323,6 +346,7 @@ contract Pool is Claimable {
     }
 
     function executeAcceptTokens(
+        bool eip712,
         address recipient,
         uint256 value,
         bytes calldata c_secret,
@@ -335,18 +359,18 @@ contract Pool is Claimable {
     {
         require(s_accounts[recipient].secretHash == keccak256(c_secret), "wrong secret");
         require(
-            validateAcceptTokens(recipient, value, keccak256(c_secret), v, r ,s),
+            validateAcceptTokens(eip712, recipient, value, keccak256(c_secret), v, r ,s),
             "wrong signature or data"
         );
         _acceptTokens(recipient, value);
         emit TokensAccepted(recipient, false);
     }
 
-    function executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+    function executePayment(bool eip712, address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
         external
         onlyAdmins()
     {
-        require(validatePayment(from, value, v, r, s), "wrong signature or data");
+        require(validatePayment(eip712, from, value, v, r, s), "wrong signature or data");
         Account storage sp_account = s_accounts[from];
         sp_account.updateNonce();
         sp_account.payment(value);
@@ -488,12 +512,20 @@ contract Pool is Claimable {
     // ----------- Public Functions ------------
 
 
-    function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
+    function generateAcceptTokensMessage(bool eip712, address recipient, uint256 value, bytes32 secretHash)
         public view 
         returns (bytes memory)
     {
         require(s_accounts[recipient].secretHash == secretHash, "wrong secret hash");
         require(s_accounts[recipient].pending == value, "value must equal pending(issued tokens)");
+        if (eip712) {
+            return abi.encode(
+                ACCEPT_TYPEHASH,
+                recipient,
+                value,
+                secretHash
+            );
+        }
         return abi.encodePacked(
             s_uid,
             this.generateAcceptTokensMessage.selector,
@@ -503,12 +535,20 @@ contract Pool is Claimable {
         );
     }
 
-    function generatePaymentMessage(address from, uint256 value)
+    function generatePaymentMessage(bool eip712, address from, uint256 value)
         public view
         returns (bytes memory)
     {
         Account storage sp_account = s_accounts[from]; 
         require(sp_account.balance >= value, "account balnace too low");
+        if (eip712) {
+            return abi.encode(
+                PAYMENT_TYPEHASH,
+                from,
+                value,
+                sp_account.nonce
+            );
+        }
         return abi.encodePacked(
             s_uid,
             this.generatePaymentMessage.selector,
@@ -519,6 +559,7 @@ contract Pool is Claimable {
     }
 
     function validateAcceptTokens(
+        bool eip712,
         address recipient,
         uint256 value,
         bytes32 secretHash,
@@ -530,18 +571,20 @@ contract Pool is Claimable {
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            keccak256(generateAcceptTokensMessage(recipient, value, secretHash))
+            eip712,
+            keccak256(generateAcceptTokensMessage(eip712, recipient, value, secretHash))
         );
         address addr = ecrecover(message, v, r, s);
         return addr == recipient;
     }
 
-    function validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+    function validatePayment(bool eip712, address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
         public view 
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            keccak256(generatePaymentMessage(from, value))
+            eip712,
+            keccak256(generatePaymentMessage(eip712, from, value))
         );
         address addr = ecrecover(message, v, r, s);
         return addr == from;      
@@ -571,15 +614,18 @@ contract Pool is Claimable {
         s_supply.acceptPending(value);
     }
 
-    function _messageToRecover(bytes32 hashedUnsignedMessage)
-        private pure 
+    function _messageToRecover(bool eip712, bytes32 hashedUnsignedMessage)
+        private view 
         returns (bytes32)
     {
         bytes memory unsignedMessageBytes = _hashToAscii(
             hashedUnsignedMessage
         );
-        bytes memory prefix = "\x19Ethereum Signed Message:\n64";
-        return keccak256(abi.encodePacked(prefix, unsignedMessageBytes));
+        if (eip712) {
+            return keccak256(abi.encodePacked("\x19\x01", s_domainSeparator, hashedUnsignedMessage));
+            // return keccak256(abi.encodePacked("\x19\x01", s_domainSeparator, unsignedMessageBytes));
+        }
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n64", unsignedMessageBytes));
     }
 
     function _hashToAscii(bytes32 hash) private pure returns (bytes memory) {

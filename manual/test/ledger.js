@@ -88,7 +88,7 @@ contract("Ledger Test", async (accounts) => {
     const { address: ldgAddress } = await ethApp.getAddress(PATH);
     mlog.log("ledger address", ldgAddress);
     await pool.issueTokens(ldgAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
-    const message = await pool.generateAcceptTokensMessage(ldgAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
+    const message = await pool.generateAcceptTokensMessage(false, ldgAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
     mlog.log("message", message);
 
     const toSign = Buffer.from(web3.utils.sha3(message).slice(2)).toString('hex');
@@ -120,6 +120,7 @@ contract("Ledger Test", async (accounts) => {
 
     assert(
       await pool.validateAcceptTokens(
+        false,
         ldgAddress,
         tokens,
         web3.utils.sha3(secret),
@@ -130,14 +131,14 @@ contract("Ledger Test", async (accounts) => {
       ),
       "invalid ledger signature"
     );
-    await pool.executeAcceptTokens(ldgAddress, tokens, Buffer.from(secret), v, "0x" + signedLedger.r, "0x" + signedLedger.s, { from: poolOwner })
+    await pool.executeAcceptTokens(false, ldgAddress, tokens, Buffer.from(secret), v, "0x" + signedLedger.r, "0x" + signedLedger.s, { from: poolOwner })
   });
 
   it('should be able to generate,validate & execute "payment" message', async () => {
     const { address: ldgAddress } = await ethApp.getAddress(PATH);
     mlog.log("ledger address", ldgAddress);
     await token.mint(ldgAddress, val1, { from: tokenOwner })
-    const message = await pool.generatePaymentMessage(ldgAddress, 200, { from: poolOwner })
+    const message = await pool.generatePaymentMessage(false, ldgAddress, 200, { from: poolOwner })
     mlog.log('message: ', message)
 
     mlog.log("sha3(message)", web3.utils.sha3(message));
@@ -172,6 +173,7 @@ contract("Ledger Test", async (accounts) => {
 
     assert(
       await pool.validatePayment(
+        false,
         ldgAddress,
         200,
         v,
