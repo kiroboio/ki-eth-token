@@ -23,7 +23,7 @@ abstract contract Ownable {
    * @dev Throws if called by any account other than the owner.
    */
   modifier onlyOwner() {
-    require(msg.sender == s_owner, "not owner");
+    require(msg.sender == s_owner, "Ownable: not owner");
     _;
   }
 
@@ -32,7 +32,7 @@ abstract contract Ownable {
    * @param newOwner The address to transfer ownership to.
    */
   function transferOwnership(address newOwner) public onlyOwner virtual {
-    require(newOwner != address(0), "0 cannot be owner");
+    require(newOwner != address(0), "Ownable: 0 cannot be owner");
     emit OwnershipTransferred(s_owner, newOwner);
     s_owner = newOwner;
   }

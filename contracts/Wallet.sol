@@ -23,7 +23,7 @@ contract Wallet is MultiSig {
     }
 
     fallback () external multiSig2of3(0) {
-        require(s_target != address(0), "no target");
+        require(s_target != address(0), "Wallet: no target");
 
         // solium-disable-next-line security/no-inline-assembly
         assembly {

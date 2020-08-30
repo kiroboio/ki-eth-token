@@ -33,14 +33,14 @@ library AccountUtils {
             ++count << 240 |
             uint256(blockhash(block.number-1)) << 80 >> 32 |
             block.timestamp;
-        require(uint16(self.nonce) != uint16(nonce), "too soon");
+        require(uint16(self.nonce) != uint16(nonce), "Pool: too soon");
         self.nonce = nonce;
     }
     
     function acceptPending(Account storage self, uint256 value) internal {
         uint256 pending = self.pending;
-        require(pending > 0, "no pending tokens");
-        require(pending == value, "value must equal issued tokens");
+        require(pending > 0, "Pool: no pending tokens");
+        require(pending == value, "Pool: value must equal issued tokens");
         self.secretHash = 0;
         self.pending = 0;
         self.balance = self.balance.add(pending);
@@ -78,7 +78,7 @@ library SupplyUtils {
 
     modifier checkAvailability(Supply storage self) {
         _;
-        require(self.total >= self.minimum.add(self.pending), "not enough available tokens");
+        require(self.total >= self.minimum.add(self.pending), "Pool: not enough available tokens");
     }
 
     // modifier safeReduceMinimum(Supply storage self, uint256 value) {
@@ -90,11 +90,11 @@ library SupplyUtils {
     // }
 
     function updatePending(Supply storage self, uint256 from, uint256 to) internal checkAvailability(self) { 
-        self.pending = self.pending.add(to).sub(from, "not enough available tokens");       
+        self.pending = self.pending.add(to).sub(from, "Pool: not enough available tokens");       
     }
 
     function acceptPending(Supply storage self, uint256 value) internal {
-        self.pending = self.pending.sub(value, "not enough pending");
+        self.pending = self.pending.sub(value, "Pool: not enough pending");
         self.minimum = self.minimum.add(value);
     }
 
@@ -117,7 +117,7 @@ library SupplyUtils {
     }
 
     function decrease(Supply storage self, uint256 value) internal checkAvailability(self) {
-        self.total = self.total.sub(value, "value larger than total");
+        self.total = self.total.sub(value, "Pool: value larger than total");
     }
 
     function update(Supply storage self, uint256 value) internal checkAvailability(self) {
@@ -140,49 +140,6 @@ struct Entities {
     address token;
     address wallet;
 }
-
-/*
-
-    Owner
-    setManager(address manager) public onlyOwner()
-    setReleaseDelay(uint256 blocks) public onlyOwner()
-    setMaxTokensPerIssue(uint256 tokens) public onlyOwner()
-    resyncTotalSupply() public onlyAdmins() returns (uint256)
-    setTokenWallet(address tokenWallet) public onlyOwner()
-    setEtherWallet(address payable etherWallet) public onlyOwner()
-    
-    Admins
-    issueTokens(address to, uint256 value, bytes32 secretHash) public onlyAdmins()    
-    executeAcceptTokens(address recipient, uint256 value, bytes calldata c_secret, uint8 v, bytes32 r, bytes32 s) public onlyAdmins()
-    executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s) public onlyAdmins()
-    transferTokens(uint256 value) public onlyAdmins()
-    
-    External
-    acceptTokens(uint256 value) public
-    depositTokens(uint256 value) public
-    requestWithdrawal(uint256 value) public
-    cancelWithdrawal() public
-    withdrawTokens() public
-    account(address addr) public view
-    supply() view external returns (uint256 total, uint256 minimum, uint256 pending) {
-    limits()
-    entities()
-    availableSupply() view public returns (uint256)
-    totalSupply() view public returns (uint256)
-    
-    Public
-    generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash) public view
-    generatePaymentMessage(address from, uint256 value) public view
-    validateAcceptTokens(address recipient, uint256 value, bytes32 secretHash, uint8 v, bytes32 r, bytes32 s) public view 
-    validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s) public view
-    
-    Private
-    _acceptTokens(address recipient, uint256 value) internal
-    _messageToRecover(bytes32 hashedUnsignedMessage) private pure
-    _hashToAscii(bytes32 hash) private pure returns (bytes memory)
-    _char(byte b) private pure returns (byte c)
-    
-*/
 
 contract Pool is Claimable {
     using AccountUtils for Account;
@@ -226,7 +183,7 @@ contract Pool is Claimable {
     event MaxTokensPerBlockChanged(uint256 from, uint256 to);
 
     modifier onlyAdmins() {
-        require(msg.sender == s_owner || msg.sender == s_entities.manager, "not owner or manager");
+        require(msg.sender == s_owner || msg.sender == s_entities.manager, "Pool: not owner or manager");
         _;
     }
 
@@ -257,7 +214,7 @@ contract Pool is Claimable {
     }
 
     receive () external payable {
-        require(false, "not accepting ether");
+        require(false, "Pool: not accepting ether");
     }
 
 
@@ -265,21 +222,21 @@ contract Pool is Claimable {
 
 
     function setManager(address manager) external onlyOwner() {
-        require(manager != address(this), "pool cannot be mananger");
-        require(manager != s_entities.token, "token cannot be manager");
+        require(manager != address(this), "Pool: self cannot be mananger");
+        require(manager != s_entities.token, "Pool: token cannot be manager");
         emit ManagerChanged(s_entities.manager, manager);
         s_entities.manager = manager;
     }
 
     function setWallet(address wallet) external onlyOwner() {
-        require(wallet != address(this), "pool cannot be wallet");
-        require(wallet != s_entities.token, "token cannot be wallt");
+        require(wallet != address(this), "Pool: self cannot be wallet");
+        require(wallet != s_entities.token, "Pool: token cannot be wallt");
         emit WalletChanged(s_entities.wallet, wallet);
         s_entities.wallet = wallet;
     }
 
     function setReleaseDelay(uint256 blocks) external onlyOwner() {
-        require(blocks <= MAX_RELEASE_DELAY, "exeeds max release delay");
+        require(blocks <= MAX_RELEASE_DELAY, "Pool: exeeds max release delay");
         emit ReleaseDelayChanged(s_limits.releaseDelay, blocks);
         s_limits.releaseDelay = blocks;
     }
@@ -296,9 +253,9 @@ contract Pool is Claimable {
 
     function resyncTotalSupply(uint256 value) external onlyAdmins() returns (uint256) {
         uint256 tokens = ownedTokens();
-        require(tokens >= s_supply.total, "internal error, check contract logic"); 
-        require(value >= s_supply.total, "only transferTokens can decrease total supply");
-        require(value <= tokens, "not enough tokens");
+        require(tokens >= s_supply.total, "Pool: internal error, check contract logic"); 
+        require(value >= s_supply.total, "Pool: only transferTokens can decrease total supply");
+        require(value <= tokens, "Pool: not enough tokens");
         s_supply.update(value);
     }
 
@@ -307,13 +264,13 @@ contract Pool is Claimable {
 
 
     function transferEther(uint256 value) external onlyAdmins() {
-        require(s_entities.wallet != address(0), "wallet not set");
+        require(s_entities.wallet != address(0), "Pool: wallet not set");
         payable(s_entities.wallet).transfer(value);
         emit EtherTransfered(s_entities.wallet, value);
     }
 
     function transferTokens(uint256 value) external onlyAdmins() {
-        require(s_entities.wallet != address(0), "wallet not set");
+        require(s_entities.wallet != address(0), "Pool: wallet not set");
         s_supply.decrease(value);
         IERC20(s_entities.token).safeTransfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
@@ -324,8 +281,8 @@ contract Pool is Claimable {
     }
     
     function _distributeTokens(address to, uint256 value) private {
-        require(value <= s_limits.maxTokensPerIssue, "exeeds max tokens per call");
-        require(s_accounts[to].issueBlock < block.number, "too soon");
+        require(value <= s_limits.maxTokensPerIssue, "Pool: exeeds max tokens per call");
+        require(s_accounts[to].issueBlock < block.number, "Pool: too soon");
         _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
         sp_account.issueBlock = block.number;
@@ -343,7 +300,7 @@ contract Pool is Claimable {
      * @param secretHash The keccak256 of the confirmation secret.
     */
     function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyAdmins() {
-        require(value <= s_limits.maxTokensPerIssue, "exeeds max tokens per call");
+        require(value <= s_limits.maxTokensPerIssue, "Pool: exeeds max tokens per call");
         _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
         uint256 prevPending = sp_account.pending;
@@ -367,10 +324,10 @@ contract Pool is Claimable {
         external 
         onlyAdmins()
     {
-        require(s_accounts[recipient].secretHash == keccak256(c_secret), "wrong secret");
+        require(s_accounts[recipient].secretHash == keccak256(c_secret), "Pool: wrong secret");
         require(
             validateAcceptTokens(eip712, recipient, value, keccak256(c_secret), v, r ,s),
-            "wrong signature or data"
+            "Pool: wrong signature or data"
         );
         _acceptTokens(recipient, value);
         emit TokensAccepted(recipient, false);
@@ -380,7 +337,7 @@ contract Pool is Claimable {
         external
         onlyAdmins()
     {
-        require(validatePayment(eip712, from, value, v, r, s), "wrong signature or data");
+        require(validatePayment(eip712, from, value, v, r, s), "Pool: wrong signature or data");
         Account storage sp_account = s_accounts[from];
         sp_account.updateNonce();
         sp_account.payment(value);
@@ -396,14 +353,14 @@ contract Pool is Claimable {
         external
         payable
     {
-        require(validateBuyTokens(eip712, msg.sender, eth, kbt, expires, v, r, s), "wrong signature or data");
-        require(block.timestamp <= expires, "too late");
-        require(msg.value == eth, "value mismatch");
+        require(validateBuyTokens(eip712, msg.sender, eth, kbt, expires, v, r, s), "Pool: wrong signature or data");
+        require(block.timestamp <= expires, "Pool: too late");
+        require(msg.value == eth, "Pool: value mismatch");
         _distributeTokens(msg.sender, kbt);
     }
 
     function acceptTokens(uint256 value, bytes calldata c_secret) external {
-        require(s_accounts[msg.sender].secretHash == keccak256(c_secret), "wrong secret");
+        require(s_accounts[msg.sender].secretHash == keccak256(c_secret), "Pool: wrong secret");
         _acceptTokens(msg.sender, value);
         emit TokensAccepted(msg.sender, true);
     }
@@ -422,8 +379,8 @@ contract Pool is Claimable {
     }
 
     function requestWithdrawal(uint256 value) external {
-        require(s_accounts[msg.sender].balance >= value, "not enough tokens");
-        require(value > 0, "withdrawal value must be larger then 0");
+        require(s_accounts[msg.sender].balance >= value, "Pool: not enough tokens");
+        require(value > 0, "Pool: withdrawal value must be larger then 0");
         s_accounts[msg.sender].withdrawal = value;
         s_accounts[msg.sender].releaseBlock = block.number + s_limits.releaseDelay;
         emit WithdrawalRequested(msg.sender, value);
@@ -437,8 +394,8 @@ contract Pool is Claimable {
 
     function withdrawTokens() external {
         Account storage sp_account = s_accounts[msg.sender];   
-        require(sp_account.withdrawal > 0, "no withdraw request");
-        require(sp_account.releaseBlock <= block.number, "too soon");
+        require(sp_account.withdrawal > 0, "Pool: no withdraw request");
+        require(sp_account.releaseBlock <= block.number, "Pool: too soon");
         uint256 value = sp_account.withdrawal > sp_account.balance ? sp_account.balance : sp_account.withdrawal;
         sp_account.withdraw(value);
         s_supply.widthdraw(value);
@@ -559,8 +516,8 @@ contract Pool is Claimable {
         public view 
         returns (bytes memory)
     {
-        require(s_accounts[recipient].secretHash == secretHash, "wrong secret hash");
-        require(s_accounts[recipient].pending == value, "value must equal pending(issued tokens)");
+        require(s_accounts[recipient].secretHash == secretHash, "Pool: wrong secret hash");
+        require(s_accounts[recipient].pending == value, "Pool: value must equal pending(issued tokens)");
         if (eip712) {
             return abi.encode(
                 ACCEPT_TYPEHASH,
@@ -583,7 +540,7 @@ contract Pool is Claimable {
         returns (bytes memory)
     {
         Account storage sp_account = s_accounts[from]; 
-        require(sp_account.balance >= value, "account balnace too low");
+        require(sp_account.balance >= value, "Pool: account balnace too low");
         if (eip712) {
             return abi.encode(
                 PAYMENT_TYPEHASH,
@@ -669,11 +626,11 @@ contract Pool is Claimable {
         } else {
             s_totalIssuedInBlock.add(value);
         }
-        require(s_totalIssuedInBlock <= s_limits.maxTokensPerBlock, "exeeds max tokens per block");
+        require(s_totalIssuedInBlock <= s_limits.maxTokensPerBlock, "Pool: exeeds max tokens per block");
     }
 
     function _acceptTokens(address recipient, uint256 value) private {
-        require(s_accounts[recipient].issueBlock < block.number, "too soon");
+        require(s_accounts[recipient].issueBlock < block.number, "Pool: too soon");
         s_accounts[recipient].acceptPending(value);
         s_supply.acceptPending(value);
     }
