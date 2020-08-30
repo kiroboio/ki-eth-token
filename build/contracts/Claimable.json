@@ -41,15 +41,16 @@
       "type": "function"
     }
   ],
-  "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"claimOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Extension for the Ownable contract, where the ownership needs to be claimed. This allows the new owner to accept the transfer.\",\"kind\":\"dev\",\"methods\":{\"claimOwnership()\":{\"details\":\"Allows the pendingOwner address to finalize the transfer.\"},\"transferOwnership(address)\":{\"details\":\"Allows the current owner to set the pendingOwner address.\",\"params\":{\"newOwner\":\"The address to transfer ownership to.\"}}},\"title\":\"Claimable\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/home/tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":\"Claimable\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":{\"keccak256\":\"0xfd0cb00d522ebd8f6b584480692ad0e8f1b0f48ae8ec0d3e35e9e3ca473d3d80\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cd43f5fde426a877cd4a32402b68816fa7298c8f32b04b79f4e6b1f4237c80db\",\"dweb:/ipfs/QmVzN12Eo5GJ3Fe5pPfnWuQ5gVKiLszYLw9PE9zEu65ozH\"]},\"/home/tal/code/kirobo/ki-eth-token/contracts/Ownable.sol\":{\"keccak256\":\"0x32d9debd81f7174d6399a002bc2df7065fdee39dbe88a61c888ff7f9b508d1a9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://3f58b98b21b71d396f05a40d5fe730e85cac81c02b8eddffca15c7f1e763c47a\",\"dweb:/ipfs/QmSUEz6hgpeKGsmfixSWX5YBfz1eoacVCB5W7nxmDzsV3a\"]}},\"version\":1}",
+  "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"claimOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Extension for the Ownable contract, where the ownership needs to be claimed. This allows the new owner to accept the transfer.\",\"kind\":\"dev\",\"methods\":{\"claimOwnership()\":{\"details\":\"Allows the pendingOwner address to finalize the transfer.\"},\"transferOwnership(address)\":{\"details\":\"Allows the current owner to set the pendingOwner address.\",\"params\":{\"newOwner\":\"The address to transfer ownership to.\"}}},\"title\":\"Claimable\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":\"Claimable\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":{\"keccak256\":\"0xfd0cb00d522ebd8f6b584480692ad0e8f1b0f48ae8ec0d3e35e9e3ca473d3d80\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cd43f5fde426a877cd4a32402b68816fa7298c8f32b04b79f4e6b1f4237c80db\",\"dweb:/ipfs/QmVzN12Eo5GJ3Fe5pPfnWuQ5gVKiLszYLw9PE9zEu65ozH\"]},\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Ownable.sol\":{\"keccak256\":\"0x32d9debd81f7174d6399a002bc2df7065fdee39dbe88a61c888ff7f9b508d1a9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://3f58b98b21b71d396f05a40d5fe730e85cac81c02b8eddffca15c7f1e763c47a\",\"dweb:/ipfs/QmSUEz6hgpeKGsmfixSWX5YBfz1eoacVCB5W7nxmDzsV3a\"]}},\"version\":1}",
   "bytecode": "0x",
   "deployedBytecode": "0x",
+  "immutableReferences": {},
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "// SPDX-License-Identifier: MIT\npragma solidity 0.6.12;\n\nimport \"./Ownable.sol\";\n\n/**\n * @title Claimable\n * @dev Extension for the Ownable contract, where the ownership needs to be claimed.\n * This allows the new owner to accept the transfer.\n */\nabstract contract Claimable is Ownable {\n  address s_pendingOwner;\n\n  /**\n   * @dev Modifier throws if called by any account other than the pendingOwner.\n   */\n  modifier onlyPendingOwner() {\n    require(msg.sender == s_pendingOwner, \"not pending owner\");\n    _;\n  }\n\n  /**\n   * @dev Allows the current owner to set the pendingOwner address.\n   * @param newOwner The address to transfer ownership to.\n   */\n  function transferOwnership(address newOwner) public onlyOwner override {\n    s_pendingOwner = newOwner;\n  }\n\n  /**\n   * @dev Allows the pendingOwner address to finalize the transfer.\n   */\n  function claimOwnership() public onlyPendingOwner {\n    emit OwnershipTransferred(s_owner, s_pendingOwner);\n    s_owner = s_pendingOwner;\n    s_pendingOwner = address(0);\n  }\n}\n\n",
-  "sourcePath": "/home/tal/code/kirobo/ki-eth-token/contracts/Claimable.sol",
+  "sourcePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol",
   "ast": {
-    "absolutePath": "/home/tal/code/kirobo/ki-eth-token/contracts/Claimable.sol",
+    "absolutePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol",
     "exportedSymbols": {
       "Claimable": [
         58
@@ -70,7 +71,7 @@
         "src": "32:23:0"
       },
       {
-        "absolutePath": "/home/tal/code/kirobo/ki-eth-token/contracts/Ownable.sol",
+        "absolutePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/Ownable.sol",
         "file": "./Ownable.sol",
         "id": 2,
         "nodeType": "ImportDirective",
@@ -740,7 +741,7 @@
     "src": "32:994:0"
   },
   "legacyAST": {
-    "absolutePath": "/home/tal/code/kirobo/ki-eth-token/contracts/Claimable.sol",
+    "absolutePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol",
     "exportedSymbols": {
       "Claimable": [
         58
@@ -761,7 +762,7 @@
         "src": "32:23:0"
       },
       {
-        "absolutePath": "/home/tal/code/kirobo/ki-eth-token/contracts/Ownable.sol",
+        "absolutePath": "/Users/Tal/code/kirobo/ki-eth-token/contracts/Ownable.sol",
         "file": "./Ownable.sol",
         "id": 2,
         "nodeType": "ImportDirective",
@@ -1435,8 +1436,8 @@
     "version": "0.6.12+commit.27d51765.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "3.0.23",
-  "updatedAt": "2020-08-25T12:31:21.958Z",
+  "schemaVersion": "3.2.0",
+  "updatedAt": "2020-08-29T20:22:49.921Z",
   "devdoc": {
     "details": "Extension for the Ownable contract, where the ownership needs to be claimed. This allows the new owner to accept the transfer.",
     "kind": "dev",

@@ -108,4 +108,33 @@ contract('Wallet', async accounts => {
     assert.equal(0, +(await web3.eth.getBalance(wallet.address)))
   })
 
+  it('should be able to create token from wallet', async () => {
+    const contract = new web3.eth.Contract(Token.abi)
+    const bytecode = contract.deploy({arguments: [], data: Token.bytecode}).encodeABI()
+    await wallet.deployContract_(bytecode, { from: walletOwner1 })
+    const token2Receipt = await wallet.deployContract_(bytecode, { from: walletOwner2 })
+    const token2Address = token2Receipt.logs[0].args[0]
+    await wallet.setOwnTarget_(token2Address, { from: walletOwner1 })
+    await wallet.setOwnTarget_(token2Address, { from: walletOwner2 }) 
+    const token2 = await Token.at(wallet.address)
+    await token2.mint(user1, 2000, { from: walletOwner1 })
+    await token2.mint(user1, 2000, { from: walletOwner2 }) 
+  })
+
+  it('should be able to create pool from wallet', async () => {
+    const contract = new web3.eth.Contract(Pool.abi)
+    const bytecode = contract.deploy({arguments: [token.address], data: Pool.bytecode}).encodeABI()
+    await wallet.deployContract_(bytecode, { from: walletOwner1 })
+    const pool2Receipt = await wallet.deployContract_(bytecode, { from: walletOwner2 })
+    const pool2Address = pool2Receipt.logs[0].args[0]
+    await wallet.setOwnTarget_(pool2Address, { from: walletOwner1 })
+    await wallet.setOwnTarget_(pool2Address, { from: walletOwner2 }) 
+    const pool2 = await Pool.at(wallet.address)
+    await token.mint(pool2Address, 2000, { from: tokenOwner })
+    await pool2.resyncTotalSupply(2000, { from: walletOwner1 })
+    await pool2.resyncTotalSupply(2000, { from: walletOwner2 })
+    await pool2.distributeTokens(user1, 200, { from: walletOwner1 })
+    await pool2.distributeTokens(user1, 200, { from: walletOwner2 })
+  })
+
 })
