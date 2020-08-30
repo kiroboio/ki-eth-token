@@ -306,14 +306,24 @@ contract Pool is Claimable {
     // ----------- Admins Functions ------------
 
 
+    function transferEther(uint256 value) external onlyAdmins() {
+        require(s_entities.wallet != address(0), "wallet not set");
+        payable(s_entities.wallet).transfer(value);
+        emit EtherTransfered(s_entities.wallet, value);
+    }
+
     function transferTokens(uint256 value) external onlyAdmins() {
-        require(s_entities.wallet != address(0), "token wallet not set");
+        require(s_entities.wallet != address(0), "wallet not set");
         s_supply.decrease(value);
         IERC20(s_entities.token).safeTransfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
     }
 
     function distributeTokens(address to, uint256 value) external onlyAdmins() {
+        _distributeTokens(to, value);
+    }
+    
+    function _distributeTokens(address to, uint256 value) private {
         require(value <= s_limits.maxTokensPerIssue, "exeeds max tokens per call");
         require(s_accounts[to].issueBlock < block.number, "too soon");
         _validateTokensPerBlock(value);
@@ -381,6 +391,16 @@ contract Pool is Claimable {
 
     // ----------- External Functions ------------
 
+
+    function executeBuyTokens(bool eip712, uint256 eth, uint256 kbt, uint256 expires, uint8 v, bytes32 r, bytes32 s) 
+        external
+        payable
+    {
+        require(validateBuyTokens(eip712, msg.sender, eth, kbt, expires, v, r, s), "wrong signature or data");
+        require(block.timestamp <= expires, "too late");
+        require(msg.value == eth, "value mismatch");
+        _distributeTokens(msg.sender, kbt);
+    }
 
     function acceptTokens(uint256 value, bytes calldata c_secret) external {
         require(s_accounts[msg.sender].secretHash == keccak256(c_secret), "wrong secret");
@@ -512,6 +532,29 @@ contract Pool is Claimable {
     // ----------- Public Functions ------------
 
 
+    function generateBuyTokensMessage(bool eip712, address recipient, uint256 eth, uint256 kbt, uint256 expires)
+        public view
+        returns (bytes memory)
+    {
+        if (eip712) {
+            return abi.encode(
+                PAYMENT_TYPEHASH,
+                recipient,
+                eth,
+                kbt,
+                expires
+            );
+        }
+        return abi.encodePacked(
+            s_uid,
+            this.generatePaymentMessage.selector,
+            recipient,
+            eth,
+            kbt,
+            expires
+        );
+    }
+
     function generateAcceptTokensMessage(bool eip712, address recipient, uint256 value, bytes32 secretHash)
         public view 
         returns (bytes memory)
@@ -556,6 +599,27 @@ contract Pool is Claimable {
             value,
             sp_account.nonce
         );
+    }
+
+    function validateBuyTokens(
+        bool eip712,
+        address from,
+        uint256 eth,
+        uint256 kbt,
+        uint256 expires,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public view 
+        returns (bool)
+    {
+        bytes32 message = _messageToRecover(
+            eip712,
+            keccak256(generateBuyTokensMessage(eip712, from, eth, kbt, expires))
+        );
+        address addr = ecrecover(message, v, r, s);
+        return addr == s_entities.manager;      
     }
 
     function validateAcceptTokens(
