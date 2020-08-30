@@ -9,6 +9,8 @@ contract Wallet is MultiSig {
 
     event Received(address indexed from, uint256 value);
     event Transfered(address indexed to, uint256 value);
+    event ContractDeployed(address c);
+    event ContractDeployed2(address c);
 
     constructor(address owner1, address owner2, address owner3)
         MultiSig(owner1, owner2, owner3)
@@ -47,6 +49,24 @@ contract Wallet is MultiSig {
     {
         to.transfer(value);
         emit Transfered(to, value);
+    }
+
+    function deployContract_(bytes memory bytecode) external multiSig2of3(0) returns (address addr) {
+        // solium-disable-next-line security/no-inline-assembly
+         assembly {
+             addr := create(0, add(bytecode, 0x20), mload(bytecode))
+             if iszero(extcodesize(addr)) { revert(0, 0) }
+         }
+         emit ContractDeployed(addr);
+    }
+
+    function deployContract2_(bytes memory bytecode, bytes32 salt) external multiSig2of3(0) returns (address addr) {
+        // solium-disable-next-line security/no-inline-assembly
+         assembly {
+             addr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
+             if iszero(extcodesize(addr)) { revert(0, 0) }
+         }
+         emit ContractDeployed2(addr);
     }
 
     function setOwnTarget_(address target) external multiSig2of3(0) {
