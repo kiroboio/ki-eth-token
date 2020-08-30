@@ -118,7 +118,9 @@ contract('Wallet', async accounts => {
     await wallet.setOwnTarget_(token2Address, { from: walletOwner2 }) 
     const token2 = await Token.at(wallet.address)
     await token2.mint(user1, 2000, { from: walletOwner1 })
-    await token2.mint(user1, 2000, { from: walletOwner2 }) 
+    await token2.mint(user1, 2000, { from: walletOwner2 })
+    const token2Instance = await Token.at(token2Address) 
+    assert.equal(2000, await token2Instance.balanceOf(user1, { from: walletOwner1 }))
   })
 
   it('should be able to create pool from wallet', async () => {
@@ -133,8 +135,45 @@ contract('Wallet', async accounts => {
     await token.mint(pool2Address, 2000, { from: tokenOwner })
     await pool2.resyncTotalSupply(2000, { from: walletOwner1 })
     await pool2.resyncTotalSupply(2000, { from: walletOwner2 })
-    await pool2.distributeTokens(user1, 200, { from: walletOwner1 })
-    await pool2.distributeTokens(user1, 200, { from: walletOwner2 })
+    await pool2.distributeTokens(user1, 250, { from: walletOwner1 })
+    await pool2.distributeTokens(user1, 250, { from: walletOwner2 })
+    const pool2Instance = await Pool.at(pool2Address) 
+    assert.equal(250, (await pool2Instance.account(user1, { from: walletOwner2 })).balance)
+  })
+
+  it('should be able to create token from wallet using salt', async () => {
+    const contract = new web3.eth.Contract(Token.abi)
+    const bytecode = contract.deploy({arguments: [], data: Token.bytecode}).encodeABI()
+    const salt = web3.utils.sha3('1234')
+    await wallet.deployContract2_(bytecode, salt, { from: walletOwner1 })
+    const token2Receipt = await wallet.deployContract2_(bytecode, salt, { from: walletOwner2 })
+    const token2Address = token2Receipt.logs[0].args[0]
+    await wallet.setOwnTarget_(token2Address, { from: walletOwner1 })
+    await wallet.setOwnTarget_(token2Address, { from: walletOwner2 }) 
+    const token2 = await Token.at(wallet.address)
+    await token2.mint(user2, 500, { from: walletOwner1 })
+    await token2.mint(user2, 500, { from: walletOwner2 })
+    const token2Instance = await Token.at(token2Address) 
+    assert.equal(500, await token2Instance.balanceOf(user2, { from: user2 }))
+  })
+
+  it('should be able to create pool from wallet using salt', async () => {
+    const contract = new web3.eth.Contract(Pool.abi)
+    const bytecode = contract.deploy({arguments: [token.address], data: Pool.bytecode}).encodeABI()
+    const salt = web3.utils.sha3('1234')
+    await wallet.deployContract2_(bytecode, salt, { from: walletOwner1 })
+    const pool2Receipt = await wallet.deployContract2_(bytecode, salt, { from: walletOwner2 })
+    const pool2Address = pool2Receipt.logs[0].args[0]
+    await wallet.setOwnTarget_(pool2Address, { from: walletOwner1 })
+    await wallet.setOwnTarget_(pool2Address, { from: walletOwner2 }) 
+    const pool2 = await Pool.at(wallet.address)
+    await token.mint(pool2Address, 2000, { from: tokenOwner })
+    await pool2.resyncTotalSupply(2000, { from: walletOwner1 })
+    await pool2.resyncTotalSupply(2000, { from: walletOwner2 })
+    await pool2.distributeTokens(user2, 400, { from: walletOwner1 })
+    await pool2.distributeTokens(user2, 400, { from: walletOwner2 })
+    const pool2Instance = await Pool.at(pool2Address) 
+    assert.equal(400, (await pool2Instance.account(user2, { from: user2 })).balance)
   })
 
 })
