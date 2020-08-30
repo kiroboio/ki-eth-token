@@ -10,7 +10,7 @@ abstract contract MultiSig {
     struct Action {
         address owner;
         uint256 value;
-        bytes   data;
+        bytes32 data;
     }
 
     Action s_action;
@@ -31,13 +31,13 @@ abstract contract MultiSig {
       require(s_owners[msg.sender] && msg.sender != s_markedForRemoval, 'only owners that are not being removed');
       if (s_action.owner == address(0)) {
           s_action.owner = msg.sender;
-          s_action.data = msg.data;
+          s_action.data = keccak256(msg.data);
           s_action.value = value;
           return;
       }
       require(s_action.owner != msg.sender, 'same owner cannot sign twice');
       require(s_action.value == value, 'must sign the same value');
-      require(keccak256(s_action.data) == keccak256(msg.data), 'must sign the same data');
+      require(s_action.data == keccak256(msg.data), 'must sign the same data');
       s_action.owner = address(0);
       _;
     }
