@@ -9,8 +9,8 @@ contract Wallet is MultiSig {
 
     event Received(address indexed from, uint256 value);
     event Transfered(address indexed to, uint256 value);
-    event ContractDeployed(address c);
-    event ContractDeployed2(address c);
+    event ContractDeployed(address at);
+    event ContractDeployed2(address at);
 
     constructor(address owner1, address owner2, address owner3)
         MultiSig(owner1, owner2, owner3)

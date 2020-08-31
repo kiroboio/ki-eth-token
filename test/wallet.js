@@ -140,14 +140,14 @@ contract('Wallet', async accounts => {
       args.selector.slice(0,10),
       web3.eth.abi.encodeFunctionSignature('deployContract_(bytes)'), '..(bytecode)'
     )
-    const token2Receipt = await wallet.deployContract_(bytecode, { from: walletOwner2 })
-    args = assetEvent_getArgs(token2Receipt.logs, 'MultiSigExecute');
+    tx = await wallet.deployContract_(bytecode, { from: walletOwner2 })
+    args = assetEvent_getArgs(tx.logs, 'MultiSigExecute');
     assert.equal(args.from, walletOwner2, '..(by, .., .., ..)');
     assert.equal(
       args.selector.slice(0,10),
       web3.eth.abi.encodeFunctionSignature('deployContract_(bytes)'), '..(bytecode)'
     )
-    const token2Address = token2Receipt.logs[1].args[0]
+    const token2Address = assetEvent_getArgs(tx.logs, 'ContractDeployed').at
     await wallet.setOwnTarget_(token2Address, { from: walletOwner1 })
     await wallet.setOwnTarget_(token2Address, { from: walletOwner2 }) 
     const token2 = await Token.at(wallet.address)
