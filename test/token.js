@@ -59,7 +59,7 @@ contract('Token', async accounts => {
     const bytecode = contract.deploy({arguments: [], data: Token.bytecode}).encodeABI()
     await wallet.deployContract_(bytecode, { from: walletOwner1 })
     const tokenReceipt = await wallet.deployContract_(bytecode, { from: walletOwner2 })
-    const tokenAddress = tokenReceipt.logs[0].args[0]
+    const tokenAddress = tokenReceipt.logs[1].args[0]
     await wallet.setOwnTarget_(tokenAddress, { from: walletOwner1 })
     await wallet.setOwnTarget_(tokenAddress, { from: walletOwner2 }) 
     tokenAdmin = await Token.at(wallet.address)
