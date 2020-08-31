@@ -9,7 +9,7 @@ const { assertRevert, assertInvalidOpcode, assertPayable, assetEvent_getArgs } =
 const { advanceBlock, advanceTime, advanceTimeAndBlock } = require('./lib/utils')
 
 contract('Wallet', async accounts => {
-  let token, pool, wallet
+  let token, pool, wallet, tx, args, nonce
 
   const tokenOwner = accounts[1]
   const poolOwner = accounts[2]
@@ -74,10 +74,32 @@ contract('Wallet', async accounts => {
 
   it('should be able to change owner', async () => {
     assert.notOk(await wallet.isOwner({ from: walletOwner4 }))
-    await wallet.replaceOwner(walletOwner3, walletOwner4, { from: walletOwner1 })
+    tx = await wallet.replaceOwner(walletOwner3, walletOwner4, { from: walletOwner1 })
+    args = assetEvent_getArgs(tx.logs, 'MultiSigReplaceOwnerCall');
+    assert.equal(args.by, walletOwner1, '..(by, .., ..)');
+    assert.equal(args.from, walletOwner3, '..(.., from, ..)');
+    assert.equal(args.to, walletOwner4, '..(.., .., to)');
+    args = assetEvent_getArgs(tx.logs, 'MultiSigRequest');
+    assert.equal(args.from, walletOwner1, '..(by, .., .., ..)');
+    assert.equal(
+      args.selector.slice(0,10),
+      web3.eth.abi.encodeFunctionSignature('replaceOwner(address,address)'), '..(.., selector, .., ..)'
+    )
+    assert.equal(args.value, 0, '..(.., .., value, ..)');
     assert.ok(await wallet.isOwner({ from: walletOwner3 }))
     assert.notOk(await wallet.isOwner({ from: walletOwner4 }))
-    await wallet.replaceOwner(walletOwner3, walletOwner4, { from: walletOwner2 })
+    tx = await wallet.replaceOwner(walletOwner3, walletOwner4, { from: walletOwner2 })
+    args = assetEvent_getArgs(tx.logs, 'MultiSigReplaceOwnerCall');
+    assert.equal(args.by, walletOwner2, '..(by, .., ..)');
+    assert.equal(args.from, walletOwner3, '..(.., from, ..)');
+    assert.equal(args.to, walletOwner4, '..(.., .., to)');
+    args = assetEvent_getArgs(tx.logs, 'MultiSigExecute');
+    assert.equal(args.from, walletOwner2, '..(by, .., .., ..)');
+    assert.equal(
+      args.selector.slice(0,10),
+      web3.eth.abi.encodeFunctionSignature('replaceOwner(address,address)'), '..(.., selector, .., ..)'
+    )
+    assert.equal(args.value, 0, '..(.., .., value, ..)');
     assert.notOk(await wallet.isOwner({ from: walletOwner3 }))
     assert.ok(await wallet.isOwner({ from: walletOwner4 }))
     assert.ok(await wallet.isOwner({ from: walletOwner1 }))
@@ -111,9 +133,21 @@ contract('Wallet', async accounts => {
   it('should be able to create token from wallet', async () => {
     const contract = new web3.eth.Contract(Token.abi)
     const bytecode = contract.deploy({arguments: [], data: Token.bytecode}).encodeABI()
-    await wallet.deployContract_(bytecode, { from: walletOwner1 })
+    tx = await wallet.deployContract_(bytecode, { from: walletOwner1 })
+    args = assetEvent_getArgs(tx.logs, 'MultiSigRequest');
+    assert.equal(args.from, walletOwner1, '..(by, .., .., ..)');
+    assert.equal(
+      args.selector.slice(0,10),
+      web3.eth.abi.encodeFunctionSignature('deployContract_(bytes)'), '..(bytecode)'
+    )
     const token2Receipt = await wallet.deployContract_(bytecode, { from: walletOwner2 })
-    const token2Address = token2Receipt.logs[0].args[0]
+    args = assetEvent_getArgs(token2Receipt.logs, 'MultiSigExecute');
+    assert.equal(args.from, walletOwner2, '..(by, .., .., ..)');
+    assert.equal(
+      args.selector.slice(0,10),
+      web3.eth.abi.encodeFunctionSignature('deployContract_(bytes)'), '..(bytecode)'
+    )
+    const token2Address = token2Receipt.logs[1].args[0]
     await wallet.setOwnTarget_(token2Address, { from: walletOwner1 })
     await wallet.setOwnTarget_(token2Address, { from: walletOwner2 }) 
     const token2 = await Token.at(wallet.address)
@@ -128,7 +162,7 @@ contract('Wallet', async accounts => {
     const bytecode = contract.deploy({arguments: [token.address], data: Pool.bytecode}).encodeABI()
     await wallet.deployContract_(bytecode, { from: walletOwner1 })
     const pool2Receipt = await wallet.deployContract_(bytecode, { from: walletOwner2 })
-    const pool2Address = pool2Receipt.logs[0].args[0]
+    const pool2Address = pool2Receipt.logs[1].args[0]
     await wallet.setOwnTarget_(pool2Address, { from: walletOwner1 })
     await wallet.setOwnTarget_(pool2Address, { from: walletOwner2 }) 
     const pool2 = await Pool.at(wallet.address)
@@ -145,9 +179,9 @@ contract('Wallet', async accounts => {
     const contract = new web3.eth.Contract(Token.abi)
     const bytecode = contract.deploy({arguments: [], data: Token.bytecode}).encodeABI()
     const salt = web3.utils.sha3('1234')
-    await wallet.deployContract2_(bytecode, salt, { from: walletOwner1 })
+    tx = await wallet.deployContract2_(bytecode, salt, { from: walletOwner1 })
     const token2Receipt = await wallet.deployContract2_(bytecode, salt, { from: walletOwner2 })
-    const token2Address = token2Receipt.logs[0].args[0]
+    const token2Address = token2Receipt.logs[1].args[0]
     await wallet.setOwnTarget_(token2Address, { from: walletOwner1 })
     await wallet.setOwnTarget_(token2Address, { from: walletOwner2 }) 
     const token2 = await Token.at(wallet.address)
@@ -163,7 +197,7 @@ contract('Wallet', async accounts => {
     const salt = web3.utils.sha3('1234')
     await wallet.deployContract2_(bytecode, salt, { from: walletOwner1 })
     const pool2Receipt = await wallet.deployContract2_(bytecode, salt, { from: walletOwner2 })
-    const pool2Address = pool2Receipt.logs[0].args[0]
+    const pool2Address = pool2Receipt.logs[1].args[0]
     await wallet.setOwnTarget_(pool2Address, { from: walletOwner1 })
     await wallet.setOwnTarget_(pool2Address, { from: walletOwner2 }) 
     const pool2 = await Pool.at(wallet.address)

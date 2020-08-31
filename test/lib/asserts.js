@@ -41,10 +41,12 @@ const assertFunction = (err) => {
 
 const assetEvent_getArgs = (logs, eventName) => {
   assert.ok(logs instanceof Array, 'logs should be an array')
-  assert.equal(logs.length, 1, 'should return one log')
-  const log = logs[0]
-  assert.equal(log.event, eventName, 'event')
-  return log.args
+  for (const log of logs) {
+    if(log.event === eventName) {
+      return log.args
+    }
+  }
+  assert.ok(false, `event ${eventName} not found`)
 }
 
 const mustFail = async (func) => {

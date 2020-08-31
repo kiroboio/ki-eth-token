@@ -46,8 +46,8 @@ abstract contract MultiSig {
       require(s_action.value == value, 'MultiSig: must sign the same value');
       require(s_action.data == hashedData, 'MultiSig: must sign the same data');
       s_action.owner = address(0);
-      _;
       emit MultiSigExecute(msg.sender, sig(msg.data), value, hashedData);
+      _;
     }
 
     function cancel() external {
