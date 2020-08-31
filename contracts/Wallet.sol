@@ -52,8 +52,9 @@ contract Wallet is MultiSig {
     }
 
     function deployContract_(bytes memory bytecode) external multiSig2of3(0) returns (address addr) {
+        require(bytecode.length != 0, "Wallet: bytecode length is zero");
         // solium-disable-next-line security/no-inline-assembly
-         assembly {
+        assembly {
             addr := create(0, add(bytecode, 0x20), mload(bytecode))
             if iszero(extcodesize(addr)) { revert(0, 0) }
         }
@@ -61,6 +62,7 @@ contract Wallet is MultiSig {
     }
 
     function deployContract2_(bytes memory bytecode, bytes32 salt) external multiSig2of3(0) returns (address addr) {
+        require(bytecode.length != 0, "Wallet: bytecode length is zero");
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             addr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
