@@ -77,9 +77,7 @@ abstract contract MultiSig {
       if (data.length < 4) {
         return bytes4(0);
       }
-
-      return
-      (
+      return(
         data[0] |
         (bytes4(data[1]) >> 8) |
         (bytes4(data[2]) >> 16) |
