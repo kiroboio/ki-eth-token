@@ -1,5 +1,7 @@
 'use strict'
 
+const sigUtil = require('eth-sig-util')
+
 const sleep = (milliseconds) => {
   return new Promise((r, j) => setTimeout(() => { r() }, milliseconds))
 }
@@ -130,6 +132,21 @@ const sender = async (web3, address) => {
   return { from: address, nonce: await trNonce(web3, address) }
 }
 
+const signTypedMessage = async (msgParams, from) => {
+  const result = await web3.currentProvider.sendAsync({
+    method: 'eth_signTypedData',
+    params: [msgParams, from],
+    from: from,
+  })
+  assert.ok(typeof result !== 'undefined', 'sign failed')
+  const recovered = sigUtil.recoverTypedSignature({
+    data: msgParams,
+    sig: result.result 
+  })
+  assert.ok(recovered !== from, `Failed to verify signer, got: ${result}`)
+  return result
+}
+
 module.exports = {
   sleep,
   getLatestBlockTimestamp,
@@ -146,4 +163,5 @@ module.exports = {
   parseNonce,
   trNonce,
   sender,
+  signTypedMessage,
 }

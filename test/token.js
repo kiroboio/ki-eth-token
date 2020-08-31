@@ -191,4 +191,5 @@ contract('Token', async accounts => {
       await tokenAdmin.grantRole(await token.BURNER_ROLE(), user1, { from: walletOwner2 })
     })
   })
+
 })

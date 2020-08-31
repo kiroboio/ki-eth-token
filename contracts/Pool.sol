@@ -203,7 +203,7 @@ contract Pool is Claimable {
 
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract, bytes32 salt)"),
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,uint256 salt)"),
                 keccak256(bytes("Kirobo Pool")),
                 keccak256(bytes('1')),
                 chainId,

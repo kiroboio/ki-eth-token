@@ -4,6 +4,9 @@ const Pool = artifacts.require("Pool")
 const Token = artifacts.require("Token")
 const mlog = require('mocha-logger')
 
+const { ethers } = require('ethers')
+const { TypedDataUtils } = require('ethers-eip712')
+
 const {
   assertRevert,
   assertInvalidOpcode,
@@ -25,6 +28,7 @@ const {
   pollCondition,
   trNonce,
   sender,
+  signTypedMessage,
 } = require('./lib/utils')
 
 const { get } = require('lodash')
@@ -820,5 +824,64 @@ contract('Pool', async accounts => {
     assert.equal(user4Tokens, user4InitTokens + 200) 
     assert.equal(user5Tokens, user5InitTokens) 
   })
+
+  it('should be able to generate,validate & execute "accept tokens" message', async () => {
+    const tokens = 500
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await pool.issueTokens(user1, tokens, secretHash, { from: poolOwner })
+    const message = await pool.generateAcceptTokensMessage(true, user1, tokens, secretHash, { from: poolOwner })
+    mlog.log('message: ', message)
+    const typedData = {
+      types: {
+        EIP712Domain: [
+          {name: "name", type: "string"},
+          {name: "version", type: "string"},
+          {name: "chainId", type: "uint256"},
+          {name: "verifyingContract", type: "address"},
+          {name: "salt", type: "uint256"}
+        ],
+        Person: [
+          {name: "name", type: "string"},
+          {name: "wallet", type: "address"},  
+
+          // address recipient, uint256 value, bytes32 secretHash
+        ]
+      },
+      primaryType: 'Person',
+      domain: {
+        name: 'Kirobo Pool',
+        version: '1',
+        chainId: 1,
+        verifyingContract: pool.address,
+        salt: await pool.uid(),
+      },
+      message: {
+        'name': 'Bob',
+        'wallet': '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'
+      }
+    }
+    
+    const digest = TypedDataUtils.encodeDigest(typedData)
+    const digestHex = ethers.utils.hexlify(digest)
+    
+    const wallet = new ethers.Wallet(getPrivateKey(user1))
+    const signature = await wallet.signMessage(digest)
+    mlog.log('signature', JSON.stringify(signature))
+    // mlog.log(`parsed message: ${JSON.stringify(parseAcceptTokensMessage(message))}`)
+    // const messageHash = web3.utils.sha3(message)
+    // const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user1))
+    // mlog.log('rlp', JSON.stringify(rlp))
+    // mlog.log('recover', web3.eth.accounts.recover({
+    //   messageHash: rlp.messageHash,
+    //   v: rlp.v,
+    //   r: rlp.r,
+    //   s: rlp.s,
+    // }))
+    // assert(await pool.validateAcceptTokens(false, user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    // mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
+    // await pool.executeAcceptTokens(false, user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+  })
+  
   
 })

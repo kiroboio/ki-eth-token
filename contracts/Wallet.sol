@@ -54,19 +54,19 @@ contract Wallet is MultiSig {
     function deployContract_(bytes memory bytecode) external multiSig2of3(0) returns (address addr) {
         // solium-disable-next-line security/no-inline-assembly
          assembly {
-             addr := create(0, add(bytecode, 0x20), mload(bytecode))
-             if iszero(extcodesize(addr)) { revert(0, 0) }
-         }
-         emit ContractDeployed(addr);
+            addr := create(0, add(bytecode, 0x20), mload(bytecode))
+            if iszero(extcodesize(addr)) { revert(0, 0) }
+        }
+        emit ContractDeployed(addr);
     }
 
     function deployContract2_(bytes memory bytecode, bytes32 salt) external multiSig2of3(0) returns (address addr) {
         // solium-disable-next-line security/no-inline-assembly
-         assembly {
-             addr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
-             if iszero(extcodesize(addr)) { revert(0, 0) }
-         }
-         emit ContractDeployed2(addr);
+        assembly {
+            addr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
+            if iszero(extcodesize(addr)) { revert(0, 0) }
+        }
+        emit ContractDeployed2(addr);
     }
 
     function setOwnTarget_(address target) external multiSig2of3(0) {
