@@ -31,7 +31,7 @@ contract Wallet is MultiSig {
             let res := call(
                 gas(),
                 sload(s_target_slot),
-                callvalue(),
+                0x00,
                 0x00,
                 calldatasize(),
                 0,
