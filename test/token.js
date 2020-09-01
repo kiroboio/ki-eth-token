@@ -181,9 +181,16 @@ contract('Token', async accounts => {
     })
   })
 
+  it ('should be able to grant admin role when has admin role', async () => {
+    await tokenAdmin.grantRole(await token.MINTER_ADMIN_ROLE(), user2, { from: walletOwner1 })
+    await tokenAdmin.grantRole(await token.MINTER_ADMIN_ROLE(), user2, { from: walletOwner2 })
+    await token.grantRole(await token.MINTER_ROLE(), user3, { from: user2 })
+    await token.mint(user4, 200, { from: user3 })
+  })
+
   it ('should be able to revoke own admin role when has admin role', async () => {
-    await tokenAdmin.revokeRole(await token.DEFAULT_ADMIN_ROLE(), wallet.address, { from: walletOwner1 })
-    await tokenAdmin.revokeRole(await token.DEFAULT_ADMIN_ROLE(), wallet.address, { from: walletOwner2 })
+    await tokenAdmin.revokeRole(await token.BURNER_ADMIN_ROLE(), wallet.address, { from: walletOwner1 })
+    await tokenAdmin.revokeRole(await token.BURNER_ADMIN_ROLE(), wallet.address, { from: walletOwner2 })
     await tokenAdmin.burn(10, { from: walletOwner1 })
     await tokenAdmin.burn(10, { from: walletOwner2 })
     await tokenAdmin.grantRole(await token.BURNER_ROLE(), user1, { from: walletOwner1 })
