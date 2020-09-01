@@ -197,6 +197,10 @@ contract('Token', async accounts => {
     await mustRevert(async ()=> {
       await tokenAdmin.grantRole(await token.BURNER_ROLE(), user1, { from: walletOwner2 })
     })
+    await wallet.cancel({ from: walletOwner3 })
+    await tokenAdmin.grantRole(await token.MINTER_ROLE(), user1, { from: walletOwner1 })
+    let nonce = await trNonce(web3, walletOwner2)
+    await tokenAdmin.grantRole(await token.MINTER_ROLE(), user1, { from: walletOwner2, nonce })
   })
 
 })
