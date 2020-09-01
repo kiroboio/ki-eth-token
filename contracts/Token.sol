@@ -15,7 +15,7 @@ contract Token is Context, AccessControl, ERC20Burnable, ERC20Pausable {
     bytes32 public constant PAUSER_ADMIN_ROLE = keccak256("PAUSER_ADMIN_ROLE");
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
 
-    constructor() ERC20('Kirobo', 'KBT') public {
+    constructor() ERC20('Kirobo Token', 'KBT') public {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         _setupRole(MINTER_ROLE, _msgSender());
