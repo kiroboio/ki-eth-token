@@ -205,6 +205,7 @@ contract('Wallet', async accounts => {
     await pool2.resyncTotalSupply(2000, { from: walletOwner1 })
     await pool2.resyncTotalSupply(2000, { from: walletOwner2 })
     await pool2.distributeTokens(user2, 400, { from: walletOwner1 })
+    mlog.log('action:', JSON.stringify(await wallet.s_action()))
     await pool2.distributeTokens(user2, 400, { from: walletOwner2 })
     const pool2Instance = await Pool.at(pool2Address) 
     assert.equal(400, (await pool2Instance.account(user2, { from: user2 })).balance)
