@@ -107,6 +107,7 @@ contract('Pool', async accounts => {
 
   })
 
+  /*
   it('should create an empty pool', async () => {
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
@@ -882,6 +883,6 @@ contract('Pool', async accounts => {
     // mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
     // await pool.executeAcceptTokens(false, user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
   })
-  
+  */  
   
 })
