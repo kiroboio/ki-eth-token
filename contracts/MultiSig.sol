@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-
 pragma solidity 0.6.12;
 
 abstract contract MultiSig {
@@ -10,10 +9,11 @@ abstract contract MultiSig {
     struct Action {
         address owner;
         uint256 value;
+        uint256 height;
         bytes32 data;
     }
 
-    Action s_action;
+    Action public s_action;
 
     event MultiSigRequest(address indexed from, bytes4 indexed selector, uint256 value, bytes32 hashedData);
     event MultiSigExecute(address indexed from, bytes4 indexed selector, uint256 value, bytes32 hashedData);
@@ -35,6 +35,7 @@ abstract contract MultiSig {
     modifier multiSig2of3 (uint256 value) {
       require(s_owners[msg.sender] && msg.sender != s_markedForRemoval, 'MultiSig: only owners that are not being removed');
       bytes32 hashedData = keccak256(msg.data);
+      s_action.height = block.number;
       if (s_action.owner == address(0)) {
           s_action.owner = msg.sender;
           s_action.data = hashedData;
