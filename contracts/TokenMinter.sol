@@ -9,7 +9,8 @@ contract TokenMinter {
     using SafeMath for uint256;
     Token private s_token;
 
-    uint256 constant public END_VALUE = 1_200_000_000 * 10 ** 18;
+    uint256 constant public END_VALUE = 2_200_000_000 * 10 ** 18; // 2.2B tokens
+    uint256 constant public DURATION = 155_520_000; // 1800 days in seconds
     uint256 private s_startValue;
     uint256 private s_startTime;
     uint256 private s_endTime;
@@ -27,15 +28,15 @@ contract TokenMinter {
         s_beneficiary = beneficiary;
     }
 
-    function start(uint256 endTime) public onlyBeneficiary() {
+    function start() public onlyBeneficiary() {
         // solhint-disable-next-line not-rely-on-time
-        require(endTime > block.timestamp, "TokenMinter: release time is before current time");
         require(s_started == false, "TokenMinter: already started");
         require(s_token.getRoleMemberCount(s_token.MINTER_ADMIN_ROLE()) == 0, "TokenMinter: can change minter roles");
         minterRoleValidation();
         s_started = true;
         s_startValue = s_token.totalSupply();
-        s_endTime = endTime;
+        s_startTime = block.timestamp;
+        s_endTime = block.timestamp.add(DURATION);
     }
 
     function minterRoleValidation() public view {
@@ -63,18 +64,34 @@ contract TokenMinter {
         return s_endTime;
     }
 
+    function startValue() public view returns (uint256) {
+        return s_startValue;
+    }
+
+    function minted() public view returns (uint256) {
+        return s_minted;
+    }
+
+    function left() public view returns (uint256) {
+        END_VALUE.sub(s_startValue).sub(s_minted);
+    }
+
+    function maxCap() public view returns (uint256) {
+        s_token.totalSupply().add(left());
+    }
+
     function maxValue() public view returns (uint256) {
         uint256 maxAmount = END_VALUE.sub(s_startValue);
         uint256 maxduration = s_endTime.sub(s_startTime);
         // solhint-disable-next-line not-rely-on-time
         uint256 effectiveTime = block.timestamp > s_endTime ? s_endTime : block.timestamp;
-        uint256 duration =  effectiveTime.sub(s_startTime);
+        uint256 duration = effectiveTime.sub(s_startTime);
         return maxAmount.mul(duration).sub(maxduration);
     }
 
-    function mint(uint256 value) public {
-        require(value <= maxValue(), "TokenMinter: value too high");
+    function mint(uint256 value) public onlyBeneficiary() {
         s_minted = s_minted.add(value);
+        require(s_minted <= maxValue(), "TokenMinter: value too high");
         s_token.mint(s_beneficiary, value);
     }
 }
