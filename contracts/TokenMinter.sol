@@ -32,11 +32,15 @@ contract TokenMinter {
         require(endTime > block.timestamp, "TokenMinter: release time is before current time");
         require(s_started == false, "TokenMinter: already started");
         require(s_token.getRoleMemberCount(s_token.MINTER_ADMIN_ROLE()) == 0, "TokenMinter: can change minter roles");
-        require(s_token.getRoleMemberCount(s_token.MINTER_ROLE()) == 1, "TokenMinter: only one should have minter role");
-        require(s_token.hasRole(s_token.MINTER_ROLE(), address(this)), "TokenMinter: do not have minter role");
+        minterRoleValidation();
         s_started = true;
         s_startValue = s_token.totalSupply();
         s_endTime = endTime;
+    }
+
+    function minterRoleValidation() public view {
+        require(s_token.getRoleMemberCount(s_token.MINTER_ROLE()) == 1, "TokenMinter: only one should have minter role");
+        require(s_token.hasRole(s_token.MINTER_ROLE(), address(this)), "TokenMinter: do not have minter role");
     }
 
     function started() public view returns (bool) {
