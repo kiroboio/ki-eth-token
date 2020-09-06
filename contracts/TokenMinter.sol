@@ -80,7 +80,7 @@ contract TokenMinter {
         s_token.totalSupply().add(left());
     }
 
-    function maxValue() public view returns (uint256) {
+    function maxCurrentSupply() public view returns (uint256) {
         uint256 maxAmount = END_VALUE.sub(s_startValue);
         uint256 maxduration = s_endTime.sub(s_startTime);
         // solhint-disable-next-line not-rely-on-time
@@ -91,7 +91,7 @@ contract TokenMinter {
 
     function mint(uint256 value) public onlyBeneficiary() {
         s_minted = s_minted.add(value);
-        require(s_minted <= maxValue(), "TokenMinter: value too high");
+        require(s_minted <= maxCurrentSupply(), "TokenMinter: value too high");
         s_token.mint(s_beneficiary, value);
     }
 }
