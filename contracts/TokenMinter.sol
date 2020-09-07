@@ -34,7 +34,7 @@ contract TokenMinter {
 
     function start() external onlyBeneficiary() {
         require(s_started == false, "TokenMinter: already started");
-        require(s_token.getRoleMemberCount(s_token.MINTER_ADMIN_ROLE()) == 0, "TokenMinter: can change minter roles");
+        require(s_token.getRoleMemberCount(s_token.MINTER_ADMIN_ROLE()) == 0, "TokenMinter: minter roles are not final");
         minterRoleValidation();
         s_started = true;
         s_initialSupply = s_token.totalSupply();
@@ -55,8 +55,8 @@ contract TokenMinter {
     }
 
     function minterRoleValidation() public view {
-        require(s_token.getRoleMemberCount(s_token.MINTER_ROLE()) == 1, "TokenMinter: only one should have minter role");
-        require(s_token.hasRole(s_token.MINTER_ROLE(), address(this)), "TokenMinter: do not have minter role");
+        require(s_token.hasRole(s_token.MINTER_ROLE(), address(this)), "TokenMinter: do not have a minter role");
+        require(s_token.getRoleMemberCount(s_token.MINTER_ROLE()) == 1, "TokenMinter: minter role is not exclusive");
     }
 
     function mintLimit() public view returns (uint256) {
