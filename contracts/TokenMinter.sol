@@ -33,7 +33,6 @@ contract TokenMinter {
     }
 
     function start() external onlyBeneficiary() {
-        // solhint-disable-next-line not-rely-on-time
         require(s_started == false, "TokenMinter: already started");
         require(s_token.getRoleMemberCount(s_token.MINTER_ADMIN_ROLE()) == 0, "TokenMinter: can change minter roles");
         minterRoleValidation();
