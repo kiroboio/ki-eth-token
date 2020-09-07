@@ -18,8 +18,9 @@ contract TokenMinter {
     address private s_beneficiary;
     bool private s_started;
 
-    event Started(address indexed by, uint256 timestamp, uint256 initAmount);
-    event Minted(address indexed by, uint256 timestamp, uint256 amount);
+    event Created(address sender, address token, address beneficiary);
+    event Started(uint256 timestamp, uint256 initAmount);
+    event Minted(uint256 timestamp, uint256 amount);
 
     modifier onlyBeneficiary() {
       require(msg.sender == s_beneficiary, "not beneficiary");
@@ -29,6 +30,7 @@ contract TokenMinter {
     constructor (Token token, address beneficiary) public {
         s_token = token;
         s_beneficiary = beneficiary;
+        emit Created(msg.sender, address(token), beneficiary);
     }
 
     function start() external onlyBeneficiary() {
@@ -40,7 +42,7 @@ contract TokenMinter {
         s_startValue = s_token.totalSupply();
         s_startTime = block.timestamp;
         s_endTime = block.timestamp.add(MAX_DURATION);
-        emit Started(msg.sender, block.timestamp, s_startValue);
+        emit Started(block.timestamp, s_startValue);
     }
     
     function mint(uint256 value) public onlyBeneficiary() {
@@ -48,7 +50,7 @@ contract TokenMinter {
         s_minted = s_minted.add(value);
         require(s_minted <= maxCurrentSupply(), "TokenMinter: value too high");
         s_token.mint(s_beneficiary, value);
-        emit Minted(msg.sender, block.timestamp, value);
+        emit Minted(block.timestamp, value);
     }
 
     function mintAll() external {
@@ -62,7 +64,6 @@ contract TokenMinter {
 
     function maxCurrentSupply() public view returns (uint256) {
         uint256 maxAmount = END_VALUE.sub(s_startValue);
-        // solhint-disable-next-line not-rely-on-time
         uint256 currentDuration = block.timestamp.sub(s_startTime);
         uint256 effectiveDuration = currentDuration < MAX_DURATION ? currentDuration : MAX_DURATION;
         return maxAmount.mul(effectiveDuration).div(MAX_DURATION);
