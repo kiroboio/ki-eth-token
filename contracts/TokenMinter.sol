@@ -18,6 +18,9 @@ contract TokenMinter {
     address private s_beneficiary;
     bool private s_started;
 
+    event Started(address indexed by, uint256 timestamp, uint256 initAmount);
+    event Minted(address indexed by, uint256 timestamp, uint256 amount);
+
     modifier onlyBeneficiary() {
       require(msg.sender == s_beneficiary, "not beneficiary");
       _;
@@ -37,6 +40,7 @@ contract TokenMinter {
         s_startValue = s_token.totalSupply();
         s_startTime = block.timestamp;
         s_endTime = block.timestamp.add(MAX_DURATION);
+        emit Started(msg.sender, block.timestamp, s_startValue);
     }
     
     function mint(uint256 value) public onlyBeneficiary() {
@@ -44,6 +48,7 @@ contract TokenMinter {
         s_minted = s_minted.add(value);
         require(s_minted <= maxCurrentSupply(), "TokenMinter: value too high");
         s_token.mint(s_beneficiary, value);
+        emit Minted(msg.sender, block.timestamp, value);
     }
 
     function mintAll() external {
