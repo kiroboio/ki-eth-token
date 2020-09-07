@@ -22,7 +22,7 @@ const {
 } = require('./lib/asserts')
 
 contract('TokenMinter', async accounts => {
-  let token, minter
+  let token, minter, nonce, minterMaxValue, minterDuration
 
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
@@ -34,6 +34,8 @@ contract('TokenMinter', async accounts => {
   const val2  = web3.utils.toWei('0.4', 'gwei')
   const val3  = web3.utils.toWei('0.3', 'gwei')
   const valBN = web3.utils.toBN('0')
+
+  const minterStartValue = 500n * 1000n * 10n ** 18n
 
   before('checking constants', async () => {
       assert(typeof user1         == 'string', 'user1 should be string')
@@ -49,18 +51,22 @@ contract('TokenMinter', async accounts => {
   before('setup contract for the test', async () => {
     token = await Token.new({ from: tokenOwner })
     minter = await TokenMinter.new(token.address, tokenOwner, { from: user1 })
-    
-    mlog.log('web3            ', web3.version)
-    mlog.log('token contract  ', token.address)
-    mlog.log('minter contract  ', minter.address)
-    mlog.log('token Owner  ', tokenOwner)
-    mlog.log('user1           ', user1)
-    mlog.log('user2           ', user2)
-    mlog.log('user3           ', user3)
-    mlog.log('user4           ', user4)
-    mlog.log('val1            ', val1)
-    mlog.log('val2            ', val2)
-    mlog.log('val3            ', val3)
+    minterMaxValue = BigInt(await minter.END_VALUE())
+    minterDuration = BigInt(await minter.DURATION())
+    mlog.log('web3                ', web3.version)
+    mlog.log('token contract      ', token.address)
+    mlog.log('minter contract     ', minter.address)
+    mlog.log('token Owner         ', tokenOwner)
+    mlog.log('user1               ', user1)
+    mlog.log('user2               ', user2)
+    mlog.log('user3               ', user3)
+    mlog.log('user4               ', user4)
+    mlog.log('minter start value  ', minterStartValue)
+    mlog.log('minter max value    ', minterMaxValue)
+    mlog.log('minter duration     ', minterDuration)
+    mlog.log('val1                ', val1)
+    mlog.log('val2                ', val2)
+    mlog.log('val3                ', val3)
   })
 
   it('should create an empty token', async () => {
@@ -69,9 +75,9 @@ contract('TokenMinter', async accounts => {
   })
 
   it ('only minter can mint tokens', async () => {
-    await token.mint(user1, 500, { from: tokenOwner })
-    assert.equal('500', ''+await token.totalSupply({ from: tokenOwner }))
-    assert.equal('500', ''+await token.balanceOf(user1, { from: tokenOwner }))
+    await token.mint(user1, ''+minterStartValue, { from: tokenOwner })
+    assert.equal(minterStartValue, ''+await token.totalSupply({ from: tokenOwner }))
+    assert.equal(minterStartValue, ''+await token.balanceOf(user1, { from: tokenOwner }))
 
     await mustRevert(async ()=> {
       await token.mint(user2, 200, { from: user1 })
@@ -79,8 +85,50 @@ contract('TokenMinter', async accounts => {
 
   })
 
-  it ('should be transfer tokens', async () => {
+  it ('should not start if minter do not have MINTER_ROLE', async () => {
+    assert.equal(await token.hasRole(await token.MINTER_ROLE(), minter.address), false)
+    
+    await mustRevert(async ()=> {
+      await minter.start({ from: tokenOwner })
+    })
+
   })
 
+  it ('should not start if minter is not the only one that has MINTER_ROLE', async () => {
+    nonce = await trNonce(web3, tokenOwner)
+    await token.grantRole(await token.MINTER_ROLE(), minter.address, { from: tokenOwner, nonce })
+    assert.equal(await token.hasRole(await token.MINTER_ROLE(), minter.address), true)
+    
+    await mustRevert(async ()=> {
+      await minter.start({ from: tokenOwner })
+    })
+  })
+
+  it ('should start if minter is the only one that has MINTER_ROLE and there is no MINTER admin', async () => {
+    nonce = await trNonce(web3, tokenOwner)
+    await token.revokeRole(await token.MINTER_ROLE(), tokenOwner, { from: tokenOwner, nonce })
+    assert.equal(await token.hasRole(await token.MINTER_ROLE(), minter.address), true)
+    assert.equal(1, ''+await token.getRoleMemberCount(await token.MINTER_ROLE()))
+    
+    await mustRevert(async ()=> {
+      await minter.start({ from: tokenOwner })
+    })
+    
+    nonce = await trNonce(web3, tokenOwner)
+    await token.renounceRole(await token.MINTER_ADMIN_ROLE(), tokenOwner, { from: tokenOwner, nonce })
+    await minter.start({ from: tokenOwner })
+  })
+
+  it ('should', async () => {
+    const time = 2000n
+    await advanceTimeAndBlock(+(''+time))
+    mlog.log('start time', ''+await minter.startTime())
+    mlog.log('end time', ''+await minter.endTime())
+    mlog.log('minted', ''+await minter.minted())
+    mlog.log('left', ''+await minter.left())
+    mlog.log('max', ''+await minter.maxCap())
+    mlog.log('total', ''+await minter.maxCurrentSupply())
+    assert.equal(''+((minterMaxValue-minterStartValue) * time / minterDuration), ''+await minter.maxCurrentSupply())
+  })
 
 })

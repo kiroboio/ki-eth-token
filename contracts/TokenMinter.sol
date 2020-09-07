@@ -73,25 +73,31 @@ contract TokenMinter {
     }
 
     function left() public view returns (uint256) {
-        END_VALUE.sub(s_startValue).sub(s_minted);
+        return END_VALUE.sub(s_startValue).sub(s_minted);
     }
 
     function maxCap() public view returns (uint256) {
-        s_token.totalSupply().add(left());
+        return s_token.totalSupply().add(left());
     }
 
     function maxCurrentSupply() public view returns (uint256) {
         uint256 maxAmount = END_VALUE.sub(s_startValue);
-        uint256 maxduration = s_endTime.sub(s_startTime);
+        uint256 maxDuration = s_endTime.sub(s_startTime);
         // solhint-disable-next-line not-rely-on-time
         uint256 effectiveTime = block.timestamp > s_endTime ? s_endTime : block.timestamp;
         uint256 duration = effectiveTime.sub(s_startTime);
-        return maxAmount.mul(duration).sub(maxduration);
+        return maxAmount.mul(duration).div(maxDuration);
     }
 
     function mint(uint256 value) public onlyBeneficiary() {
+        require(value > 0, "TokenMinter: nothing to mint");
         s_minted = s_minted.add(value);
         require(s_minted <= maxCurrentSupply(), "TokenMinter: value too high");
         s_token.mint(s_beneficiary, value);
     }
+
+    function mintAll() public onlyBeneficiary() {
+        mint(maxCurrentSupply().sub(s_minted));
+    }
+
 }
