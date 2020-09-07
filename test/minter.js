@@ -52,7 +52,7 @@ contract('TokenMinter', async accounts => {
     token = await Token.new({ from: tokenOwner })
     minter = await TokenMinter.new(token.address, tokenOwner, { from: user1 })
     minterMaxValue = BigInt(await minter.END_VALUE())
-    minterDuration = BigInt(await minter.DURATION())
+    minterDuration = BigInt(await minter.MAX_DURATION())
     mlog.log('web3                ', web3.version)
     mlog.log('token contract      ', token.address)
     mlog.log('minter contract     ', minter.address)
