@@ -22,7 +22,7 @@ const {
 } = require('./lib/asserts')
 
 contract('TokenMinter', async accounts => {
-  let token, minter, nonce, minterMaxValue, minterDuration
+  let token, minter, nonce, targetSupply, duration, initialSupply
 
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
@@ -35,7 +35,7 @@ contract('TokenMinter', async accounts => {
   const val3  = web3.utils.toWei('0.3', 'gwei')
   const valBN = web3.utils.toBN('0')
 
-  const minterStartValue = 500n * 1000n * 10n ** 18n
+  const startValue = 500n * 1000n * 10n ** 18n
 
   before('checking constants', async () => {
       assert(typeof user1         == 'string', 'user1 should be string')
@@ -51,8 +51,8 @@ contract('TokenMinter', async accounts => {
   before('setup contract for the test', async () => {
     token = await Token.new({ from: tokenOwner })
     minter = await TokenMinter.new(token.address, tokenOwner, { from: user1 })
-    minterMaxValue = BigInt(await minter.END_VALUE())
-    minterDuration = BigInt(await minter.MAX_DURATION())
+    targetSupply = BigInt(await minter.TARGET_SUPPLY())
+    duration = BigInt(await minter.DURATION())
     mlog.log('web3                ', web3.version)
     mlog.log('token contract      ', token.address)
     mlog.log('minter contract     ', minter.address)
@@ -61,9 +61,9 @@ contract('TokenMinter', async accounts => {
     mlog.log('user2               ', user2)
     mlog.log('user3               ', user3)
     mlog.log('user4               ', user4)
-    mlog.log('minter start value  ', minterStartValue)
-    mlog.log('minter max value    ', minterMaxValue)
-    mlog.log('minter duration     ', minterDuration)
+    mlog.log('start value         ', startValue)
+    mlog.log('target supply       ', targetSupply)
+    mlog.log('minter duration     ', duration)
     mlog.log('val1                ', val1)
     mlog.log('val2                ', val2)
     mlog.log('val3                ', val3)
@@ -75,9 +75,9 @@ contract('TokenMinter', async accounts => {
   })
 
   it ('only minter can mint tokens', async () => {
-    await token.mint(user1, ''+minterStartValue, { from: tokenOwner })
-    assert.equal(minterStartValue, ''+await token.totalSupply({ from: tokenOwner }))
-    assert.equal(minterStartValue, ''+await token.balanceOf(user1, { from: tokenOwner }))
+    await token.mint(user1, ''+startValue, { from: tokenOwner })
+    assert.equal(startValue, ''+await token.totalSupply({ from: tokenOwner }))
+    assert.equal(startValue, ''+await token.balanceOf(user1, { from: tokenOwner }))
 
     await mustRevert(async ()=> {
       await token.mint(user2, 200, { from: user1 })
@@ -120,15 +120,20 @@ contract('TokenMinter', async accounts => {
   })
 
   it ('should', async () => {
+    initialSupply = BigInt(await minter.initialSupply())
     const time = 2000n
     await advanceTimeAndBlock(+(''+time))
+    assert.equal(''+((targetSupply-startValue) * time / duration), ''+await minter.mintLimit())
     mlog.log('start time', ''+await minter.startTime())
     mlog.log('end time', ''+await minter.endTime())
     mlog.log('minted', ''+await minter.minted())
     mlog.log('left', ''+await minter.left())
     mlog.log('max', ''+await minter.maxCap())
-    mlog.log('total', ''+await minter.maxCurrentSupply())
-    assert.equal(''+((minterMaxValue-minterStartValue) * time / minterDuration), ''+await minter.maxCurrentSupply())
+    mlog.log('mint limit', ''+await minter.mintLimit())
+    await advanceTimeAndBlock(+(''+ (duration-time-10n)))
+    assert.notEqual(''+(BigInt(await minter.TARGET_SUPPLY())-initialSupply), ''+await minter.mintLimit())
+    await advanceTimeAndBlock(10)
+    assert.equal(''+(BigInt(await minter.TARGET_SUPPLY())-initialSupply), ''+await minter.mintLimit())
   })
 
 })

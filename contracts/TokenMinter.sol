@@ -2,24 +2,23 @@
 
 pragma solidity 0.6.12;
 
-import "./Token.sol";
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "./Token.sol";
 
 contract TokenMinter {
     using SafeMath for uint256;
-    Token private s_token;
 
-    uint256 constant public END_VALUE = 2_200_000_000 * 10 ** 18; // 2.2B tokens
-    uint256 constant public MAX_DURATION = 155_520_000; // 1800 days in seconds
-    uint256 private s_startValue;
+    uint256 constant public TARGET_SUPPLY = 2_200_000_000 * 10 ** 18; // 2.2B tokens
+    uint256 constant public DURATION = 155_520_000; // 1800 days in seconds
+    uint256 private s_initialSupply;
     uint256 private s_startTime;
-    uint256 private s_endTime;
     uint256 private s_minted;
     address private s_beneficiary;
+    Token private s_token;
     bool private s_started;
 
     event Created(address sender, address token, address beneficiary);
-    event Started(uint256 timestamp, uint256 initAmount);
+    event Started(uint256 timestamp, uint256 initialSupply);
     event Minted(uint256 timestamp, uint256 amount);
 
     modifier onlyBeneficiary() {
@@ -39,22 +38,21 @@ contract TokenMinter {
         require(s_token.getRoleMemberCount(s_token.MINTER_ADMIN_ROLE()) == 0, "TokenMinter: can change minter roles");
         minterRoleValidation();
         s_started = true;
-        s_startValue = s_token.totalSupply();
+        s_initialSupply = s_token.totalSupply();
         s_startTime = block.timestamp;
-        s_endTime = block.timestamp.add(MAX_DURATION);
-        emit Started(block.timestamp, s_startValue);
+        emit Started(block.timestamp, s_initialSupply);
     }
     
-    function mint(uint256 value) public onlyBeneficiary() {
-        require(value > 0, "TokenMinter: nothing to mint");
-        s_minted = s_minted.add(value);
-        require(s_minted <= maxCurrentSupply(), "TokenMinter: value too high");
-        s_token.mint(s_beneficiary, value);
-        emit Minted(block.timestamp, value);
+    function mint(uint256 amount) public onlyBeneficiary() {
+        require(amount > 0, "TokenMinter: nothing to mint");
+        s_minted = s_minted.add(amount);
+        require(s_minted <= mintLimit(), "TokenMinter: amount too high");
+        s_token.mint(s_beneficiary, amount);
+        emit Minted(block.timestamp, amount);
     }
 
     function mintAll() external {
-        mint(maxCurrentSupply().sub(s_minted));
+        mint(mintLimit().sub(s_minted));
     }
 
     function minterRoleValidation() public view {
@@ -62,23 +60,15 @@ contract TokenMinter {
         require(s_token.hasRole(s_token.MINTER_ROLE(), address(this)), "TokenMinter: do not have minter role");
     }
 
-    function maxCurrentSupply() public view returns (uint256) {
-        uint256 maxAmount = END_VALUE.sub(s_startValue);
+    function mintLimit() public view returns (uint256) {
+        uint256 maxMinting = TARGET_SUPPLY.sub(s_initialSupply);
         uint256 currentDuration = block.timestamp.sub(s_startTime);
-        uint256 effectiveDuration = currentDuration < MAX_DURATION ? currentDuration : MAX_DURATION;
-        return maxAmount.mul(effectiveDuration).div(MAX_DURATION);
+        uint256 effectiveDuration = currentDuration < DURATION ? currentDuration : DURATION;
+        return maxMinting.mul(effectiveDuration).div(DURATION);
     }
 
-    function started() public view returns (bool) {
-        return s_started;
-    }
-
-    function token() public view returns (Token) {
-        return s_token;
-    }
-
-    function beneficiary() public view returns (address) {
-        return s_beneficiary;
+    function initialSupply() public view returns (uint256) {
+        return s_initialSupply;
     }
 
     function startTime() public view returns (uint256) {
@@ -86,19 +76,27 @@ contract TokenMinter {
     }
 
     function endTime() public view returns (uint256) {
-        return s_startTime.add(MAX_DURATION);
-    }
-
-    function startValue() public view returns (uint256) {
-        return s_startValue;
+        return s_startTime.add(DURATION);
     }
 
     function minted() public view returns (uint256) {
         return s_minted;
     }
 
+    function beneficiary() public view returns (address) {
+        return s_beneficiary;
+    }
+
+    function token() public view returns (Token) {
+        return s_token;
+    }
+
+    function started() public view returns (bool) {
+        return s_started;
+    }
+
     function left() public view returns (uint256) {
-        return END_VALUE.sub(s_startValue).sub(s_minted);
+        return TARGET_SUPPLY.sub(s_initialSupply).sub(s_minted);
     }
 
     function maxCap() public view returns (uint256) {
