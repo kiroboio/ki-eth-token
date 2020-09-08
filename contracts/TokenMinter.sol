@@ -18,8 +18,8 @@ contract TokenMinter {
     bool private s_started;
 
     event Created(address sender, address token, address beneficiary);
-    event Started(uint256 timestamp, uint256 initialSupply);
-    event Minted(uint256 timestamp, uint256 amount);
+    event Started(uint256 initialSupply, uint256 timestamp);
+    event Minted(uint256 amount, uint256 timestamp);
 
     modifier onlyBeneficiary() {
       require(msg.sender == s_beneficiary, "not beneficiary");
@@ -39,7 +39,7 @@ contract TokenMinter {
         s_started = true;
         s_initialSupply = s_token.totalSupply();
         s_startTime = block.timestamp;
-        emit Started(block.timestamp, s_initialSupply);
+        emit Started(s_initialSupply, block.timestamp);
     }
     
     function mint(uint256 amount) public onlyBeneficiary() {
@@ -48,7 +48,7 @@ contract TokenMinter {
         s_minted = s_minted.add(amount);
         require(s_minted <= mintLimit(), "TokenMinter: amount too high");
         s_token.mint(s_beneficiary, amount);
-        emit Minted(block.timestamp, amount);
+        emit Minted(amount, block.timestamp);
     }
 
     function mintAll() external {
