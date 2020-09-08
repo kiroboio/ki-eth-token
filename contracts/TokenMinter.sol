@@ -43,6 +43,7 @@ contract TokenMinter {
     }
     
     function mint(uint256 amount) public onlyBeneficiary() {
+        require(s_started == true, "TokenMinter: not started");
         require(amount > 0, "TokenMinter: nothing to mint");
         s_minted = s_minted.add(amount);
         require(s_minted <= mintLimit(), "TokenMinter: amount too high");
