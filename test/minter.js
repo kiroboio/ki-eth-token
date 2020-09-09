@@ -1,7 +1,7 @@
 'use strict'
 
 const Token = artifacts.require("Token")
-const TokenMinter = artifacts.require("TokenMinter")
+const TokenMinter = artifacts.require("Minter")
 const mlog = require('mocha-logger')
 
 const {
@@ -21,7 +21,7 @@ const {
   mustRevert,
 } = require('./lib/asserts')
 
-contract('TokenMinter', async accounts => {
+contract('Minter', async accounts => {
   let token, minter, nonce, targetSupply, duration, initialSupply
 
   const tokenOwner = accounts[1]
