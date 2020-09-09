@@ -4,7 +4,7 @@ pragma solidity 0.6.12;
 import "../node_modules/@openzeppelin/contracts/math/Math.sol";
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "./Ownable.sol";
+import "./Claimable.sol";
 
 contract LPTokenWrapper {
   using SafeMath for uint256;
@@ -37,7 +37,7 @@ contract LPTokenWrapper {
   }
 }
 
-contract Unipool is LPTokenWrapper, Ownable {
+contract Unipool is LPTokenWrapper, Claimable {
   uint256 public constant DURATION = 30 days;
   // Kirobo Token on Rinkeby
   IERC20 public KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
