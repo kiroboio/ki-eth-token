@@ -3,10 +3,10 @@ pragma solidity 0.6.12;
 
 import "../node_modules/@openzeppelin/contracts/math/Math.sol";
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "./Claimable.sol";
 
-contract Unipool is Claimable {
+contract Unipool is AccessControl {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
@@ -15,6 +15,8 @@ contract Unipool is Claimable {
   IERC20 public constant KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
   // Uniswap v2 KIRO/ETH pair
   IERC20 public constant UNI = IERC20(0xd0fd23E6924a7A34d34BC6ec6b97fadD80BE255F);
+  // keccak256("DISTRIBUTER_ROLE")
+  bytes32 public constant DISTRIBUTER_ROLE = 0x09630fffc1c31ed9c8dd68f6e39219ed189b07ff9a25e1efc743b828f69d555e;
 
   uint256 private s_totalSupply;
   uint256 private s_periodFinish;
@@ -41,13 +43,16 @@ contract Unipool is Claimable {
   }
 
   constructor () public {
+    _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _setupRole(DISTRIBUTER_ROLE, msg.sender);
   }
 
   receive() external payable {
     require(false, "Unipool: not aceepting ether");
   }
 
-  function addReward(address from, uint256 amount) external onlyOwner() updateReward(address(0)) {
+  function addReward(address from, uint256 amount) external updateReward(address(0)) {
+    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Unipool: Caller is not a distributer");
     require(amount > 0, 'Unipool: Cannot approve 0');
     if (block.timestamp >= s_periodFinish) {
       s_rewardRate = amount.div(DURATION);
@@ -92,29 +97,11 @@ contract Unipool is Claimable {
     }
   }
 
-  function lastTimeRewardApplicable() public view returns (uint256) {
-    return Math.min(block.timestamp, s_periodFinish);
-  }
-
-  function rewardPerToken() public view returns (uint256) {
-    if (s_totalSupply == 0) {
-      return s_rewardPerTokenStored;
-    }
-    return
-      s_rewardPerTokenStored.add
-      (
-        lastTimeRewardApplicable()
-        .sub(s_lastUpdateTime)
-        .mul(s_rewardRate)
-        .mul(1e18)
-        .div(s_totalSupply)
-      );
-  }
-
   function earned(address account) public view returns (uint256) {
     return
     (
-      s_balances[account].mul
+      s_balances[account]
+      .mul
       (
         rewardPerToken()
         .sub(s_userRewardPerTokenPaid[account])
@@ -124,6 +111,26 @@ contract Unipool is Claimable {
     );
   }
 
+  function rewardPerToken() public view returns (uint256) {
+    if (s_totalSupply == 0) {
+      return s_rewardPerTokenStored;
+    }
+    return
+      s_rewardPerTokenStored
+      .add
+      (
+        lastTimeRewardApplicable()
+        .sub(s_lastUpdateTime)
+        .mul(s_rewardRate)
+        .mul(1e18)
+        .div(s_totalSupply)
+      );
+  }
+
+  function lastTimeRewardApplicable() public view returns (uint256) {
+    return Math.min(block.timestamp, s_periodFinish);
+  }
+  
   function totalSupply() external view returns (uint256) {
     return s_totalSupply;
   }
