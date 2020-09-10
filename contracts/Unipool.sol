@@ -11,10 +11,10 @@ contract Unipool is AccessControl {
   using SafeERC20 for IERC20;
 
   uint256 public constant DURATION = 30 days;
-  // Kirobo Token on Rinkeby
-  IERC20 public constant KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
   // Uniswap v2 KIRO/ETH pair
   IERC20 public constant UNI = IERC20(0xd0fd23E6924a7A34d34BC6ec6b97fadD80BE255F);
+  // Kirobo Token on Rinkeby
+  IERC20 public constant KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
   // keccak256("DISTRIBUTER_ROLE")
   bytes32 public constant DISTRIBUTER_ROLE = 0x09630fffc1c31ed9c8dd68f6e39219ed189b07ff9a25e1efc743b828f69d555e;
 
