@@ -8,7 +8,7 @@ import "./Token.sol";
 contract Minter {
     using SafeMath for uint256;
 
-    uint256 constant public TARGET_SUPPLY = 2_200_000_000 * 10 ** 18; // 2.2B tokens
+    uint256 constant public TARGET_SUPPLY = 2_200_000_000 * 1e18; // 2.2B tokens
     uint256 constant public DURATION = 155_520_000; // 1800 days in seconds
     uint256 private s_initialSupply;
     uint256 private s_startTime;
