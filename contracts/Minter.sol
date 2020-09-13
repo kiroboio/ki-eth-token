@@ -3,7 +3,15 @@
 pragma solidity 0.6.12;
 
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
-import "./Token.sol";
+
+interface IToken {
+   function mint(address to, uint256 amount) external;
+   function totalSupply() external view returns (uint256);
+   function MINTER_ROLE() external view returns (bytes32);
+   function MINTER_ADMIN_ROLE() external view returns (bytes32);
+   function getRoleMemberCount(bytes32 role) external view returns (uint256);
+   function hasRole(bytes32 role, address account) external view returns (bool);
+}
 
 contract Minter {
     using SafeMath for uint256;
@@ -14,7 +22,7 @@ contract Minter {
     uint256 private s_startTime;
     uint256 private s_minted;
     address private s_beneficiary;
-    Token private s_token;
+    IToken private s_token;
     bool private s_started;
 
     event Created(address sender, address token, address beneficiary);
@@ -26,7 +34,7 @@ contract Minter {
       _;
     }
 
-    constructor (Token token, address beneficiary) public {
+    constructor (IToken token, address beneficiary) public {
         s_token = token;
         s_beneficiary = beneficiary;
         emit Created(msg.sender, address(token), beneficiary);
@@ -67,8 +75,12 @@ contract Minter {
     function mintLimit() public view returns (uint256) {
         uint256 maxMinting = TARGET_SUPPLY.sub(s_initialSupply);
         uint256 currentDuration = block.timestamp.sub(s_startTime);
-        uint256 effectiveDuration = currentDuration < DURATION ? currentDuration : DURATION;
-        return maxMinting.mul(effectiveDuration).div(DURATION);
+        if (currentDuration >= DURATION) {
+            return maxMinting;
+        }
+        uint256 leftDuration = DURATION.sub(currentDuration);
+        return maxMinting.sub(maxMinting.mul(leftDuration).mul(leftDuration).div(DURATION).div(DURATION));
+        // return maxMinting.mul(effectiveDuration).div(DURATION);
     }
 
     function left() public view returns (uint256) {
@@ -99,8 +111,8 @@ contract Minter {
         return s_beneficiary;
     }
 
-    function token() external view returns (Token) {
-        return s_token;
+    function token() external view returns (address) {
+        return address(s_token);
     }
 
     function started() external view returns (bool) {

@@ -123,7 +123,9 @@ contract('Minter', async accounts => {
     initialSupply = BigInt(await minter.initialSupply())
     const time = 2000n
     await advanceTimeAndBlock(+(''+time))
-    assert.equal(''+((targetSupply-startValue) * time / duration), ''+await minter.mintLimit())
+    // assert.equal(''+((targetSupply-startValue) * time / duration), ''+await minter.mintLimit())
+    const timeLeft = duration - time
+    assert.equal(''+((targetSupply-startValue)-((targetSupply-startValue) * (timeLeft*timeLeft) / (duration*duration))), ''+await minter.mintLimit())
     mlog.log('start time', ''+await minter.startTime())
     mlog.log('end time', ''+await minter.endTime())
     mlog.log('minted', ''+await minter.minted())
