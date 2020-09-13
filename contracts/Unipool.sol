@@ -12,9 +12,9 @@ contract Unipool is AccessControl {
 
   uint256 public constant DURATION = 30 days;
   // Uniswap v2 KIRO/ETH pair
-  IERC20 public constant UNI = IERC20(0xd0fd23E6924a7A34d34BC6ec6b97fadD80BE255F);
+  IERC20 public UNI = IERC20(0xd0fd23E6924a7A34d34BC6ec6b97fadD80BE255F);
   // Kirobo Token on Rinkeby
-  IERC20 public constant KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
+  IERC20 public KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
   // keccak256("DISTRIBUTER_ROLE")
   bytes32 public constant DISTRIBUTER_ROLE = 0x09630fffc1c31ed9c8dd68f6e39219ed189b07ff9a25e1efc743b828f69d555e;
 
@@ -42,9 +42,18 @@ contract Unipool is AccessControl {
     _;
   }
 
-  constructor () public {
+  constructor (address uni, address kiro) public {
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(DISTRIBUTER_ROLE, msg.sender);
+    if (uni != address(0)) {
+      UNI = IERC20(uni);
+      require(address(UNI).isContract(), "Unipool: uni is not a contract");
+    }
+    if (kiro != address(0)) {
+      KIRO = IERC20(kiro);
+      require(address(KIRO).isContract(), "Unipool: kiro is not a contract");
+    }
+    require(address(UNI) != address(KIRO), "Unipool: uni and kiro are the same");
   }
 
   receive() external payable {
@@ -52,8 +61,8 @@ contract Unipool is AccessControl {
   }
 
   function addReward(address from, uint256 amount) external updateReward(address(0)) {
-    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Unipool: Caller is not a distributer");
-    require(amount > 0, 'Unipool: Cannot approve 0');
+    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Unipool: caller is not a distributer");
+    require(amount > 0, 'Unipool: cannot approve 0');
     if (block.timestamp >= s_periodFinish) {
       s_rewardRate = amount.div(DURATION);
     } else {
@@ -68,7 +77,7 @@ contract Unipool is AccessControl {
   }
 
   function stake(uint256 amount) external updateReward(msg.sender) {
-    require(amount > 0, 'Unipool: Cannot stake 0');
+    require(amount > 0, 'Unipool: cannot stake 0');
     s_totalSupply = s_totalSupply.add(amount);
     s_balances[msg.sender] = s_balances[msg.sender].add(amount);
     UNI.safeTransferFrom(msg.sender, address(this), amount);
@@ -81,7 +90,7 @@ contract Unipool is AccessControl {
   }
 
   function withdraw(uint256 amount) public updateReward(msg.sender) {
-    require(amount > 0, 'Unipool: Cannot withdraw 0');
+    require(amount > 0, 'Unipool: cannot withdraw 0');
     s_totalSupply = s_totalSupply.sub(amount);
     s_balances[msg.sender] = s_balances[msg.sender].sub(amount);
     UNI.safeTransfer(msg.sender, amount);
