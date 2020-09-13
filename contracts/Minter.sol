@@ -80,7 +80,6 @@ contract Minter {
         }
         uint256 leftDuration = DURATION.sub(currentDuration);
         return maxMinting.sub(maxMinting.mul(leftDuration).mul(leftDuration).div(DURATION).div(DURATION));
-        // return maxMinting.mul(effectiveDuration).div(DURATION);
     }
 
     function left() public view returns (uint256) {
