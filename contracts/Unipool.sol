@@ -12,9 +12,9 @@ contract Unipool is AccessControl {
 
   uint256 public constant DURATION = 30 days;
   // Uniswap v2 KIRO/ETH pair
-  IERC20 public UNI = IERC20(0xd0fd23E6924a7A34d34BC6ec6b97fadD80BE255F);
+  IERC20 public UNI;
   // Kirobo Token on Rinkeby
-  IERC20 public KIRO = IERC20(0xDc7988DC2fA23EA82d73B21B63Da5B905Fb52074);
+  IERC20 public KIRO;
   // keccak256("DISTRIBUTER_ROLE")
   bytes32 public constant DISTRIBUTER_ROLE = 0x09630fffc1c31ed9c8dd68f6e39219ed189b07ff9a25e1efc743b828f69d555e;
 
@@ -45,14 +45,10 @@ contract Unipool is AccessControl {
   constructor (address uni, address kiro) public {
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(DISTRIBUTER_ROLE, msg.sender);
-    if (uni != address(0)) {
-      UNI = IERC20(uni);
-      require(address(UNI).isContract(), "Unipool: uni is not a contract");
-    }
-    if (kiro != address(0)) {
-      KIRO = IERC20(kiro);
-      require(address(KIRO).isContract(), "Unipool: kiro is not a contract");
-    }
+    UNI = IERC20(uni);
+    KIRO = IERC20(kiro);
+    require(address(UNI).isContract(), "Unipool: uni is not a contract");
+    require(address(KIRO).isContract(), "Unipool: kiro is not a contract");
     require(address(UNI) != address(KIRO), "Unipool: uni and kiro are the same");
   }
 
@@ -61,8 +57,9 @@ contract Unipool is AccessControl {
   }
 
   function addReward(address from, uint256 amount) external updateReward(address(0)) {
-    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Unipool: caller is not a distributer");
-    require(amount > 0, 'Unipool: cannot approve 0');
+    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Unipool: Caller is not a distributer");
+    require(amount > 0, 'Unipool: Cannot approve 0');
+    uint256 prevRewardRate = s_rewardRate;
     if (block.timestamp >= s_periodFinish) {
       s_rewardRate = amount.div(DURATION);
     } else {
@@ -70,6 +67,7 @@ contract Unipool is AccessControl {
       uint256 leftover = remaining.mul(s_rewardRate);
       s_rewardRate = amount.add(leftover).div(DURATION);
     }
+    require(s_rewardRate >= prevRewardRate, "Unipool: degragration is not allowed");
     s_lastUpdateTime = block.timestamp;
     s_periodFinish = block.timestamp.add(DURATION);
     KIRO.safeTransferFrom(from, address(this), amount);
