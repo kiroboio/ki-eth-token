@@ -24,7 +24,7 @@ module.exports = function(deployer, network, accounts) {
     const token   = await deployer.deploy(Token, { from: tokenOwner })
   	const minter  = await deployer.deploy(Minter, token.address, mintRecipient, { from: tokenOwner })
   	const vesting = await deployer.deploy(Vesting, token.address, mintRecipient, retrieveTime, tokenOwner, releaseTime, { from: tokenOwner })
-  	const unipool = await deployer.deploy(Unipool, { from: tokenOwner })
+  	const unipool = await deployer.deploy(Unipool, '0xd0fd23E6924a7A34d34BC6ec6b97fadD80BE255F', token.address, { from: tokenOwner })
   	const pool    = await deployer.deploy(Pool, token.address, { from: poolOwner })
     const wallet  = await deployer.deploy(Wallet, walletOwner1, walletOwner2, walletOwner3, { from: poolOwner })
     // await token.disableTransfers(false, { from: tokenOwner })
