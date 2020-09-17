@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
-import "../node_modules/@openzeppelin/contracts/math/Math.sol";
-import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
-import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
 
-contract Unipool is AccessControl {
+contract Staking is AccessControl {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
@@ -68,30 +68,13 @@ contract Unipool is AccessControl {
     s_stakingLimit = limit;
   }
 
-  function addReward0(address from, uint256 amount) external onlyDistributer() updateReward(address(0)) {
-    require(amount > DURATION, 'Unipool: Cannot approve less than 1');
-    uint256 prevRewardRate = s_rewardRate;
-    if (block.timestamp >= s_periodFinish) {
-      s_rewardRate = amount.div(DURATION);
-    } else {
-      uint256 remaining = s_periodFinish.sub(block.timestamp);
-      uint256 leftover = remaining.mul(s_rewardRate);
-      s_rewardRate = amount.add(leftover).div(DURATION);
-    }
-    require(s_rewardRate >= prevRewardRate, "Unipool: degragration is not allowed");
-    s_lastUpdateTime = block.timestamp;
-    s_periodFinish = block.timestamp.add(DURATION);
-    KIRO.safeTransferFrom(from, address(this), amount);
-    emit RewardAdded(amount);
-  }
-
   function addReward(address from, uint256 amount) external onlyDistributer() updateReward(address(0)) {
     require(amount > DURATION, 'Unipool: Cannot approve less than 1');
     uint256 newRate = amount.div(DURATION);
     require(newRate >= s_rewardRate, "Unipool: degragration is not allowed");
     s_rewardRate = newRate;
     if(now < s_periodFinish)
-      amount -= s_periodFinish.sub(now).mul(s_rewardRate);
+      amount = amount.sub(s_periodFinish.sub(now).mul(s_rewardRate));
     s_lastUpdateTime = now;
     s_periodFinish = now.add(DURATION);
     KIRO.safeTransferFrom(from, address(this), amount);

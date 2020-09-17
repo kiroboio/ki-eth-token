@@ -4,7 +4,6 @@ const Pool = artifacts.require('Pool')
 const Wallet = artifacts.require("Wallet")
 const Minter = artifacts.require("Minter")
 const Vesting = artifacts.require("Vesting")
-const Unipool = artifacts.require("Unipool")
 
 const liveTestNetworks = { ropsten: true, rinkeby: true, kovan: true };
 

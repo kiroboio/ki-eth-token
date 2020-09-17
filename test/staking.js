@@ -1,9 +1,10 @@
 'use strict'
 
 const Token = artifacts.require("Token")
-const Unipool = artifacts.require("Unipool")
+const Staking = artifacts.require("Staking")
 const mlog = require('mocha-logger')
-const UniswapV2Factory = require('@uniswap/v2-core/build/UniswapV2Factory.json')
+const UniswapV2Factory = require('@uniswap/v2-core/build/contracts/UniswapV2Factory.json')
+const UniswapV2Pair = require('@uniswap/v2-core/build/contracts/UniswapV2Pair.json')
 
 const {
   advanceBlock,
@@ -22,8 +23,8 @@ const {
   mustRevert,
 } = require('./lib/asserts')
 
-contract('Unipool', async accounts => {
-  let factory, pair, uni, token, token2, unipool, nonce, targetSupply, duration, initialSupply
+contract('Staking', async accounts => {
+  let factory, pair, uni, token, token2, unipool, nonce, targetSupply, duration, initialSupply, pairAddress
 
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
@@ -46,6 +47,7 @@ contract('Unipool', async accounts => {
     mlog.log('earned(used1)', await unipool.earned(user))
     mlog.log('reward per token paid(used1)', await unipool.userRewardPerTokenPaid(user))
     mlog.log('rewards(used1)', await unipool.rewards(user))
+    mlog.log('pair limit(used1)', await unipool.pairLimit(user))
   }
   
   before('checking constants', async () => {
@@ -61,21 +63,16 @@ contract('Unipool', async accounts => {
 
   before('setup contract for the test', async () => {
     const contract = new web3.eth.Contract(UniswapV2Factory.abi)
-    // factory = new web3.eth.Contract(UniswapV2Factory.abi, '0xa8baa00efac2078b310516faad85a641b2bc9035')
-    // try {
     factory = await contract.deploy({
        data: UniswapV2Factory.bytecode,
        arguments: [tokenOwner]}
     ).send({ from: tokenOwner })
-    // } catch(e) {
-    //   mlog.log('ERROR', JSON.stringify(e))
-    // }
     uni = await Token.new({ from: tokenOwner })
     token = await Token.new({ from: tokenOwner })
     await factory.methods.createPair(token.address, uni.address).send({ from: tokenOwner })
-    pair = await factory.methods.getPair(token.address, uni.address).call({ from: tokenOwner})
-    // const pairAddress = await factory.methods.getPair(token.address, uni.address).call()
-    unipool = await Unipool.new(pair, token.address, { from: tokenOwner })
+    pairAddress = await factory.methods.getPair(token.address, uni.address).call({ from: tokenOwner})
+    pair = new web3.eth.Contract(UniswapV2Pair.abi, pairAddress)
+    unipool = await Staking.new(pairAddress, token.address, { from: tokenOwner })
     duration = BigInt(await unipool.DURATION())
     mlog.log('web3                ', web3.version)
     mlog.log('uni contract        ', uni.address)
@@ -93,12 +90,22 @@ contract('Unipool', async accounts => {
   })
 
   it('check unipool', async () => {
-    await uni.mint(user1, 500000000, { from: tokenOwner })
-    await uni.mint(user2, 500000000, { from: tokenOwner })
     await token.mint(tokenOwner, 100000000, { from: tokenOwner})
-    await uni.approve(unipool.address, 400000000, { from: user1})
-    await uni.approve(unipool.address, 400000000, { from: user2})
-    await token.approve(unipool.address, 100000000, { from: tokenOwner})
+    await token.approve(unipool.address, 100000000, { from: tokenOwner })
+    await token.mint(pairAddress, 500000000, { from: tokenOwner })
+    await uni.mint(pairAddress, 500000000, { from: tokenOwner })
+    await pair.methods.mint(user1).send({ from: user1 })
+    await token.mint(pairAddress, 200000000, { from: tokenOwner })
+    await uni.mint(pairAddress, 200000000, { from: tokenOwner })
+    await pair.methods.mint(user2).send({ from: user2 })    
+    await pair.methods.approve(unipool.address, 400000000).send({ from: user1 })
+    await pair.methods.approve(unipool.address, 400000000).send({ from: user2 })
+    
+    await token.mint(user1, 1000000, { from: tokenOwner })
+    await uni.mint(user1, 1000000, { from: tokenOwner })
+    await pair.methods.sync().send({ from: user1 })
+    // await pair.methods.swap(0, 10000, user1, Buffer.from('')).send({ from: user1 })
+
     await advanceTimeAndBlock(1000)
     await logUnipoolState(user1, 'start')
     await unipool.addReward(tokenOwner, 10000000, { from: tokenOwner })
