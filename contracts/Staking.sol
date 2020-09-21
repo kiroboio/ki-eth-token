@@ -83,10 +83,9 @@ contract Staking is AccessControl {
 
   function stake(uint256 amount) external updateReward(msg.sender) {
     require(amount > 0, 'Unipool: cannot stake 0');
-    uint newBalance = s_balances[msg.sender].add(amount);
     require(amount <= pairLimit(msg.sender));
+    s_balances[msg.sender] = s_balances[msg.sender].add(amount);
     s_totalSupply = s_totalSupply.add(amount);
-    s_balances[msg.sender] = newBalance;
     UNI.safeTransferFrom(msg.sender, address(this), amount);
     emit Staked(msg.sender, amount);
   }
