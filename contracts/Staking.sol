@@ -72,9 +72,9 @@ contract Staking is AccessControl {
     require(amount > DURATION, 'Unipool: Cannot approve less than 1');
     uint256 newRate = amount.div(DURATION);
     require(newRate >= s_rewardRate, "Unipool: degragration is not allowed");
-    s_rewardRate = newRate;
     if(now < s_periodFinish)
       amount = amount.sub(s_periodFinish.sub(now).mul(s_rewardRate));
+    s_rewardRate = newRate;
     s_lastUpdateTime = now;
     s_periodFinish = now.add(DURATION);
     KIRO.safeTransferFrom(from, address(this), amount);
@@ -84,7 +84,7 @@ contract Staking is AccessControl {
   function stake(uint256 amount) external updateReward(msg.sender) {
     require(amount > 0, 'Unipool: cannot stake 0');
     uint newBalance = s_balances[msg.sender].add(amount);
-    require(newBalance <= pairLimit(msg.sender));
+    require(amount <= pairLimit(msg.sender));
     s_totalSupply = s_totalSupply.add(amount);
     s_balances[msg.sender] = newBalance;
     UNI.safeTransferFrom(msg.sender, address(this), amount);
@@ -161,9 +161,14 @@ contract Staking is AccessControl {
     (kiro, eth) = address(KIRO) == pair.token0() ? (reserves0, reserves1) : (reserves1, reserves0);
   }
 
-  function pairEthBalance(uint amount) public view returns (uint256) {
+  function pairEthBalance(uint amount) external view returns (uint256) {
     (, uint eth, uint totalSupply) = pairInfo();
     return eth.mul(amount).div(totalSupply);
+  }
+
+  function pairKiroBalance(uint amount) external view returns (uint256) {
+    (uint kiro, , uint totalSupply) = pairInfo();
+    return kiro.mul(amount).div(totalSupply);
   }
 
   function totalSupply() external view returns (uint256) {
