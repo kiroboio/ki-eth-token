@@ -11,7 +11,7 @@ contract Staking is AccessControl {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
-  uint256 public constant DURATION = 30 days;
+  // uint256 public constant DURATION = 30 days;
   // Uniswap v2 KIRO/WETH pair
   IERC20 public UNI;
   // Kirobo Token
@@ -36,7 +36,13 @@ contract Staking is AccessControl {
 
   modifier updateReward(address account) {
     s_rewardPerTokenStored = rewardPerToken();
-    s_lastUpdateTime = lastTimeRewardApplicable();
+    uint256 lastTimeRewardApplicable = lastTimeRewardApplicable(); 
+    if (s_totalSupply == 0) {
+      uint256 leftOver = lastTimeRewardApplicable.sub(s_lastUpdateTime).mul(s_rewardRate);
+      if (leftOver > 0) 
+        KIRO.safeTransfer(getRoleMember(DISTRIBUTER_ROLE, 0), leftOver);
+    }
+    s_lastUpdateTime = lastTimeRewardApplicable;
     if (account != address(0)) {
       s_rewards[account] = earned(account);
       s_userRewardPerTokenPaid[account] = s_rewardPerTokenStored;
@@ -54,7 +60,7 @@ contract Staking is AccessControl {
     _setupRole(DISTRIBUTER_ROLE, msg.sender);
     UNI = IERC20(uni);
     KIRO = IERC20(kiro);
-    s_stakingLimit = 3e18;
+    s_stakingLimit = 7e18;
     require(address(UNI).isContract(), "Unipool: uni is not a contract");
     require(address(KIRO).isContract(), "Unipool: kiro is not a contract");
     require(address(UNI) != address(KIRO), "Unipool: uni and kiro are the same");
@@ -68,15 +74,15 @@ contract Staking is AccessControl {
     s_stakingLimit = limit;
   }
 
-  function addReward(address from, uint256 amount) external onlyDistributer() updateReward(address(0)) {
-    require(amount > DURATION, 'Unipool: Cannot approve less than 1');
-    uint256 newRate = amount.div(DURATION);
+  function addReward(address from, uint256 amount, uint256 duration) external onlyDistributer() updateReward(address(0)) {
+    require(amount > duration, 'Unipool: Cannot approve less than 1');
+    uint256 newRate = amount.div(duration);
     require(newRate >= s_rewardRate, "Unipool: degragration is not allowed");
     if(now < s_periodFinish)
       amount = amount.sub(s_periodFinish.sub(now).mul(s_rewardRate));
     s_rewardRate = newRate;
     s_lastUpdateTime = now;
-    s_periodFinish = now.add(DURATION);
+    s_periodFinish = now.add(duration);
     KIRO.safeTransferFrom(from, address(this), amount);
     emit RewardAdded(amount);
   }
