@@ -90,7 +90,7 @@ contract Staking is AccessControl {
     uint256 balance = KIRO.balanceOf(address(this));
     uint256 amount = Math.min(s_leftover, balance);
     s_leftover = 0;
-    KIRO.safeTransfer(getRoleMember(DISTRIBUTER_ROLE, 0), amount);
+    KIRO.safeTransfer(msg.sender, amount);
   }
 
   function stake(uint256 amount) external updateReward(msg.sender) {
