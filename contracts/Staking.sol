@@ -25,6 +25,7 @@ contract Staking is AccessControl {
   uint256 private s_lastUpdateTime;
   uint256 private s_rewardPerTokenStored;
   uint256 private s_stakingLimit;
+  uint256 private s_leftover;
   mapping(address => uint256) private s_balances;
   mapping(address => uint256) private s_userRewardPerTokenPaid;
   mapping(address => uint256) private s_rewards;
@@ -38,9 +39,7 @@ contract Staking is AccessControl {
     s_rewardPerTokenStored = rewardPerToken();
     uint256 lastTimeRewardApplicable = lastTimeRewardApplicable(); 
     if (s_totalSupply == 0) {
-      uint256 leftOver = lastTimeRewardApplicable.sub(s_lastUpdateTime).mul(s_rewardRate);
-      if (leftOver > 0) 
-        KIRO.safeTransfer(getRoleMember(DISTRIBUTER_ROLE, 0), leftOver);
+      s_leftover = s_leftover.add(lastTimeRewardApplicable.sub(s_lastUpdateTime).mul(s_rewardRate));
     }
     s_lastUpdateTime = lastTimeRewardApplicable;
     if (account != address(0)) {
@@ -51,7 +50,7 @@ contract Staking is AccessControl {
   }
 
   modifier onlyDistributer() {
-    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Unipool: Caller is not a distributer");    
+    require(hasRole(DISTRIBUTER_ROLE, msg.sender), "Staking: Caller is not a distributer");    
     _;
   }
 
@@ -61,13 +60,13 @@ contract Staking is AccessControl {
     UNI = IERC20(uni);
     KIRO = IERC20(kiro);
     s_stakingLimit = 7e18;
-    require(address(UNI).isContract(), "Unipool: uni is not a contract");
-    require(address(KIRO).isContract(), "Unipool: kiro is not a contract");
-    require(address(UNI) != address(KIRO), "Unipool: uni and kiro are the same");
+    require(address(UNI).isContract(), "Staking: uni is not a contract");
+    require(address(KIRO).isContract(), "Staking: kiro is not a contract");
+    require(address(UNI) != address(KIRO), "Staking: uni and kiro are the same");
   }
 
   receive() external payable {
-    require(false, "Unipool: not aceepting ether");
+    require(false, "Staking: not aceepting ether");
   }
 
   function setStakingLimit(uint limit) external onlyDistributer() {
@@ -75,9 +74,9 @@ contract Staking is AccessControl {
   }
 
   function addReward(address from, uint256 amount, uint256 duration) external onlyDistributer() updateReward(address(0)) {
-    require(amount > duration, 'Unipool: Cannot approve less than 1');
+    require(amount > duration, 'Staking: Cannot approve less than 1');
     uint256 newRate = amount.div(duration);
-    require(newRate >= s_rewardRate, "Unipool: degragration is not allowed");
+    require(newRate >= s_rewardRate, "Staking: degragration is not allowed");
     if(now < s_periodFinish)
       amount = amount.sub(s_periodFinish.sub(now).mul(s_rewardRate));
     s_rewardRate = newRate;
@@ -87,9 +86,19 @@ contract Staking is AccessControl {
     emit RewardAdded(amount);
   }
 
+  function collectLeftover() external onlyDistributer() {
+    if (s_totalSupply == 0) {
+      s_leftover = s_leftover.add(lastTimeRewardApplicable().sub(s_lastUpdateTime).mul(s_rewardRate));
+    }
+    uint256 balance = KIRO.balanceOf(address(this));
+    uint256 amount = Math.min(s_leftover, balance);
+    s_leftover = 0;
+    KIRO.safeTransfer(getRoleMember(DISTRIBUTER_ROLE, 0), amount);
+  }
+
   function stake(uint256 amount) external updateReward(msg.sender) {
-    require(amount > 0, 'Unipool: cannot stake 0');
-    require(amount <= pairLimit(msg.sender));
+    require(amount > 0, "Staking: cannot stake 0");
+    require(amount <= pairLimit(msg.sender), "Staking: amount exceeds limit");
     s_balances[msg.sender] = s_balances[msg.sender].add(amount);
     s_totalSupply = s_totalSupply.add(amount);
     UNI.safeTransferFrom(msg.sender, address(this), amount);
@@ -102,7 +111,7 @@ contract Staking is AccessControl {
   }
 
   function withdraw(uint256 amount) public updateReward(msg.sender) {
-    require(amount > 0, 'Unipool: cannot withdraw 0');
+    require(amount > 0, 'Staking: cannot withdraw 0');
     s_totalSupply = s_totalSupply.sub(amount);
     s_balances[msg.sender] = s_balances[msg.sender].sub(amount);
     UNI.safeTransfer(msg.sender, amount);
@@ -149,7 +158,7 @@ contract Staking is AccessControl {
   }
 
   function lastTimeRewardApplicable() public view returns (uint256) {
-    return Math.min(block.timestamp, s_periodFinish);
+    return Math.min(now, s_periodFinish);
   }
 
   function pairLimit(address account) public view returns (uint256) {
@@ -210,6 +219,10 @@ contract Staking is AccessControl {
 
   function stakingLimit() external view returns (uint256) {
     return s_stakingLimit;
+  }
+
+  function leftover() external view returns (uint256) {
+    return s_leftover;
   }
 
 }
