@@ -3,8 +3,8 @@
 const Token = artifacts.require("Token")
 const Staking = artifacts.require("Staking")
 const mlog = require('mocha-logger')
-const UniswapV2Factory = require('@uniswap/v2-core/build/contracts/UniswapV2Factory.json')
-const UniswapV2Pair = require('@uniswap/v2-core/build/contracts/UniswapV2Pair.json')
+const UniswapV2Factory = require('@uniswap/v2-core/output/UniswapV2Factory.json')
+const UniswapV2Pair = require('@uniswap/v2-core/output/UniswapV2Pair.json')
 
 const {
   advanceBlock,
@@ -132,7 +132,7 @@ contract('Staking', async accounts => {
   })
 
 
-  it.skip('user must not degrade', async () => {
+  it('user must not degrade', async () => {
     await token.mint(tokenOwner, 3e6, { from: tokenOwner})
     await token.approve(unipool.address, 1e10, { from: tokenOwner })
     await token.mint(pairAddress, 1e8, { from: tokenOwner })
