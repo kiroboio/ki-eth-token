@@ -1,19 +1,18 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.6.12;
 
-import "@openzeppelin/contracts/math/Math.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
+import "../node_modules/@openzeppelin/contracts/math/Math.sol";
+import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import '../node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
 
 contract Staking is AccessControl {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
-  // uint256 public constant DURATION = 30 days;
-  // Uniswap v2 KIRO/WETH pair
-  IERC20 public UNI;
+  // Uniswap v2 KIRO/Other pair
+  IUniswapV2Pair public PAIR;
   // Kirobo Token
   IERC20 public KIRO;
   // keccak256("DISTRIBUTER_ROLE")
@@ -30,7 +29,8 @@ contract Staking is AccessControl {
   mapping(address => uint256) private s_userRewardPerTokenPaid;
   mapping(address => uint256) private s_rewards;
 
-  event RewardAdded(uint256 reward);
+  event RewardAdded(address indexed distributer, uint256 reward, uint256 duration);
+  event LeftoverCollected(address indexed distributer, uint256 amount);
   event Staked(address indexed user, uint256 amount);
   event Withdrawn(address indexed user, uint256 amount);
   event RewardPaid(address indexed user, uint256 reward);
@@ -54,23 +54,23 @@ contract Staking is AccessControl {
     _;
   }
 
-  constructor (address uni, address kiro) public {
+  constructor (address pair, address kiro) public {
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _setupRole(DISTRIBUTER_ROLE, msg.sender);
-    UNI = IERC20(uni);
+    PAIR = IUniswapV2Pair(pair);
     KIRO = IERC20(kiro);
     s_stakingLimit = 7e18;
-    require(address(UNI).isContract(), "Staking: uni is not a contract");
+    require(address(PAIR).isContract(), "Staking: pair is not a contract");
     require(address(KIRO).isContract(), "Staking: kiro is not a contract");
-    require(address(UNI) != address(KIRO), "Staking: uni and kiro are the same");
+    require(address(PAIR) != address(KIRO), "Staking: pair and kiro are the same");
   }
 
   receive() external payable {
     require(false, "Staking: not aceepting ether");
   }
 
-  function setStakingLimit(uint limit) external onlyDistributer() {
-    s_stakingLimit = limit;
+  function setStakingLimit(uint256 other) external onlyDistributer() {
+    s_stakingLimit = other;
   }
 
   function addReward(address from, uint256 amount, uint256 duration) external onlyDistributer() updateReward(address(0)) {
@@ -83,7 +83,7 @@ contract Staking is AccessControl {
     s_lastUpdateTime = now;
     s_periodFinish = now.add(duration);
     KIRO.safeTransferFrom(from, address(this), amount);
-    emit RewardAdded(amount);
+    emit RewardAdded(msg.sender, amount, duration);
   }
 
   function collectLeftover() external onlyDistributer() updateReward(address(0)) {
@@ -91,6 +91,7 @@ contract Staking is AccessControl {
     uint256 amount = Math.min(s_leftover, balance);
     s_leftover = 0;
     KIRO.safeTransfer(msg.sender, amount);
+    emit LeftoverCollected(msg.sender, amount);
   }
 
   function stake(uint256 amount) external updateReward(msg.sender) {
@@ -98,7 +99,7 @@ contract Staking is AccessControl {
     require(amount <= pairLimit(msg.sender), "Staking: amount exceeds limit");
     s_balances[msg.sender] = s_balances[msg.sender].add(amount);
     s_totalSupply = s_totalSupply.add(amount);
-    UNI.safeTransferFrom(msg.sender, address(this), amount);
+    IERC20(address(PAIR)).safeTransferFrom(msg.sender, address(this), amount);
     emit Staked(msg.sender, amount);
   }
 
@@ -111,7 +112,7 @@ contract Staking is AccessControl {
     require(amount > 0, 'Staking: cannot withdraw 0');
     s_totalSupply = s_totalSupply.sub(amount);
     s_balances[msg.sender] = s_balances[msg.sender].sub(amount);
-    UNI.safeTransfer(msg.sender, amount);
+    IERC20(address(PAIR)).safeTransfer(msg.sender, amount);
     emit Withdrawn(msg.sender, amount);
   }
 
@@ -159,26 +160,25 @@ contract Staking is AccessControl {
   }
 
   function pairLimit(address account) public view returns (uint256) {
-    (, uint eth, uint totalSupply) = pairInfo();
-    uint limit = totalSupply.mul(s_stakingLimit).div(eth);
-    uint balance = s_balances[account];
+    (, uint256 other, uint256 totalSupply) = pairInfo();
+    uint256 limit = totalSupply.mul(s_stakingLimit).div(other);
+    uint256 balance = s_balances[account];
     return limit > balance ? limit - balance : 0;    
   }
 
-  function pairInfo() public view returns (uint256 kiro, uint256 eth, uint256 totalSupply) {
-    IUniswapV2Pair pair = IUniswapV2Pair(address(UNI));
-    totalSupply = pair.totalSupply();
-    (uint reserves0, uint reserves1,) = pair.getReserves();
-    (kiro, eth) = address(KIRO) == pair.token0() ? (reserves0, reserves1) : (reserves1, reserves0);
+  function pairInfo() public view returns (uint256 kiro, uint256 other, uint256 totalSupply) {
+    totalSupply = PAIR.totalSupply();
+    (uint256 reserves0, uint256 reserves1,) = PAIR.getReserves();
+    (kiro, other) = address(KIRO) == PAIR.token0() ? (reserves0, reserves1) : (reserves1, reserves0);
   }
 
-  function pairEthBalance(uint amount) external view returns (uint256) {
-    (, uint eth, uint totalSupply) = pairInfo();
-    return eth.mul(amount).div(totalSupply);
+  function pairOtherBalance(uint256 amount) external view returns (uint256) {
+    (, uint256 other, uint256 totalSupply) = pairInfo();
+    return other.mul(amount).div(totalSupply);
   }
 
-  function pairKiroBalance(uint amount) external view returns (uint256) {
-    (uint kiro, , uint totalSupply) = pairInfo();
+  function pairKiroBalance(uint256 amount) external view returns (uint256) {
+    (uint256 kiro, , uint256 totalSupply) = pairInfo();
     return kiro.mul(amount).div(totalSupply);
   }
 
