@@ -56,7 +56,7 @@ module.exports = {
         }
         const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
         return provider
-      },    
+      },
     },
     ganache: {
       network_id: "*",
@@ -65,7 +65,7 @@ module.exports = {
         const port = 8545
         const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
         return provider
-      },    
+      },
     },
     ropsten: {
       provider: function() {

@@ -62,6 +62,7 @@ contract('Staking', async accounts => {
   })
 
   before('setup contract for the test', async () => {
+    await advanceTimeAndBlock(60000)
     const contract = new web3.eth.Contract(UniswapV2Factory.abi)
     factory = await contract.deploy({
        data: UniswapV2Factory.bytecode,
@@ -73,7 +74,7 @@ contract('Staking', async accounts => {
     pairAddress = await factory.methods.getPair(token.address, uni.address).call({ from: tokenOwner})
     pair = new web3.eth.Contract(UniswapV2Pair.abi, pairAddress)
     unipool = await Staking.new(pairAddress, token.address, { from: tokenOwner })
-    duration = BigInt(await unipool.DURATION())
+    duration = BigInt(2592000) // await unipool.DURATION())
     mlog.log('web3                ', web3.version)
     mlog.log('uni contract        ', uni.address)
     mlog.log('token contract      ', token.address)
@@ -89,7 +90,7 @@ contract('Staking', async accounts => {
     mlog.log('val3                ', val3)
   })
 
-  it('check unipool', async () => {
+  it.skip('check unipool', async () => {
     await token.mint(tokenOwner, 100000000, { from: tokenOwner})
     await token.approve(unipool.address, 100000000, { from: tokenOwner })
     await token.mint(pairAddress, 500000000, { from: tokenOwner })
@@ -108,12 +109,12 @@ contract('Staking', async accounts => {
 
     await advanceTimeAndBlock(1000)
     await logUnipoolState(user1, 'start')
-    await unipool.addReward(tokenOwner, 10000000, { from: tokenOwner })
+    await unipool.addReward(tokenOwner, 10000000, duration, { from: tokenOwner })
     await logUnipoolState(user1, 'add reward: 1000')
     await unipool.stake(200, { from: user1 })
     await logUnipoolState(user1, 'user1: stake 200')
+    await unipool.addReward(tokenOwner, 20000000, duration/2, { from: tokenOwner })
     await advanceTimeAndBlock(200000)
-    await unipool.addReward(tokenOwner, 10000000, { from: tokenOwner })
     await unipool.stake(200, { from: user1 })
     await unipool.stake(400, { from: user2 })
     await advanceTimeAndBlock(200000)
@@ -131,4 +132,53 @@ contract('Staking', async accounts => {
   })
 
 
+  it.skip('user must not degrade', async () => {
+    await token.mint(tokenOwner, 3e6, { from: tokenOwner})
+    await token.approve(unipool.address, 1e10, { from: tokenOwner })
+    await token.mint(pairAddress, 1e8, { from: tokenOwner })
+    await uni.mint(pairAddress, 1e8, { from: tokenOwner })
+    await pair.methods.mint(user1).send({ from: user1 })
+    await advanceTimeAndBlock(1000)
+    await token.mint(pairAddress, 2e8, { from: tokenOwner })
+    await uni.mint(pairAddress, 2e8, { from: tokenOwner })
+    await pair.methods.mint(user2).send({ from: user2 })    
+    
+    await pair.methods.approve(unipool.address, 1e8).send({ from: user1 })
+    // await pair.methods.approve(unipool.address, 2e8).send({ from: user2 })
+    
+    await unipool.addReward(tokenOwner, 1e6, 10000, { from: tokenOwner })
+    await unipool.stake(2e5, { from: user1 })
+    await advanceTimeAndBlock(6000)
+    // await unipool.stake(2e5, { from: user1 })
+    await advanceTimeAndBlock(1000)
+    // await unipool.exit({ from: user1 })
+    await unipool.addReward(tokenOwner, 2e6-1e3, 3000, { from: tokenOwner })
+    await advanceTimeAndBlock(2000)
+    // await unipool.stake(2e5, { from: user1 })
+    await advanceTimeAndBlock(1000000)
+    
+    // await logUnipoolState(user1, 'start')
+    // await logUnipoolState(user1, 'add reward: 1000')
+    // await unipool.stake(200, { from: user1 })
+    // await logUnipoolState(user1, 'user1: stake 200')
+    // await unipool.addReward(tokenOwner, 20000000, duration/2, { from: tokenOwner })
+    // await advanceTimeAndBlock(200000)
+    // await unipool.stake(200, { from: user1 })
+    // await unipool.stake(400, { from: user2 })
+    // await advanceTimeAndBlock(200000)
+    // await logUnipoolState(user1, 'advanced time: 20000')
+    // await logUnipoolState(user1, 'user1: stake 200')
+    // await advanceTimeAndBlock(200000)
+    // // await unipool.stake(1, { from: user1 })
+    // await advanceTimeAndBlock(200000)
+    // await logUnipoolState(user1, 'u1-advanced time: 20000')
+    // await logUnipoolState(user2, 'u2-advanced time: 20000')
+    await unipool.exit({ from: user1 })
+    await unipool.collectLeftover({ from: tokenOwner })
+    // await unipool.exit({ from: user2 })
+    mlog.log('user1 profit', await token.balanceOf(user1))
+    mlog.log('user2 profit', await token.balanceOf(user2))
+    mlog.log('owner balance', await token.balanceOf(tokenOwner))
+    mlog.log('pool balance', await token.balanceOf(unipool.address))
+  })
 })
