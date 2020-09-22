@@ -86,10 +86,7 @@ contract Staking is AccessControl {
     emit RewardAdded(amount);
   }
 
-  function collectLeftover() external onlyDistributer() {
-    if (s_totalSupply == 0) {
-      s_leftover = s_leftover.add(lastTimeRewardApplicable().sub(s_lastUpdateTime).mul(s_rewardRate));
-    }
+  function collectLeftover() external onlyDistributer() updateReward(address(0)) {
     uint256 balance = KIRO.balanceOf(address(this));
     uint256 amount = Math.min(s_leftover, balance);
     s_leftover = 0;
