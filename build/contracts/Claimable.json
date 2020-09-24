@@ -41,7 +41,7 @@
       "type": "function"
     }
   ],
-  "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"claimOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Extension for the Ownable contract, where the ownership needs to be claimed. This allows the new owner to accept the transfer.\",\"kind\":\"dev\",\"methods\":{\"claimOwnership()\":{\"details\":\"Allows the pendingOwner address to finalize the transfer.\"},\"transferOwnership(address)\":{\"details\":\"Allows the current owner to set the pendingOwner address.\",\"params\":{\"newOwner\":\"The address to transfer ownership to.\"}}},\"title\":\"Claimable\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":\"Claimable\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":1500},\"remappings\":[]},\"sources\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":{\"keccak256\":\"0x6f2ff36131b3b195a65073e43ef5b33aa539681e31c68d249cc01f2f3efc05f4\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c7901177917c00b102e0495bf4cee9337c92234e5ad0883d910c054e0d48a479\",\"dweb:/ipfs/QmZrnMe3ao73jVHmUV9VELGLcqmG5Uv5Mq76kaCcQ8RH5s\"]},\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Ownable.sol\":{\"keccak256\":\"0x697a7fd7c7023ab6ae7cf143f77ddf38a1de50c68d708ebe474a6f6bbc8ff4a5\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://398a4799f19b630692dc388e3910489fb7b285d5e8d2d8147a8f73f5baefd5a6\",\"dweb:/ipfs/QmZiz5QaPEpAnqwo8RwAJBVLkLbJ1Mcq1Tb4Wtx76cdxxK\"]}},\"version\":1}",
+  "metadata": "{\"compiler\":{\"version\":\"0.6.12+commit.27d51765\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"claimOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Extension for the Ownable contract, where the ownership needs to be claimed. This allows the new owner to accept the transfer.\",\"kind\":\"dev\",\"methods\":{\"claimOwnership()\":{\"details\":\"Allows the pendingOwner address to finalize the transfer.\"},\"transferOwnership(address)\":{\"details\":\"Allows the current owner to set the pendingOwner address.\",\"params\":{\"newOwner\":\"The address to transfer ownership to.\"}}},\"title\":\"Claimable\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":\"Claimable\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Claimable.sol\":{\"keccak256\":\"0x6f2ff36131b3b195a65073e43ef5b33aa539681e31c68d249cc01f2f3efc05f4\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c7901177917c00b102e0495bf4cee9337c92234e5ad0883d910c054e0d48a479\",\"dweb:/ipfs/QmZrnMe3ao73jVHmUV9VELGLcqmG5Uv5Mq76kaCcQ8RH5s\"]},\"/Users/Tal/code/kirobo/ki-eth-token/contracts/Ownable.sol\":{\"keccak256\":\"0x697a7fd7c7023ab6ae7cf143f77ddf38a1de50c68d708ebe474a6f6bbc8ff4a5\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://398a4799f19b630692dc388e3910489fb7b285d5e8d2d8147a8f73f5baefd5a6\",\"dweb:/ipfs/QmZiz5QaPEpAnqwo8RwAJBVLkLbJ1Mcq1Tb4Wtx76cdxxK\"]}},\"version\":1}",
   "bytecode": "0x",
   "deployedBytecode": "0x",
   "immutableReferences": {},
@@ -76,7 +76,7 @@
         "id": 2,
         "nodeType": "ImportDirective",
         "scope": 59,
-        "sourceUnit": 614,
+        "sourceUnit": 1030,
         "src": "57:23:0",
         "symbolAliases": [],
         "unitAlias": ""
@@ -91,10 +91,10 @@
               "id": 4,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 613,
+              "referencedDeclaration": 1029,
               "src": "279:7:0",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$613",
+                "typeIdentifier": "t_contract$_Ownable_$1029",
                 "typeString": "contract Ownable"
               }
             },
@@ -104,7 +104,7 @@
           }
         ],
         "contractDependencies": [
-          613
+          1029
         ],
         "contractKind": "contract",
         "documentation": {
@@ -117,7 +117,7 @@
         "id": 58,
         "linearizedBaseContracts": [
           58,
-          613
+          1029
         ],
         "name": "Claimable",
         "nodeType": "ContractDefinition",
@@ -314,7 +314,7 @@
           },
           {
             "baseFunctions": [
-              612
+              1028
             ],
             "body": {
               "id": 33,
@@ -389,7 +389,7 @@
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 584,
+                  "referencedDeclaration": 1000,
                   "src": "720:9:0",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
@@ -472,7 +472,7 @@
                         "name": "s_owner",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 555,
+                        "referencedDeclaration": 971,
                         "src": "941:7:0",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -508,7 +508,7 @@
                       "name": "OwnershipTransferred",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 561,
+                      "referencedDeclaration": 977,
                       "src": "920:20:0",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_address_$_t_address_$returns$__$",
@@ -548,7 +548,7 @@
                       "name": "s_owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 555,
+                      "referencedDeclaration": 971,
                       "src": "971:7:0",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -767,7 +767,7 @@
         "id": 2,
         "nodeType": "ImportDirective",
         "scope": 59,
-        "sourceUnit": 614,
+        "sourceUnit": 1030,
         "src": "57:23:0",
         "symbolAliases": [],
         "unitAlias": ""
@@ -782,10 +782,10 @@
               "id": 4,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 613,
+              "referencedDeclaration": 1029,
               "src": "279:7:0",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$613",
+                "typeIdentifier": "t_contract$_Ownable_$1029",
                 "typeString": "contract Ownable"
               }
             },
@@ -795,7 +795,7 @@
           }
         ],
         "contractDependencies": [
-          613
+          1029
         ],
         "contractKind": "contract",
         "documentation": {
@@ -808,7 +808,7 @@
         "id": 58,
         "linearizedBaseContracts": [
           58,
-          613
+          1029
         ],
         "name": "Claimable",
         "nodeType": "ContractDefinition",
@@ -1005,7 +1005,7 @@
           },
           {
             "baseFunctions": [
-              612
+              1028
             ],
             "body": {
               "id": 33,
@@ -1080,7 +1080,7 @@
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 584,
+                  "referencedDeclaration": 1000,
                   "src": "720:9:0",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
@@ -1163,7 +1163,7 @@
                         "name": "s_owner",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 555,
+                        "referencedDeclaration": 971,
                         "src": "941:7:0",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -1199,7 +1199,7 @@
                       "name": "OwnershipTransferred",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 561,
+                      "referencedDeclaration": 977,
                       "src": "920:20:0",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_address_$_t_address_$returns$__$",
@@ -1239,7 +1239,7 @@
                       "name": "s_owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 555,
+                      "referencedDeclaration": 971,
                       "src": "971:7:0",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -1437,7 +1437,7 @@
   },
   "networks": {},
   "schemaVersion": "3.2.0",
-  "updatedAt": "2020-09-01T21:45:20.179Z",
+  "updatedAt": "2020-09-22T20:31:07.720Z",
   "devdoc": {
     "details": "Extension for the Ownable contract, where the ownership needs to be claimed. This allows the new owner to accept the transfer.",
     "kind": "dev",
