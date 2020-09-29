@@ -23,7 +23,7 @@ library AccountUtils {
             self.nonce =
                 uint256(1) << 240 |
                 uint256(blockhash(block.number-1)) << 80 >> 32 |
-                block.timestamp;
+                now;
         }
     }
 
@@ -32,7 +32,7 @@ library AccountUtils {
         uint256 nonce = 
             ++count << 240 |
             uint256(blockhash(block.number-1)) << 80 >> 32 |
-            block.timestamp;
+            now;
         require(uint16(self.nonce) != uint16(nonce), "Pool: too soon");
         self.nonce = nonce;
     }
@@ -349,14 +349,14 @@ contract Pool is Claimable {
     // ----------- External Functions ------------
 
 
-    function executeBuyTokens(bool eip712, uint256 eth, uint256 kbt, uint256 expires, uint8 v, bytes32 r, bytes32 s) 
+    function executeBuyTokens(bool eip712, uint256 eth, uint256 kiro, uint256 expires, uint8 v, bytes32 r, bytes32 s) 
         external
         payable
     {
-        require(validateBuyTokens(eip712, msg.sender, eth, kbt, expires, v, r, s), "Pool: wrong signature or data");
-        require(block.timestamp <= expires, "Pool: too late");
+        require(validateBuyTokens(eip712, msg.sender, eth, kiro, expires, v, r, s), "Pool: wrong signature or data");
+        require(now <= expires, "Pool: too late");
         require(msg.value == eth, "Pool: value mismatch");
-        _distributeTokens(msg.sender, kbt);
+        _distributeTokens(msg.sender, kiro);
     }
 
     function acceptTokens(uint256 value, bytes calldata c_secret) external {
@@ -489,69 +489,43 @@ contract Pool is Claimable {
     // ----------- Public Functions ------------
 
 
-    function generateBuyTokensMessage(bool eip712, address recipient, uint256 eth, uint256 kbt, uint256 expires)
-        public view
+    function generateBuyTokensMessage(address recipient, uint256 eth, uint256 kiro, uint256 expires)
+        public pure
         returns (bytes memory)
     {
-        if (eip712) {
-            return abi.encode(
-                PAYMENT_TYPEHASH,
-                recipient,
-                eth,
-                kbt,
-                expires
-            );
-        }
-        return abi.encodePacked(
-            s_uid,
-            this.generatePaymentMessage.selector,
+        return abi.encode(
+            PAYMENT_TYPEHASH,
             recipient,
             eth,
-            kbt,
+            kiro,
             expires
         );
     }
 
-    function generateAcceptTokensMessage(bool eip712, address recipient, uint256 value, bytes32 secretHash)
+    function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
         public view 
         returns (bytes memory)
     {
         require(s_accounts[recipient].secretHash == secretHash, "Pool: wrong secret hash");
         require(s_accounts[recipient].pending == value, "Pool: value must equal pending(issued tokens)");
-        if (eip712) {
-            return abi.encode(
-                ACCEPT_TYPEHASH,
-                recipient,
-                value,
-                secretHash
-            );
-        }
-        return abi.encodePacked(
-            s_uid,
-            this.generateAcceptTokensMessage.selector,
+            
+        return abi.encode(
+            ACCEPT_TYPEHASH,
             recipient,
             value,
             secretHash
         );
     }
 
-    function generatePaymentMessage(bool eip712, address from, uint256 value)
+    function generatePaymentMessage(address from, uint256 value)
         public view
         returns (bytes memory)
     {
         Account storage sp_account = s_accounts[from]; 
         require(sp_account.balance >= value, "Pool: account balnace too low");
-        if (eip712) {
-            return abi.encode(
-                PAYMENT_TYPEHASH,
-                from,
-                value,
-                sp_account.nonce
-            );
-        }
-        return abi.encodePacked(
-            s_uid,
-            this.generatePaymentMessage.selector,
+        
+        return abi.encode(
+            PAYMENT_TYPEHASH,
             from,
             value,
             sp_account.nonce
@@ -562,7 +536,7 @@ contract Pool is Claimable {
         bool eip712,
         address from,
         uint256 eth,
-        uint256 kbt,
+        uint256 kiro,
         uint256 expires,
         uint8 v,
         bytes32 r,
@@ -573,7 +547,7 @@ contract Pool is Claimable {
     {
         bytes32 message = _messageToRecover(
             eip712,
-            keccak256(generateBuyTokensMessage(eip712, from, eth, kbt, expires))
+            keccak256(generateBuyTokensMessage(from, eth, kiro, expires))
         );
         address addr = ecrecover(message, v, r, s);
         return addr == s_entities.manager;      
@@ -593,7 +567,7 @@ contract Pool is Claimable {
     {
         bytes32 message = _messageToRecover(
             eip712,
-            keccak256(generateAcceptTokensMessage(eip712, recipient, value, secretHash))
+            keccak256(generateAcceptTokensMessage(recipient, value, secretHash))
         );
         address addr = ecrecover(message, v, r, s);
         return addr == recipient;
@@ -605,7 +579,7 @@ contract Pool is Claimable {
     {
         bytes32 message = _messageToRecover(
             eip712,
-            keccak256(generatePaymentMessage(eip712, from, value))
+            keccak256(generatePaymentMessage(from, value))
         );
         address addr = ecrecover(message, v, r, s);
         return addr == from;      
@@ -646,7 +620,7 @@ contract Pool is Claimable {
             return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashedUnsignedMessage));
             // return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, unsignedMessageBytes));
         }
-        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n64", unsignedMessageBytes));
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n64", DOMAIN_SEPARATOR, unsignedMessageBytes));
     }
 
     function _hashToAscii(bytes32 hash) private pure returns (bytes memory) {
