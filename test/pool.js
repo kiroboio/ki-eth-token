@@ -899,7 +899,6 @@ contract('Pool', async accounts => {
     // const messageDigestHash = messageDigestHex.slice(2)
     // mlog.log('messageDigestHash', messageDigestHash)
     mlog.log('user1', user1, 'tokens', tokens, 'secretHash', secretHash)
-    mlog.log('messageHash', await pool.generateAcceptTokensMessageHash(user1, tokens, secretHash))
     const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
     const messageHashHex = ethers.utils.hexlify(messageHash)
     mlog.log('messageHash (calculated)', messageHashHex)
@@ -912,6 +911,7 @@ contract('Pool', async accounts => {
     assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, true, { from: user1 }), 'invalid signature')
     mlog.log('account info: ', JSON.stringify(await pool.account(user1), { from: user1 }))
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, true, { from: poolOwner} )
+    mlog.log('account info: ', JSON.stringify(await pool.account(user1), { from: user1 }))
   })
   
   

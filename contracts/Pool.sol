@@ -163,11 +163,15 @@ contract Pool is Claimable {
     bytes32 public DOMAIN_SEPARATOR;
     bytes public DOMAIN_SEPARATOR_ASCII;
     uint256 public CHAIN_ID;
+
     // keccak256("acceptTokens(address recipient,uint256 value,bytes32 secretHash)");
     bytes32 public constant ACCEPT_TYPEHASH = 0xf728cfc064674dacd2ced2a03acd588dfd299d5e4716726c6d5ec364d16406eb;
 
     // keccak256("payment(address from,uint256 value,uint256 nonce)");
     bytes32 public constant PAYMENT_TYPEHASH = 0x841d82f71fa4558203bb763733f6b3326ecaf324143e12fb9b6a9ed958fc4ee0;
+
+    // keccak256("buyTokens(address recipient, uint256 eth, uint256 kiro, uint256 expires)");
+    bytes32 public constant BUY_TYPEHASH = 0x7816c1e3a56076b03c6214d34bbdadc79cdd66eb94c155383e2cfc036c1f378d;
 
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);
@@ -502,18 +506,12 @@ contract Pool is Claimable {
         returns (bytes memory)
     {
         return abi.encode(
-            PAYMENT_TYPEHASH,
+            BUY_TYPEHASH,
             recipient,
             eth,
             kiro,
             expires
         );
-    }
-
-    function generateAcceptTokensMessageHash(address recipient, uint256 value, bytes32 secretHash)
-        public view
-        returns (bytes32) {
-            return keccak256(generateAcceptTokensMessage(recipient, value, secretHash));
     }
 
     function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
