@@ -85,13 +85,16 @@ contract('Pool', async accounts => {
 
   before('setup contract for the test', async () => {
     
-    mlog.log('web3           ', web3.version)
+    mlog.log('web3             ', web3.version)
 
     token = await Token.deployed()
     pool = await Pool.deployed()
     DOMAIN_SEPARATOR = (await pool.DOMAIN_SEPARATOR()).slice(2)
 
+    mlog.log('chain id         ', await pool.CHAIN_ID())
+
     mlog.log('DOMAIN_SEPARATOR ', DOMAIN_SEPARATOR)
+    mlog.log('pool uid         ', await pool.uid())
     mlog.log('token contract   ', token.address)
     mlog.log('pool contract    ', pool.address)
     mlog.log('tokenOwner       ', tokenOwner)
@@ -843,43 +846,71 @@ contract('Pool', async accounts => {
           { name: "version",            type: "string" },
           { name: "chainId",            type: "uint256" },
           { name: "verifyingContract",  type: "address" },
-          { name: "salt",               type: "uint256" }
+          { name: "salt",               type: "bytes32" }
         ],
-        AcceptTokens: [
-          { name: 'ACCEPT_TYPEHASH',    type: 'bytes32' },
+        acceptTokens: [
           { name: 'recipient',          type: 'address' },
           { name: 'value',              type: 'uint256' },
           { name: 'secretHash',         type: 'bytes32' },
         ]
       },
-      primaryType: 'AcceptTokens',
+      primaryType: 'acceptTokens',
       domain: {
         name: await pool.NAME(),
         version: await pool.VERSION(),
-        chainId: await web3.eth.net.getId(),
+        chainId: '0x' + web3.utils.toBN(await pool.CHAIN_ID()).toString('hex'), // await web3.eth.getChainId(),
         verifyingContract: pool.address,
         salt: await pool.uid(),
       },
       message: {
-        ACCEPT_TYPEHASH: await pool.ACCEPT_TYPEHASH(),
         recipient: user1,
-        value: tokens,
+        value: '0x' + web3.utils.toBN(tokens).toString('hex'),
         secretHash,
       }
     }
+    mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
+    const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
+    const domainHashHex = ethers.utils.hexlify(domainHash)
+    mlog.log('DOMAIN_SEPARATOR', await pool.DOMAIN_SEPARATOR())
+    mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
     
+    const { defaultAbiCoder, keccak256, toUtf8Bytes } = ethers.utils
+
+    mlog.log('DOMAIN_SEPARATOR (calculated2)', keccak256(defaultAbiCoder.encode(
+        ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address', 'bytes32'],
+        [
+          keccak256(
+            toUtf8Bytes('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)')
+          ),
+          keccak256(toUtf8Bytes(await pool.NAME())),
+          keccak256(toUtf8Bytes(await pool.VERSION())),
+          '0x' + web3.utils.toBN(await pool.CHAIN_ID()).toString('hex'),
+          pool.address,
+          await pool.uid(),
+        ]
+    )))
+
     const messageDigest = TypedDataUtils.encodeDigest(typedData)
     const messageDigestHex = ethers.utils.hexlify(messageDigest)
-    const wallet = new ethers.Wallet(getPrivateKey(user1))
-    const sig = await wallet.signMessage(messageDigest)
+    let signingKey = new ethers.utils.SigningKey(getPrivateKey(user1));
+    const sig = signingKey.signDigest(messageDigest)
     const rlp = ethers.utils.splitSignature(sig)
     rlp.v = '0x' + rlp.v.toString(16)
-    const messageHash = messageDigestHex.slice(2)
-    mlog.log('messageHash', messageHash)
+    // const messageDigestHash = messageDigestHex.slice(2)
+    // mlog.log('messageDigestHash', messageDigestHash)
+    mlog.log('user1', user1, 'tokens', tokens, 'secretHash', secretHash)
+    mlog.log('messageHash', await pool.generateAcceptTokensMessageHash(user1, tokens, secretHash))
+    const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
+    const messageHashHex = ethers.utils.hexlify(messageHash)
+    mlog.log('messageHash (calculated)', messageHashHex)
+    
+    const message2Hash = keccak256(message)
+    mlog.log('messageHash (calculated 2)', message2Hash)
+    
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', ethers.utils.recoverAddress(messageDigest, sig))
     assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, true, { from: user1 }), 'invalid signature')
-    mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
+    mlog.log('account info: ', JSON.stringify(await pool.account(user1), { from: user1 }))
     await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, true, { from: poolOwner} )
   })
   

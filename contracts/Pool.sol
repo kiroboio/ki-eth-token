@@ -147,7 +147,7 @@ contract Pool is Claimable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    uint256 private s_uid;
+    bytes32 private s_uid;
     Supply private s_supply;
     Limits private s_limits;
     Entities private s_entities;
@@ -162,6 +162,7 @@ contract Pool is Claimable {
     string public constant VERSION = "1";
     bytes32 public DOMAIN_SEPARATOR;
     bytes public DOMAIN_SEPARATOR_ASCII;
+    uint256 public CHAIN_ID;
     // keccak256("acceptTokens(address recipient,uint256 value,bytes32 secretHash)");
     bytes32 public constant ACCEPT_TYPEHASH = 0xf728cfc064674dacd2ced2a03acd588dfd299d5e4716726c6d5ec364d16406eb;
 
@@ -190,22 +191,24 @@ contract Pool is Claimable {
     }
 
     constructor(address tokenContract) public {
-        uint chainId;
-        assembly {
-            chainId := chainid()
-        }
+        uint256 chainId = 0x1;
+        // assembly {
+        //     chainId := chainid()
+        // }
      
         s_entities.token = tokenContract;
         s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10*1000*(10**18), maxTokensPerBlock: 50*1000*(10**18)});
-        s_uid = (
+        s_uid = bytes32(
           uint256(VERSION_NUMBER) << 248 |
           uint256(blockhash(block.number-1)) << 192 >> 16 |
           uint256(address(this))
         );
 
+        CHAIN_ID = chainId;
+
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,uint256 salt)"),
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"),
                 keccak256(bytes(NAME)),
                 keccak256(bytes(VERSION)),
                 chainId,
@@ -478,7 +481,7 @@ contract Pool is Claimable {
         );
     }
 
-    function uid() view external returns (uint256) {
+    function uid() view external returns (bytes32) {
         return s_uid;
     }
 
@@ -505,6 +508,12 @@ contract Pool is Claimable {
             kiro,
             expires
         );
+    }
+
+    function generateAcceptTokensMessageHash(address recipient, uint256 value, bytes32 secretHash)
+        public view
+        returns (bytes32) {
+            return keccak256(generateAcceptTokensMessage(recipient, value, secretHash));
     }
 
     function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
