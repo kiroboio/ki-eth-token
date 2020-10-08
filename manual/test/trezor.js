@@ -112,7 +112,7 @@ contract("Trezor Test", async (accounts) => {
     assert(trzAddress, 'trzAddress must be sent from the browser');
     mlog.log("trzAddress", trzAddress);
     await pool.issueTokens(trzAddress, 500, web3.utils.sha3(secret), { from: poolOwner })
-    trzMessage = await pool.generateAcceptTokensMessage(trzAddress, tokens, web3.utils.sha3(secret), false, { from: poolOwner })
+    trzMessage = await pool.generateAcceptTokensMessage(trzAddress, tokens, web3.utils.sha3(secret), { from: poolOwner })
     mlog.log("message", trzMessage);
 
     const toSign = Buffer.from((await pool.DOMAIN_SEPARATOR()).slice(2) + web3.utils.sha3(trzMessage).slice(2)).toString('hex');
