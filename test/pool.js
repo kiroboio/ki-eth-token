@@ -834,7 +834,7 @@ contract('Pool', async accounts => {
 
   it('eip712: should be able to generate,validate & execute "accept tokens" message', async () => {
     const tokens = 500
-    const secret = 'my secret'
+    const secret = 'my secret2'
     const secretHash = web3.utils.sha3(secret)
     await pool.issueTokens(user1, tokens, secretHash, { from: poolOwner })
     const message = await pool.generateAcceptTokensMessage(user1, tokens, secretHash, { from: poolOwner })

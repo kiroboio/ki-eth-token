@@ -361,13 +361,12 @@ contract Pool is Claimable {
     // ----------- External Functions ------------
 
 
-    function executeBuyTokens(uint256 eth, uint256 kiro, uint256 expires, uint8 v, bytes32 r, bytes32 s, bool eip712) 
+    function executeBuyTokens(uint256 kiro, uint256 expires, uint8 v, bytes32 r, bytes32 s, bool eip712) 
         external
         payable
     {
-        require(validateBuyTokens(msg.sender, eth, kiro, expires, v, r, s, eip712), "Pool: wrong signature or data");
+        require(validateBuyTokens(msg.sender, msg.value, kiro, expires, v, r, s, eip712), "Pool: wrong signature or data");
         require(now <= expires, "Pool: too late");
-        require(msg.value == eth, "Pool: value mismatch");
         _distributeTokens(msg.sender, kiro);
     }
 
