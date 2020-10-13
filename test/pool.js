@@ -871,6 +871,7 @@ contract('Pool', async accounts => {
     mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
     const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
     const domainHashHex = ethers.utils.hexlify(domainHash)
+    mlog.log('CHAIN_ID', await pool.CHAIN_ID())
     mlog.log('DOMAIN_SEPARATOR', await pool.DOMAIN_SEPARATOR())
     mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
     

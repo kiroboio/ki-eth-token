@@ -195,10 +195,10 @@ contract Pool is Claimable {
     }
 
     constructor(address tokenContract) public {
-        uint256 chainId = 0x1;
-        // assembly {
-        //     chainId := chainid()
-        // }
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
      
         s_entities.token = tokenContract;
         s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10*1000*(10**18), maxTokensPerBlock: 50*1000*(10**18)});
