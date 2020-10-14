@@ -9,8 +9,8 @@ const LOCAL_SERVER = 'http://127.0.0.1:3030/v1'
 
 const DEV_SERVER = 'https://testapi.kirobo.me/v1'
 
-// const SERVER = DEV_SERVER
-const SERVER = LOCAL_SERVER
+const SERVER = DEV_SERVER
+// const SERVER = LOCAL_SERVER
 
 const EP = {
   BALANCE:  `${SERVER}/eth/rinkeby/balance`,
