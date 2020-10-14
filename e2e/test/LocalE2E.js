@@ -9,8 +9,8 @@ const LOCAL_SERVER = 'http://127.0.0.1:3030/v1'
 
 const DEV_SERVER = 'https://testapi.kirobo.me/v1'
 
-// const SERVER = DEV_SERVER
-const SERVER = LOCAL_SERVER
+const SERVER = DEV_SERVER
+// const SERVER = LOCAL_SERVER
 
 const EP = {
   BALANCE:  `${SERVER}/eth/rinkeby/balance`,
@@ -263,15 +263,20 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     const secret = 'my secret2'
     const secretHash = web3.utils.sha3(secret)
     // await pool.issueTokens(user1, tokens, secretHash, { from: poolOwner })
-    let response = await axios.post(EP.POOL, {
-      cmd: "issueTokens",
-      data: {
-        recipient: USER,
-        value: tokens,
-        secretHash,
-      },
-    })
-    logCall('issueTokens', response)
+    let response 
+    try{
+      response = await axios.post(EP.POOL, {
+        cmd: "issueTokens",
+        data: {
+          recipient: USER,
+          value: tokens,
+          secretHash,
+        },
+      })
+      logCall('issueTokens', response)
+    } catch (e) {
+      logError('issueTokens', e)
+    }
     const { raw, parsed } = response.data.message
     const contract = response.data.contract
     // const message = await pool.generateAcceptTokensMessage(USER, tokens, secretHash, { from: poolOwner })
