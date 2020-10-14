@@ -9,8 +9,8 @@ const LOCAL_SERVER = 'http://127.0.0.1:3030/v1'
 
 const DEV_SERVER = 'https://testapi.kirobo.me/v1'
 
-const SERVER = DEV_SERVER
-// const SERVER = LOCAL_SERVER
+// const SERVER = DEV_SERVER
+const SERVER = LOCAL_SERVER
 
 const EP = {
   BALANCE:  `${SERVER}/eth/rinkeby/balance`,
@@ -148,7 +148,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     assert(parseInt(response.data.poolBalance) == parseInt(initialBalance) + tokens, "wrong balance")
 
   })
-
+  
   it.skip("should be able to distributeTokens ", async () => {
     const tokens = 500
 
@@ -180,19 +180,37 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     const initialBalance = response.data.poolBalance
     mlog.log("got initial balance:", initialBalance)
 
-    response = await axios.post(EP.POOL, {
-      cmd: "generatePayment",
-      data: {
-        from: USER,
-        value: PAYMENT,
-      },
-    })
-    logCall('generatePayment', response)
+    // const response2 = await axios.post(EP.POOL, {
+    //   cmd: "generatePayment",
+    //   data: {
+    //     from: USER,
+    //     value: PAYMENT,
+    //   },
+    // })
+    // logCall('generatePayment', response2)
 
-    const { raw, parsed } = response.data.message
-    const domain = response.data.contract.domain
-    mlog.log("got message to sign:", raw)
-    mlog.log("got parsed message:", JSON.stringify(parsed))
+    let amount = web3.utils.toBN(PAYMENT) 
+
+    if (response.data.debt !== '0' && response.data.nonce === response.data.debt.message.parsed.nonce) { 
+      amount.add(web3.utils.toBN('0x' + response.data.debt.message.value))
+    }
+    
+    const { domain, paymentTypeHash } = response.data.contract
+    
+    const synthesizedRaw = 
+      paymentTypeHash +
+      response.data.address.slice(2).padStart(64, '0') +
+      amount.toString(16).padStart(64, '0') +
+      response.data.nonce.slice(2) 
+
+    const raw = ethers.utils.defaultAbiCoder.encode(
+      ['bytes32', 'address', 'uint256', 'uint256'],
+      [paymentTypeHash, response.data.address, '0x' + amount.toString(16), response.data.nonce]
+    )
+
+    mlog.log("raw message to sign:", raw)
+    mlog.log("synthesized raw message to sign:", synthesizedRaw)
+    // mlog.log("got parsed message:", JSON.stringify(parsed))
     const rlp = await web3.eth.accounts.sign(domain.slice(2) + web3.utils.sha3(raw).slice(2), getPrivateKey(USER))
     mlog.log("signed message: ", JSON.stringify(rlp))
 
@@ -210,15 +228,15 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     logCall('validatePayment', response)
     // mlog.log("validate payment response:", JSON.stringify(response.data))
 
-    response = await axios.post(EP.POOL, {
-      cmd: 'finalizePayment',
-      data: {
-        from: USER,
-      }
-    })
-    logCall('finalizePayment', response)
+    // response = await axios.post(EP.POOL, {
+    //   cmd: 'finalizePayment',
+    //   data: {
+    //     from: USER,
+    //   }
+    // })
+    // logCall('finalizePayment', response)
 
-    mlog.log("execute payment response:", JSON.stringify(response.data))
+    // mlog.log("execute payment response:", JSON.stringify(response.data))
 
 
     response = await axios.get(`${EP.KIRO}/${USER}`)
@@ -239,6 +257,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
     assert(parseInt(response.data.message.parsed.value, 16) === PAYMENT)
   })
 
+  
   it("EIP712: should be able to issue and accept tokens ", async () => {
     const tokens = 500
     const secret = 'my secret2'
