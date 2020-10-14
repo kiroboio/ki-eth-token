@@ -216,7 +216,7 @@ contract("Local E2E: issue tokens and generate payment", async accounts => {
 
     mlog.log("synthesized raw message to sign:", synthesizedRaw)
     // mlog.log("got parsed message:", JSON.stringify(parsed))
-    const rlp = await web3.eth.accounts.sign(domain.slice(2) + web3.utils.sha3(synthesizedRaw).slice(2), getPrivateKey(USER))
+    const rlp = await web3.eth.accounts.sign(domain.slice(2) + web3.utils.sha3(raw).slice(2), getPrivateKey(USER))
     mlog.log("signed message: ", JSON.stringify(rlp))
 
     response = await axios.post(EP.POOL, {
