@@ -71,28 +71,20 @@ contract('SafeTransfer', async accounts => {
   it('should be able to make a transfer request', async () => {
     const secret = 'my secret'
     const secretHash = web3.utils.sha3(secret)
-    await st.transfer(user3, 600, 100, secretHash, { from: user2, value: 700 })
-    await st.transfer2(user3, 600, 100, secretHash, { from: user2, value: 700 })
-    await st.retrieve2(user3, 600, 100, secretHash, { from: user2 })
-    await st.transfer2(user3, 600, 100, secretHash, { from: user2, value: 700 })
-    await st.collect2(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user2 })
-    mlog.log('transfers', JSON.stringify(await st.transfers(user2, { from: user2 })))
-    mlog.log('transfers request 0', JSON.stringify(await st.transferRequest(user2, 0, { from: user2 })))
-    mlog.log('transfers request 1', JSON.stringify(await st.transferRequest(user2, 1, { from: user2 })))
+    await st.deposit(user3, 600, 100, secretHash, { from: user2, value: 700 })
   })
 
   it('should be able to retrieve a transfer request', async () => {
-    await st.retrieve(0, { from: user2 })
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await st.retrieve(user3, 600, 100, secretHash, { from: user2 })
   })
 
   it('should be able to collect a transfer request', async () => {
     const secret = 'my secret'
     const secretHash = web3.utils.sha3(secret)
-    await st.transfer(user3, 600, 100, secretHash, { from: user2, value: 700 })
-    await st.collect(user2, 1, Buffer.from(secret), { from: user1 })
-    mlog.log('transfers', JSON.stringify(await st.transfers(user2, { from: user2 })))
-    mlog.log('transfers request 0', JSON.stringify(await st.transferRequest(user2, 0, { from: user2 })))
-    mlog.log('transfers request 1', JSON.stringify(await st.transferRequest(user2, 1, { from: user2 })))
+    await st.deposit(user3, 600, 100, secretHash, { from: user2, value: 700 })
+    await st.collect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
   })
 
 })
