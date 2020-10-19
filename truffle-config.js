@@ -121,6 +121,10 @@ module.exports = {
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
+    reporter: 'eth-gas-reporter',
+    reporterOptions : {
+      url: 'http://127.0.0.1:8545',
+    }, 
     // timeout: 100000
   },
 
