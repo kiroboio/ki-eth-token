@@ -501,15 +501,18 @@ contract Pool is Claimable {
 
 
     function generateBuyTokensMessage(address recipient, uint256 eth, uint256 kiro, uint256 expires)
-        public pure
+        public view
         returns (bytes memory)
     {
+        Account storage sp_account = s_accounts[recipient]; 
+    
         return abi.encode(
             BUY_TYPEHASH,
             recipient,
             eth,
             kiro,
-            expires
+            expires,
+            sp_account.issueBlock
         );
     }
 
