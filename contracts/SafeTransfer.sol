@@ -15,7 +15,7 @@ contract SafeTransfer is AccessControl {
     mapping(bytes32 => uint256) s_transfers;
 
     event Deposited(address indexed from, address indexed to, uint256 value, uint256 fee, bytes32 secretHash);
-    event Retrieved(address indexed from, bytes32 indexed id, uint256 value);
+    event Retrieved(address indexed from, address indexed to, bytes32 indexed id, uint256 value);
     event Collected(address indexed from, address indexed to, bytes32 indexed id, uint256 value);
 
     modifier onlyActivator() {
@@ -60,7 +60,7 @@ contract SafeTransfer is AccessControl {
         require(s_transfers[id] == 1, "SafeTransfer: request not exist");
         delete  s_transfers[id];
         msg.sender.transfer(value.add(fees));
-        emit Retrieved(msg.sender, id, value);
+        emit Retrieved(msg.sender, to, id, value);
     }
 
     function collect(
