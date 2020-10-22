@@ -4,6 +4,8 @@ const Token = artifacts.require("Token")
 const SafeTransfer = artifacts.require('SafeTransfer')
 const mlog = require('mocha-logger')
 
+const { ethers } = require('ethers')
+
 const {
   advanceBlock,
   advanceTime,
@@ -50,7 +52,7 @@ contract('SafeTransfer', async accounts => {
 
   before('setup contract for the test', async () => {
     token = await Token.new({ from: tokenOwner })
-    st = await SafeTransfer.new({ from: user1 })
+    st = await SafeTransfer.new(user1, { from: user1 })
     mlog.log('web3                    ', web3.version)
     mlog.log('token contract          ', token.address)
     mlog.log('safe transfer contract  ', st.address)
@@ -68,23 +70,50 @@ contract('SafeTransfer', async accounts => {
     assert.equal('0', ''+await await web3.eth.getBalance(st.address))
   })
 
-  it('should be able to make a transfer request', async () => {
+  it.skip('old: should be able to make a transfer request', async () => {
     const secret = 'my secret'
     const secretHash = web3.utils.sha3(secret)
-    await st.deposit(user3, 600, 100, secretHash, { from: user2, value: 700 })
+    await st.oldDeposit(user3, 600, 100, secretHash, { from: user2, value: 700 })
+  })
+
+  it.skip('old: should be able to retrieve a transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await st.oldRetrieve(user3, 600, 100, secretHash, { from: user2 })
+  })
+
+  it.skip('old :should be able to collect a transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await st.oldSaferDeposit(user3, 600, 100, secretHash, 1, 0, { from: user2, value: 700 })
+    await st.oldCollect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
+  })
+
+  it('should be able to make a transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(ethers.utils.defaultAbiCoder.encode(
+      ['address', 'bytes'],   
+      [user3, Buffer.from(secret)]
+    ))
+    await st.deposit(600, 100, secretHash, { from: user2, value: 700 })
   })
 
   it('should be able to retrieve a transfer request', async () => {
     const secret = 'my secret'
-    const secretHash = web3.utils.sha3(secret)
-    await st.retrieve(user3, 600, 100, secretHash, { from: user2 })
+    const secretHash = web3.utils.sha3(ethers.utils.defaultAbiCoder.encode(
+      ['address', 'bytes'],   
+      [user3, Buffer.from(secret)]
+    ))
+    await st.retrieve(600, 100, secretHash, { from: user2 })
   })
 
   it('should be able to collect a transfer request', async () => {
     const secret = 'my secret'
-    const secretHash = web3.utils.sha3(secret)
-    await st.deposit(user3, 600, 100, secretHash, { from: user2, value: 700 })
+    const secretHash = web3.utils.sha3(ethers.utils.defaultAbiCoder.encode(
+      ['address', 'bytes'],   
+      [user3, Buffer.from(secret)]
+    ))
+    await st.saferDeposit(600, 100, secretHash, 1, 0, { from: user2, value: 700 })
     await st.collect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
   })
-
 })
