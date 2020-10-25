@@ -14,12 +14,9 @@ contract SafeTransfer is AccessControl {
     uint256 s_fees;
     mapping(bytes32 => uint256) s_transfers;
 
-    event OldDeposited(address indexed from, address indexed to, uint256 value, uint256 fees, bytes32 secretHash);
-    event OldRetrieved(address indexed from, address indexed to, bytes32 indexed id, uint256 value);
-    
-    event Deposited(address indexed from, uint256 value, uint256 fees, bytes32 secretHash);
+    event Deposited(address indexed from, address indexed to, uint256 value, uint256 fees, bytes32 secretHash);
     event SafeDeposited(address indexed from, uint256 value, uint256 fees, bytes32 secretHash, uint64 expiresAt, uint192 depositFees);
-    event Retrieved(address indexed from, bytes32 indexed id, uint256 value);
+    event Retrieved(address indexed from, address indexed to, bytes32 indexed id, uint256 value);    
     event Collected(address indexed from, address indexed to, bytes32 indexed id, uint256 value);
 
     modifier onlyActivator() {
@@ -37,7 +34,19 @@ contract SafeTransfer is AccessControl {
         require(false, "SafeTransfer: not accepting ether");
     }
 
+    function collectFees(address payable wallet, uint256 amount) external onlyActivator() {
+        s_fees = s_fees.sub(amount);
+        wallet.transfer(amount);
+    }
+
+    function totalFees() external view returns (uint256) {
+        return s_fees;
+    }
+
+    // ---------------------------------------------------------------------------
+
     function deposit(
+        address payable to,
         uint256 value,
         uint256 fees,
         bytes32 secretHash
@@ -46,41 +55,44 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
         require(value > 0, "SafeTransfer: no value");
-        bytes32 id = keccak256(abi.encode(msg.sender, value, fees, secretHash));
+        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
         s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
-        emit Deposited(msg.sender, value, fees, secretHash);
+        emit Deposited(msg.sender, to, value, fees, secretHash);
     }
 
-    function saferDeposit(
+    function timedDeposit(
+        address payable to,
         uint256 value,
         uint256 fees,
         bytes32 secretHash,
         uint64 expiresAt,
-        uint192 depositFees
+        uint128 depositFees
     ) 
         payable external
     {
         require(msg.value == value.add(fees).add(depositFees), "SafeTransfer: value mismatch");
         require(value > 0, "SafeTransfer: no value");
-        bytes32 id = keccak256(abi.encode(msg.sender, value, fees, secretHash));
+        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = expiresAt + depositFees << 64;
-        emit SafeDeposited(msg.sender, value, fees, secretHash, expiresAt, depositFees);
+        s_transfers[id] = uint256(expiresAt) + (uint256(depositFees) << 64);
+        emit Deposited(msg.sender, to, value, fees, secretHash);
     }
 
     function retrieve(
+        address payable to,
         uint256 value,
         uint256 fees,
         bytes32 secretHash
     )   
         external 
     {
-        bytes32 id = keccak256(abi.encode(msg.sender, value, fees, secretHash));
+        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id]  > 0, "SafeTransfer: request not exist");
-        delete  s_transfers[id];
-        msg.sender.transfer(value.add(fees));
-        emit Retrieved(msg.sender, id, value.add(fees));
+        delete s_transfers[id];
+        uint256 valueToSend = value.add(fees);
+        msg.sender.transfer(valueToSend);
+        emit Retrieved(msg.sender, to, id, valueToSend);
     }
 
     function collect(
@@ -94,110 +106,10 @@ contract SafeTransfer is AccessControl {
         external
         onlyActivator()
     {
-        bytes32 id = keccak256(abi.encode(from, value, fees, secretHash));
-        uint256 tr = s_transfers[id];
-        require(tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tr) < now, "SafeTranfer: expired");
-        require(keccak256(abi.encode(to, secret)) == secretHash, "SafeTransfer: wrong secret");
-        delete s_transfers[id];
-        s_fees.add(fees);
-        to.transfer(value);
-        emit Collected(from, to, id, value);
-    }
-
-    function cancel(
-        address payable from,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash
-    ) 
-        external
-        onlyActivator()
-    {
-        bytes32 id = keccak256(abi.encode(from, value, fees, secretHash));
-        require(s_transfers[id] > 0, "SafeTransfer: request not exist");
-        uint256 tr = s_transfers[id];
-        require(uint64(tr) >= now, "SafeTranfer: not expired");
-        delete  s_transfers[id];
-        from.transfer(value.add(fees));
-        emit Retrieved(from, id, value.add(fees));
-    }
-
-    function collectFees(address payable wallet, uint256 amount) external onlyActivator() {
-        s_fees = s_fees.sub(amount);
-        wallet.transfer(amount);
-    }
-
-    function totalFees() external view returns (uint256) {
-        return s_fees;
-    }
-
-    // ---------------------------------------------------------------------------
-
-    function oldDeposit(
-        address payable to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash
-    ) 
-        payable external
-    {
-        require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
-        require(value > 0, "SafeTransfer: no value");
-        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
-        require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
-        emit OldDeposited(msg.sender, to, value, fees, secretHash);
-    }
-
-        function oldSaferDeposit(
-        address payable to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
-        uint64 expiresAt,
-        uint192 depositFees
-    ) 
-        payable external
-    {
-        require(msg.value == value.add(fees).add(depositFees), "SafeTransfer: value mismatch");
-        require(value > 0, "SafeTransfer: no value");
-        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
-        require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = expiresAt + depositFees << 64;
-        emit OldDeposited(msg.sender, to, value, fees, secretHash);
-    }
-
-    function oldRetrieve(
-        address payable to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash
-    )   
-        external 
-    {
-        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
-        require(s_transfers[id]  > 0, "SafeTransfer: request not exist");
-        delete  s_transfers[id];
-        msg.sender.transfer(value.add(fees));
-        emit OldRetrieved(msg.sender, to, id, value.add(fees));
-    }
-
-    function oldCollect(
-        address from,
-        address payable to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
-        bytes calldata secret
-    ) 
-        external
-        onlyActivator()
-    {
         bytes32 id = keccak256(abi.encode(from, to, value, fees, secretHash));
         uint256 tr = s_transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tr) < now, "SafeTranfer: expired");
+        require(uint64(tr) > now, "SafeTranfer: expired");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_transfers[id];
         s_fees.add(fees);
@@ -205,7 +117,7 @@ contract SafeTransfer is AccessControl {
         emit Collected(from, to, id, value);
     }
 
-   function oldCancel(
+   function cancel(
         address payable from,
         address to,
         uint256 value,
@@ -218,10 +130,10 @@ contract SafeTransfer is AccessControl {
         bytes32 id = keccak256(abi.encode(from, to, value, fees, secretHash));
         require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_transfers[id];
-        require(uint64(tr) >= now, "SafeTranfer: not expired");
+        require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_transfers[id];
         from.transfer(value.add(fees));
-        emit OldRetrieved(from, to, id, value.add(fees));
+        emit Retrieved(from, to, id, value.add(fees));
     }
 
 }
