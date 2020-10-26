@@ -55,6 +55,7 @@ contract SafeTransfer is AccessControl {
         uint256 value,
         uint256 fees,
         bytes32 secretHash,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     );
@@ -89,6 +90,7 @@ contract SafeTransfer is AccessControl {
         uint256 value,
         uint256 fees,
         bytes32 secretHash,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     );
@@ -125,6 +127,7 @@ contract SafeTransfer is AccessControl {
         uint256 tokenId,
         uint256 fees,
         bytes32 secretHash,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     );
@@ -155,6 +158,7 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         uint256 value,
         bytes32 indexed id1,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     );
@@ -273,6 +277,7 @@ contract SafeTransfer is AccessControl {
         uint256 value,
         uint256 fees,
         bytes32 secretHash,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     ) 
@@ -282,8 +287,8 @@ contract SafeTransfer is AccessControl {
         require(value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = uint256(expiresAt) + (uint256(depositFees) << 64);
-        emit TimedDeposited(msg.sender, to, value, fees, secretHash, expiresAt, depositFees);
+        s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 128) + (uint256(depositFees) << 128);
+        emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, depositFees);
     }
 
     function retrieve(
@@ -317,6 +322,7 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_transfers[id];
         s_fees = s_fees.add(fees);
@@ -338,6 +344,7 @@ contract SafeTransfer is AccessControl {
         require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_transfers[id];
         from.transfer(value.add(fees));
         emit Retrieved(from, to, id, value.add(fees));
@@ -370,6 +377,7 @@ contract SafeTransfer is AccessControl {
         uint256 value,
         uint256 fees,
         bytes32 secretHash,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     ) 
@@ -379,8 +387,8 @@ contract SafeTransfer is AccessControl {
         require(value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
         require(s_erc20Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc20Transfers[id] = uint256(expiresAt) + (uint256(depositFees) << 64);
-        emit ERC20TimedDeposited(token, msg.sender, to, value, fees, secretHash, expiresAt, depositFees);
+        s_erc20Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
+        emit ERC20TimedDeposited(token, msg.sender, to, value, fees, secretHash, availableAt, expiresAt, depositFees);
     }
 
     function retrieveERC20(
@@ -417,6 +425,7 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_erc20Transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_erc20Transfers[id];
         s_fees = s_fees.add(fees);
@@ -440,6 +449,7 @@ contract SafeTransfer is AccessControl {
         require(s_erc20Transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_erc20Transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_erc20Transfers[id];
         from.transfer(fees);
         emit ERC20Retrieved(token, from, to, id, value);
@@ -474,6 +484,7 @@ contract SafeTransfer is AccessControl {
         bytes calldata tokenData,
         uint256 fees,
         bytes32 secretHash,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     ) 
@@ -483,8 +494,8 @@ contract SafeTransfer is AccessControl {
         require(tokenId > 0, "SafeTransfer: no token id");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc721Transfers[id] = uint256(expiresAt) + (uint256(depositFees) << 64);
-        emit ERC721TimedDeposited(token, msg.sender, to, tokenId, fees, secretHash, expiresAt, depositFees);
+        s_erc721Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
+        emit ERC721TimedDeposited(token, msg.sender, to, tokenId, fees, secretHash, availableAt, expiresAt, depositFees);
     }
 
     function retrieveERC721(
@@ -523,6 +534,7 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_erc721Transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_erc721Transfers[id];
         s_fees = s_fees.add(fees);
@@ -547,6 +559,7 @@ contract SafeTransfer is AccessControl {
         require(s_erc721Transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_erc721Transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_erc721Transfers[id];
         from.transfer(fees);
         emit ERC721Retrieved(token, from, to, id, tokenId);
@@ -566,6 +579,7 @@ contract SafeTransfer is AccessControl {
 
     function hiddenTimedDeposit(
         bytes32 id1,
+        uint64 availableAt,
         uint64 expiresAt,
         uint128 depositFees
     ) 
@@ -574,8 +588,8 @@ contract SafeTransfer is AccessControl {
         require(msg.value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
-        s_htransfers[id] = uint256(expiresAt) + (uint256(depositFees) << 64);
-        emit HTimedDeposited(msg.sender, msg.value, id1, expiresAt, depositFees);
+        s_htransfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
+        emit HTimedDeposited(msg.sender, msg.value, id1, availableAt, expiresAt, depositFees);
     }
 
     function hiddenRetrieve(
@@ -611,6 +625,7 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_htransfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_htransfers[id];
         s_fees = s_fees.add(fees);
@@ -641,6 +656,7 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_htransfers[tinfo.id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_htransfers[tinfo.id];
         s_fees = s_fees.add(fees);
@@ -671,7 +687,8 @@ contract SafeTransfer is AccessControl {
         tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
         require(s_htransfers[tinfo.id] > 0, "SafeTransfer: request not exist");
         require(uint64(s_htransfers[tinfo.id]) > now, "SafeTranfer: expired");
-        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+         require(uint64(s_htransfers[tinfo.id]>>64) <= now, "SafeTranfer: not available yet");
+       require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_htransfers[tinfo.id];
         s_fees = s_fees.add(fees);
         IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
@@ -690,6 +707,7 @@ contract SafeTransfer is AccessControl {
         require(s_htransfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_htransfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
+        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_htransfers[id];
         from.transfer(value);
         emit HRetrieved(from, id1, value);

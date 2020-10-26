@@ -106,7 +106,7 @@ contract('SafeTransfer', async accounts => {
   it('should be able to collect a transfer timed request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
-    await st.timedDeposit(user3, 600, 100, secretHash, (new Date()).getTime()+10000, 0, { from: user2, value: 700 })
+    await st.timedDeposit(user3, 600, 100, secretHash, 0, (new Date()).getTime()+10000, 0, { from: user2, value: 700 })
     await st.collect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
   })
 
@@ -133,7 +133,7 @@ contract('SafeTransfer', async accounts => {
   it('should be able to collect an erc20 transfer timed request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
-    await st.timedDepositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, (new Date()).getTime()+10000, 0, { from: user2, value: 100 })
+    await st.timedDepositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, 0, (new Date()).getTime()+10000, 0, { from: user2, value: 100 })
     await st.collectERC20(token.address, tokenSymbol, user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
   })
 
