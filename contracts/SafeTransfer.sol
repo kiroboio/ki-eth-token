@@ -15,7 +15,13 @@ contract SafeTransfer is AccessControl {
     bytes32 public constant ACTIVATOR_ROLE = 0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
     // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
-    bytes32 public constant HCOLLECT_TYPEHASH = 0x541b4c0bcee958aeb1bf4a65757a6a41c1272dadbf46e2ded925bd53104ec8a7;
+    bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x541b4c0bcee958aeb1bf4a65757a6a41c1272dadbf46e2ded925bd53104ec8a7;
+
+    // keccak256("hiddenCollectERC20(address token,string tokenSymbol,address token, string symbol, address from,address to,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
+    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x2a191dead96a63be0cbc4dbb8079c7627a461c5cc3b15b68a58cb9e25bfc1142;
+
+    // keccak256("hiddenCollectERC721(address token,string tokenSymbol,address token, string symbol, address from,address to,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
+    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0x9413e35223627e1e3e258c5a0dcff30cb13a3be45a92acf3e615b4925cbd1663;
 
     uint256 s_fees;
     bytes32 public DOMAIN_SEPARATOR;
@@ -546,7 +552,7 @@ contract SafeTransfer is AccessControl {
         emit ERC721Retrieved(token, from, to, id, tokenId);
     }
 
-    // --------------------------------- Hidden ETH ---------------------------------
+    // ----------------------- Hidden ETH / ERC-20 / ERC-721 -----------------------
 
     function hiddenDeposit(bytes32 id1) 
         payable external
@@ -599,7 +605,7 @@ contract SafeTransfer is AccessControl {
         external
         onlyActivator()
     {
-        bytes32 id1 = keccak256(abi.encode(HCOLLECT_TYPEHASH, from, to, value, fees, secretHash));
+        bytes32 id1 = keccak256(abi.encode(HIDDEN_COLLECT_TYPEHASH, from, to, value, fees, secretHash));
         require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
         bytes32 id = keccak256(abi.encode(from, value.add(fees), id1));
         uint256 tr = s_htransfers[id];
@@ -614,7 +620,7 @@ contract SafeTransfer is AccessControl {
 
     function hiddenCollectERC20(
         address from,
-        address payable to,
+        address to,
         address token,
         string memory tokenSymbol,
         uint256 value,
@@ -629,7 +635,7 @@ contract SafeTransfer is AccessControl {
         onlyActivator()
     {
         TokenInfo memory tinfo;
-        tinfo.id1 = keccak256(abi.encode(HCOLLECT_TYPEHASH, from, to, token, tokenSymbol, value, fees, secretHash));
+        tinfo.id1 = keccak256(abi.encode(HIDDEN_ERC20_COLLECT_TYPEHASH, from, to, token, tokenSymbol, value, fees, secretHash));
         require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
         tinfo.id = keccak256(abi.encode(from, value.add(fees), tinfo.id1));
         uint256 tr = s_htransfers[tinfo.id];
@@ -645,7 +651,7 @@ contract SafeTransfer is AccessControl {
 
     function hiddenCollectERC721(
         address from,
-        address payable to,
+        address to,
         address token,
         string memory tokenSymbol,
         uint256 tokenId,
@@ -661,7 +667,7 @@ contract SafeTransfer is AccessControl {
         onlyActivator()
     {
         TokenInfo memory tinfo;
-        tinfo.id1 = keccak256(abi.encode(HCOLLECT_TYPEHASH, from, to, token, tokenSymbol, tokenId, tokenData, fees, secretHash));
+        tinfo.id1 = keccak256(abi.encode(HIDDEN_ERC721_COLLECT_TYPEHASH, from, to, token, tokenSymbol, tokenId, tokenData, fees, secretHash));
         require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
         tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
         require(s_htransfers[tinfo.id] > 0, "SafeTransfer: request not exist");
