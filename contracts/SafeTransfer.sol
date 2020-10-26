@@ -14,10 +14,26 @@ contract SafeTransfer is AccessControl {
     // keccak256("ACTIVATOR_ROLE");
     bytes32 public constant ACTIVATOR_ROLE = 0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
+    // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
+    bytes32 public constant HCOLLECT_TYPEHASH = 0x541b4c0bcee958aeb1bf4a65757a6a41c1272dadbf46e2ded925bd53104ec8a7;
+
     uint256 s_fees;
+    bytes32 public DOMAIN_SEPARATOR;
+    string public constant NAME = "Kirobo Safe Transfer";
+    string public constant VERSION = "1";
+    uint256 public CHAIN_ID;
+    bytes32 s_uid;
+    uint8 public constant VERSION_NUMBER = 0x1;
+
+    struct TokenInfo {
+        bytes32 id;
+        bytes32 id1;
+    }
+
     mapping(bytes32 => uint256) s_transfers;
     mapping(bytes32 => uint256) s_erc20Transfers;
     mapping(bytes32 => uint256) s_erc721Transfers;
+    mapping(bytes32 => uint256) s_htransfers;
 
     event Deposited(
         address indexed from,
@@ -123,6 +139,49 @@ contract SafeTransfer is AccessControl {
         uint256 tokenId
     );
 
+    event HDeposited(
+        address indexed from,
+        uint256 value,
+        bytes32 indexed id1
+    );
+
+    event HTimedDeposited(
+        address indexed from,
+        uint256 value,
+        bytes32 indexed id1,
+        uint64 expiresAt,
+        uint128 depositFees
+    );
+
+    event HRetrieved(
+        address indexed from,
+        bytes32 indexed id1,
+        uint256 value
+    );
+
+    event HCollected(
+        address indexed from,
+        address indexed to,
+        bytes32 indexed id1,
+        uint256 value
+    );
+
+    event HERC20Collected(
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        bytes32 id1,
+        uint256 value
+    );
+
+    event HERC721Collected(
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        bytes32 id1,
+        uint256 tokenId
+    );
+
     modifier onlyActivator() {
         require(hasRole(ACTIVATOR_ROLE, msg.sender), "SafeTransfer: not an activator");    
         _;
@@ -133,6 +192,31 @@ contract SafeTransfer is AccessControl {
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
         s_fees = 1; // TODO: remove
+
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+
+        CHAIN_ID = chainId;
+
+        s_uid = bytes32(
+          uint256(VERSION_NUMBER) << 248 |
+          uint256(blockhash(block.number-1)) << 192 >> 16 |
+          uint256(address(this))
+        );
+
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"),
+                keccak256(bytes(NAME)),
+                keccak256(bytes(VERSION)),
+                chainId,
+                address(this),
+                s_uid
+            )
+        );
+
     }
 
     receive () external payable {
@@ -154,6 +238,10 @@ contract SafeTransfer is AccessControl {
 
     function totalFees() external view returns (uint256) {
         return s_fees;
+    }
+
+    function uid() view external returns (bytes32) {
+        return s_uid;
     }
 
     // --------------------------------- ETH ---------------------------------
@@ -458,5 +546,148 @@ contract SafeTransfer is AccessControl {
         emit ERC721Retrieved(token, from, to, id, tokenId);
     }
 
+    // --------------------------------- Hidden ETH ---------------------------------
+
+    function hiddenDeposit(bytes32 id1) 
+        payable external
+    {
+        require(msg.value > 0, "SafeTransfer: no value");
+        bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
+        require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
+        s_htransfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
+        emit HDeposited(msg.sender, msg.value, id1);
+    }
+
+    function hiddenTimedDeposit(
+        bytes32 id1,
+        uint64 expiresAt,
+        uint128 depositFees
+    ) 
+        payable external
+    {
+        require(msg.value > 0, "SafeTransfer: no value");
+        bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
+        require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
+        s_htransfers[id] = uint256(expiresAt) + (uint256(depositFees) << 64);
+        emit HTimedDeposited(msg.sender, msg.value, id1, expiresAt, depositFees);
+    }
+
+    function hiddenRetrieve(
+        bytes32 id1,
+        uint256 value
+    )   
+        external 
+    {
+        bytes32 id = keccak256(abi.encode(msg.sender, value, id1));
+        require(s_htransfers[id]  > 0, "SafeTransfer: request not exist");
+        delete s_htransfers[id];
+        msg.sender.transfer(value);
+        emit HRetrieved(msg.sender, id1, value);
+    }
+
+    function hiddenCollect(
+        address from,
+        address payable to,
+        uint256 value,
+        uint256 fees,
+        bytes32 secretHash,
+        bytes calldata secret,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) 
+        external
+        onlyActivator()
+    {
+        bytes32 id1 = keccak256(abi.encode(HCOLLECT_TYPEHASH, from, to, value, fees, secretHash));
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
+        bytes32 id = keccak256(abi.encode(from, value.add(fees), id1));
+        uint256 tr = s_htransfers[id];
+        require(tr > 0, "SafeTransfer: request not exist");
+        require(uint64(tr) > now, "SafeTranfer: expired");
+        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+        delete s_htransfers[id];
+        s_fees = s_fees.add(fees);
+        to.transfer(value);
+        emit HCollected(from, to, id1, value);
+    }
+
+    function hiddenCollectERC20(
+        address from,
+        address payable to,
+        address token,
+        string memory tokenSymbol,
+        uint256 value,
+        uint256 fees,
+        bytes32 secretHash,
+        bytes calldata secret,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) 
+        external
+        onlyActivator()
+    {
+        TokenInfo memory tinfo;
+        tinfo.id1 = keccak256(abi.encode(HCOLLECT_TYPEHASH, from, to, token, tokenSymbol, value, fees, secretHash));
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
+        tinfo.id = keccak256(abi.encode(from, value.add(fees), tinfo.id1));
+        uint256 tr = s_htransfers[tinfo.id];
+        require(tr > 0, "SafeTransfer: request not exist");
+        require(uint64(tr) > now, "SafeTranfer: expired");
+        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+        delete s_htransfers[tinfo.id];
+        s_fees = s_fees.add(fees);
+        IERC20(token).safeTransferFrom(from, to, value);
+        emit HERC20Collected(token, from, to, tinfo.id1, value);
+    }
+
+
+    function hiddenCollectERC721(
+        address from,
+        address payable to,
+        address token,
+        string memory tokenSymbol,
+        uint256 tokenId,
+        bytes memory tokenData,
+        uint256 fees,
+        bytes32 secretHash,
+        bytes calldata secret,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) 
+        external
+        onlyActivator()
+    {
+        TokenInfo memory tinfo;
+        tinfo.id1 = keccak256(abi.encode(HCOLLECT_TYPEHASH, from, to, token, tokenSymbol, tokenId, tokenData, fees, secretHash));
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
+        tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
+        require(s_htransfers[tinfo.id] > 0, "SafeTransfer: request not exist");
+        require(uint64(s_htransfers[tinfo.id]) > now, "SafeTranfer: expired");
+        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+        delete s_htransfers[tinfo.id];
+        s_fees = s_fees.add(fees);
+        IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
+        emit HERC721Collected(token, from, to, tinfo.id1, tokenId);
+    }
+
+   function hiddenCancel(
+        address payable from,
+        bytes32 id1,
+        uint256 value
+    ) 
+        external
+        onlyActivator()
+    {
+        bytes32 id = keccak256(abi.encode(from, value, id1));
+        require(s_htransfers[id] > 0, "SafeTransfer: request not exist");
+        uint256 tr = s_htransfers[id];
+        require(uint64(tr) <= now, "SafeTranfer: not expired");
+        delete  s_htransfers[id];
+        from.transfer(value);
+        emit HRetrieved(from, id1, value);
+    }
 
 }
