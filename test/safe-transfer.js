@@ -24,7 +24,7 @@ const {
 } = require('./lib/asserts')
 
 contract('SafeTransfer', async accounts => {
-  let token, st, nonce, targetSupply, duration, initialSupply
+  let token, tokenSymbol, st, nonce, targetSupply, duration, initialSupply
 
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
@@ -64,6 +64,11 @@ contract('SafeTransfer', async accounts => {
     mlog.log('val1                    ', val1)
     mlog.log('val2                    ', val2)
     mlog.log('val3                    ', val3)
+
+    await token.mint(user1, 1e10, { from: tokenOwner })
+    await token.mint(user2, 1e10, { from: tokenOwner })
+    await token.mint(user3, 1e10, { from: tokenOwner })
+    tokenSymbol = await token.symbol()
   })
 
   it('should create an empty contract', async () => {
@@ -94,6 +99,33 @@ contract('SafeTransfer', async accounts => {
     const secretHash = web3.utils.sha3(secret)
     await st.timedDeposit(user3, 600, 100, secretHash, (new Date()).getTime()+10000, 0, { from: user2, value: 700 })
     await st.collect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
+  })
+
+  it('should be able to make an erc20 transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await token.approve(st.address, 1e12, { from: user2 })
+    await st.depositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, { from: user2, value: 100 })
+  })
+
+  it('should be able to retrieve an erc20 transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await st.retrieveERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, { from: user2 })
+  })
+
+  it('should be able to collect an erc20 transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await st.depositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, { from: user2, value: 100 })
+    await st.collectERC20(token.address, tokenSymbol, user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
+  })
+
+  it('should be able to collect an erc20 transfer timed request', async () => {
+    const secret = 'my secret'
+    const secretHash = web3.utils.sha3(secret)
+    await st.timedDepositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, (new Date()).getTime()+10000, 0, { from: user2, value: 100 })
+    await st.collectERC20(token.address, tokenSymbol, user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
   })
 
 })
