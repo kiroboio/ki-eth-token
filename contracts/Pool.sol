@@ -170,8 +170,8 @@ contract Pool is Claimable {
     // keccak256("payment(address from,uint256 value,uint256 nonce)");
     bytes32 public constant PAYMENT_TYPEHASH = 0x841d82f71fa4558203bb763733f6b3326ecaf324143e12fb9b6a9ed958fc4ee0;
 
-    // keccak256("buyTokens(address recipient, uint256 eth, uint256 kiro, uint256 expires)");
-    bytes32 public constant BUY_TYPEHASH = 0x7816c1e3a56076b03c6214d34bbdadc79cdd66eb94c155383e2cfc036c1f378d;
+    // keccak256("buyTokens(address recipient,uint256 eth,uint256 kiro,uint256 expires)");
+    bytes32 public constant BUY_TYPEHASH = 0x866880cdfbc2380b3f4581d70707601f3d190bc04c3ee9cfcdac070a5f87b758;
 
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);

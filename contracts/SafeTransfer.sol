@@ -14,14 +14,14 @@ contract SafeTransfer is AccessControl {
     // keccak256("ACTIVATOR_ROLE");
     bytes32 public constant ACTIVATOR_ROLE = 0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
-    // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
-    bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x541b4c0bcee958aeb1bf4a65757a6a41c1272dadbf46e2ded925bd53104ec8a7;
+    // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash)");
+    bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
 
-    // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
-    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x71a5daa17234b3888ca5e7882e4a30651bf29ef3998f01f965a90df027214970;
+    // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash)");
+    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
 
-    // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
-    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xb8501bbe3175d350e049e5c0c45f8c6c6fae8064f7b2f31d410c1cf9ca64be95;
+    // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash)");
+    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
 
     uint256 s_fees;
     bytes32 public DOMAIN_SEPARATOR;
