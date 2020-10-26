@@ -197,7 +197,7 @@ contract SafeTransfer is AccessControl {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
-        s_fees = 1; // TODO: remove
+        // s_fees = 1; // TODO: remove
 
         uint256 chainId;
         assembly {
