@@ -17,11 +17,11 @@ contract SafeTransfer is AccessControl {
     // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
     bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x541b4c0bcee958aeb1bf4a65757a6a41c1272dadbf46e2ded925bd53104ec8a7;
 
-    // keccak256("hiddenCollectERC20(address token,string tokenSymbol,address token, string symbol, address from,address to,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
-    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x2a191dead96a63be0cbc4dbb8079c7627a461c5cc3b15b68a58cb9e25bfc1142;
+    // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
+    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x71a5daa17234b3888ca5e7882e4a30651bf29ef3998f01f965a90df027214970;
 
-    // keccak256("hiddenCollectERC721(address token,string tokenSymbol,address token, string symbol, address from,address to,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
-    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0x9413e35223627e1e3e258c5a0dcff30cb13a3be45a92acf3e615b4925cbd1663;
+    // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash,bytes secret,uint8 v,bytes32 r,bytes32 s)");
+    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xb8501bbe3175d350e049e5c0c45f8c6c6fae8064f7b2f31d410c1cf9ca64be95;
 
     uint256 s_fees;
     bytes32 public DOMAIN_SEPARATOR;
@@ -647,7 +647,6 @@ contract SafeTransfer is AccessControl {
         IERC20(token).safeTransferFrom(from, to, value);
         emit HERC20Collected(token, from, to, tinfo.id1, value);
     }
-
 
     function hiddenCollectERC721(
         address from,
