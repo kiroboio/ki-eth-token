@@ -201,7 +201,7 @@ contract SafeTransfer is AccessControl {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
-        // s_fees = 1; // TODO: remove
+        s_fees = 1; // TODO: remove
 
         uint256 chainId;
         assembly {
@@ -268,7 +268,7 @@ contract SafeTransfer is AccessControl {
         require(value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
+        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, depositFees: 0
         emit Deposited(msg.sender, to, value, fees, secretHash);
     }
 
@@ -287,7 +287,7 @@ contract SafeTransfer is AccessControl {
         require(value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 128) + (uint256(depositFees) << 128);
+        s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(depositFees) << 128);
         emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, depositFees);
     }
 
@@ -344,7 +344,6 @@ contract SafeTransfer is AccessControl {
         require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_transfers[id];
         from.transfer(value.add(fees));
         emit Retrieved(from, to, id, value.add(fees));
@@ -366,7 +365,7 @@ contract SafeTransfer is AccessControl {
         require(value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
         require(s_erc20Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc20Transfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
+        s_erc20Transfers[id] = 0xffffffffffffffff;
         emit ERC20Deposited(token, msg.sender, to, value, fees, secretHash);
     }
 
@@ -449,7 +448,6 @@ contract SafeTransfer is AccessControl {
         require(s_erc20Transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_erc20Transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_erc20Transfers[id];
         from.transfer(fees);
         emit ERC20Retrieved(token, from, to, id, value);
@@ -472,7 +470,7 @@ contract SafeTransfer is AccessControl {
         require(tokenId > 0, "SafeTransfer: no token id");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc721Transfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
+        s_erc721Transfers[id] = 0xffffffffffffffff;
         emit ERC721Deposited(token, msg.sender, to, tokenId, fees, secretHash);
     }
 
@@ -559,7 +557,6 @@ contract SafeTransfer is AccessControl {
         require(s_erc721Transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_erc721Transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_erc721Transfers[id];
         from.transfer(fees);
         emit ERC721Retrieved(token, from, to, id, tokenId);
@@ -573,7 +570,7 @@ contract SafeTransfer is AccessControl {
         require(msg.value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
-        s_htransfers[id] = 0xffffffffffffffff; // expiresAt: max, depositFees: 0
+        s_htransfers[id] = 0xffffffffffffffff;
         emit HDeposited(msg.sender, msg.value, id1);
     }
 
@@ -687,8 +684,8 @@ contract SafeTransfer is AccessControl {
         tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
         require(s_htransfers[tinfo.id] > 0, "SafeTransfer: request not exist");
         require(uint64(s_htransfers[tinfo.id]) > now, "SafeTranfer: expired");
-         require(uint64(s_htransfers[tinfo.id]>>64) <= now, "SafeTranfer: not available yet");
-       require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+        require(uint64(s_htransfers[tinfo.id]>>64) <= now, "SafeTranfer: not available yet");
+        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_htransfers[tinfo.id];
         s_fees = s_fees.add(fees);
         IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
@@ -707,7 +704,6 @@ contract SafeTransfer is AccessControl {
         require(s_htransfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_htransfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         delete  s_htransfers[id];
         from.transfer(value);
         emit HRetrieved(from, id1, value);
