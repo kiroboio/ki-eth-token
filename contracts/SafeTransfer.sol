@@ -23,14 +23,11 @@ contract SafeTransfer is AccessControl {
     // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash)");
     bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
 
-    uint256 s_fees;
     bytes32 public DOMAIN_SEPARATOR;
-    string public constant NAME = "Kirobo Safe Transfer";
-    string public constant VERSION = "1";
     uint256 public CHAIN_ID;
     bytes32 s_uid;
-    uint8 public constant VERSION_NUMBER = 0x1;
-
+    uint256 s_fees;
+    
     struct TokenInfo {
         bytes32 id;
         bytes32 id1;
@@ -40,6 +37,10 @@ contract SafeTransfer is AccessControl {
     mapping(bytes32 => uint256) s_erc20Transfers;
     mapping(bytes32 => uint256) s_erc721Transfers;
     mapping(bytes32 => uint256) s_htransfers;
+
+    string public constant NAME = "Kirobo Safe Transfer";
+    string public constant VERSION = "1";
+    uint8 public constant VERSION_NUMBER = 0x1;
 
     event Deposited(
         address indexed from,
@@ -201,7 +202,7 @@ contract SafeTransfer is AccessControl {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
-        s_fees = 1; // TODO: remove
+        // s_fees = 1; // TODO: remove
 
         uint256 chainId;
         assembly {
@@ -266,6 +267,7 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
         require(value > 0, "SafeTransfer: no value");
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
         s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, depositFees: 0
@@ -285,6 +287,7 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == value.add(fees).add(depositFees), "SafeTransfer: value mismatch");
         require(value > 0, "SafeTransfer: no value");
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
         s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(depositFees) << 128);
@@ -363,6 +366,7 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
         require(value > 0, "SafeTransfer: no value");
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
         require(s_erc20Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc20Transfers[id] = 0xffffffffffffffff;
@@ -384,6 +388,7 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
         require(value > 0, "SafeTransfer: no value");
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
         require(s_erc20Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc20Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
@@ -468,6 +473,7 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
         require(tokenId > 0, "SafeTransfer: no token id");
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc721Transfers[id] = 0xffffffffffffffff;
@@ -490,6 +496,7 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
         require(tokenId > 0, "SafeTransfer: no token id");
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc721Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
