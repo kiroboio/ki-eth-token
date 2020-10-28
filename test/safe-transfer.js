@@ -15,6 +15,7 @@ const {
   advanceTime,
   advanceTimeAndBlock,
   trNonce,
+  getLatestBlockTimestamp,
 } = require('./lib/utils')
 
 const {
@@ -106,8 +107,18 @@ contract('SafeTransfer', async accounts => {
   it('should be able to collect a transfer timed request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
-    await st.timedDeposit(user3, 600, 100, secretHash, 0, (new Date()).getTime()+10000, 0, { from: user2, value: 700 })
+    const now = await getLatestBlockTimestamp()
+    await st.timedDeposit(user3, 600, 100, secretHash, 0, now+10000, 0, { from: user2, value: 700 })
     await st.collect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
+  })
+
+  it('should be able to auto retrieve a transfer timed request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const now = await getLatestBlockTimestamp()
+    await st.timedDeposit(user3, 600, 100, secretHash, 0, now+10000, 0, { from: user2, value: 700 })
+    advanceTimeAndBlock(10000)
+    await st.autoRetrieve(user2, user3, 600, 100, secretHash, { from: user1 })
   })
 
   it('should be able to make an erc20 transfer request', async () => {
@@ -133,7 +144,8 @@ contract('SafeTransfer', async accounts => {
   it('should be able to collect an erc20 transfer timed request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
-    await st.timedDepositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, 0, (new Date()).getTime()+10000, 0, { from: user2, value: 100 })
+    const now = await getLatestBlockTimestamp()
+    await st.timedDepositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, 0, now+10000, 0, { from: user2, value: 100 })
     await st.collectERC20(token.address, tokenSymbol, user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
   })
 

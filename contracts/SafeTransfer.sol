@@ -58,7 +58,7 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     );
     
     event Retrieved(
@@ -93,7 +93,7 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     );
 
     event ERC20Retrieved(
@@ -130,7 +130,7 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     );
 
     event ERC721Retrieved(
@@ -161,7 +161,7 @@ contract SafeTransfer is AccessControl {
         bytes32 indexed id1,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     );
 
     event HRetrieved(
@@ -269,7 +269,7 @@ contract SafeTransfer is AccessControl {
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, depositFees: 0
+        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
         emit Deposited(msg.sender, to, value, fees, secretHash);
     }
 
@@ -280,18 +280,19 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     ) 
         payable external
     {
-        require(msg.value == value.add(fees).add(depositFees), "SafeTransfer: value mismatch");
+        require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
+        require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
         require(value > 0, "SafeTransfer: no value");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         require(expiresAt > now, "SafeTransfer: already expired");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(depositFees) << 128);
-        emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, depositFees);
+        s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+        emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
     }
 
     function retrieve(
@@ -333,7 +334,7 @@ contract SafeTransfer is AccessControl {
         emit Collected(from, to, id, value);
     }
 
-   function cancel(
+   function autoRetrieve(
         address payable from,
         address to,
         uint256 value,
@@ -348,8 +349,10 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_transfers[id];
-        from.transfer(value.add(fees));
-        emit Retrieved(from, to, id, value.add(fees));
+        s_fees = s_fees + (tr>>128); // autoRetreive fees
+        uint256 valueToRetrieve = value.add(fees).sub(tr>>128);
+        from.transfer(valueToRetrieve);
+        emit Retrieved(from, to, id, valueToRetrieve);
     }
 
     // ------------------------------- ERC-20 --------------------------------
@@ -382,18 +385,19 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     ) 
         payable external
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
+        require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
         require(value > 0, "SafeTransfer: no value");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         require(expiresAt > now, "SafeTransfer: already expired");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
         require(s_erc20Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc20Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
-        emit ERC20TimedDeposited(token, msg.sender, to, value, fees, secretHash, availableAt, expiresAt, depositFees);
+        s_erc20Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
+        emit ERC20TimedDeposited(token, msg.sender, to, value, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
     }
 
     function retrieveERC20(
@@ -438,7 +442,7 @@ contract SafeTransfer is AccessControl {
         emit ERC20Collected(token, from, to, id, value);
     }
 
-   function cancelERC20(
+   function autoRetrieveERC20(
         address token,
         string calldata tokenSymbol,
         address payable from,
@@ -455,7 +459,8 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_erc20Transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_erc20Transfers[id];
-        from.transfer(fees);
+        s_fees = s_fees + (tr>>128); // autoRetreive fees
+        from.transfer(fees.sub(tr>>128));
         emit ERC20Retrieved(token, from, to, id, value);
     }
 
@@ -491,18 +496,19 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     ) 
         payable external
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
+        require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
         require(tokenId > 0, "SafeTransfer: no token id");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         require(expiresAt > now, "SafeTransfer: already expired");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc721Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
-        emit ERC721TimedDeposited(token, msg.sender, to, tokenId, fees, secretHash, availableAt, expiresAt, depositFees);
+        s_erc721Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
+        emit ERC721TimedDeposited(token, msg.sender, to, tokenId, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
     }
 
     function retrieveERC721(
@@ -549,7 +555,7 @@ contract SafeTransfer is AccessControl {
         emit ERC721Collected(token, from, to, id, tokenId);
     }
 
-   function cancelERC721(
+   function autoRetrieveERC721(
         address token,
         string calldata tokenSymbol,
         address payable from,
@@ -567,7 +573,8 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_erc721Transfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_erc721Transfers[id];
-        from.transfer(fees);
+        s_fees = s_fees + (tr>>128); // autoRetreive fees
+        from.transfer(fees.sub(tr>>128));
         emit ERC721Retrieved(token, from, to, id, tokenId);
     }
 
@@ -587,16 +594,17 @@ contract SafeTransfer is AccessControl {
         bytes32 id1,
         uint64 availableAt,
         uint64 expiresAt,
-        uint128 depositFees
+        uint128 autoRetrieveFees
     ) 
         payable external
     {
         require(msg.value > 0, "SafeTransfer: no value");
+        require(msg.value >= autoRetrieveFees, "SafeTransfers: autoRetrieveFees exeed value");
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeTransfer: request exist");
         require(expiresAt > now, "SafeTransfer: already expired"); 
-        s_htransfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(depositFees) << 128);
-        emit HTimedDeposited(msg.sender, msg.value, id1, availableAt, expiresAt, depositFees);
+        s_htransfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
+        emit HTimedDeposited(msg.sender, msg.value, id1, availableAt, expiresAt, autoRetrieveFees);
     }
 
     function hiddenRetrieve(
@@ -659,7 +667,7 @@ contract SafeTransfer is AccessControl {
         TokenInfo memory tinfo;
         tinfo.id1 = keccak256(abi.encode(HIDDEN_ERC20_COLLECT_TYPEHASH, from, to, token, tokenSymbol, value, fees, secretHash));
         require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
-        tinfo.id = keccak256(abi.encode(from, value.add(fees), tinfo.id1));
+        tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
         uint256 tr = s_htransfers[tinfo.id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
@@ -702,7 +710,7 @@ contract SafeTransfer is AccessControl {
         emit HERC721Collected(token, from, to, tinfo.id1, tokenId);
     }
 
-   function hiddenCancel(
+   function hiddenAutoRetrieve(
         address payable from,
         bytes32 id1,
         uint256 value
@@ -715,8 +723,10 @@ contract SafeTransfer is AccessControl {
         uint256 tr = s_htransfers[id];
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_htransfers[id];
-        from.transfer(value);
-        emit HRetrieved(from, id1, value);
+        s_fees = s_fees + (tr>>128);
+        uint256 toRetrieve = value.sub(tr>>128);
+        from.transfer(toRetrieve);
+        emit HRetrieved(from, id1, toRetrieve);
     }
 
 }
