@@ -265,7 +265,6 @@ contract SafeTransfer is AccessControl {
         payable external
     {
         require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
-        require(value > 0, "SafeTransfer: no value");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
@@ -286,7 +285,6 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
         require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
-        require(value > 0, "SafeTransfer: no value");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         require(expiresAt > now, "SafeTransfer: already expired");
         bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
@@ -368,7 +366,6 @@ contract SafeTransfer is AccessControl {
         payable external
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
-        require(value > 0, "SafeTransfer: no value");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
         require(s_erc20Transfers[id] == 0, "SafeTransfer: request exist"); 
@@ -391,7 +388,6 @@ contract SafeTransfer is AccessControl {
     {
         require(msg.value == fees, "SafeTransfer: msg.value must match fees");
         require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
-        require(value > 0, "SafeTransfer: no value");
         require(to != msg.sender, "SafeTransfer: sender==recipient");
         require(expiresAt > now, "SafeTransfer: already expired");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, value, fees, secretHash));
@@ -583,7 +579,6 @@ contract SafeTransfer is AccessControl {
     function hiddenDeposit(bytes32 id1) 
         payable external
     {
-        require(msg.value > 0, "SafeTransfer: no value");
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
         s_htransfers[id] = 0xffffffffffffffff;
@@ -598,7 +593,6 @@ contract SafeTransfer is AccessControl {
     ) 
         payable external
     {
-        require(msg.value > 0, "SafeTransfer: no value");
         require(msg.value >= autoRetrieveFees, "SafeTransfers: autoRetrieveFees exeed value");
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeTransfer: request exist");
