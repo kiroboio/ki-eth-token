@@ -31,6 +31,7 @@ contract SafeTransfer is AccessControl {
     struct TokenInfo {
         bytes32 id;
         bytes32 id1;
+        uint256 tr;
     }
 
     mapping(bytes32 => uint256) s_transfers;
@@ -694,9 +695,10 @@ contract SafeTransfer is AccessControl {
         tinfo.id1 = keccak256(abi.encode(HIDDEN_ERC721_COLLECT_TYPEHASH, from, to, token, tokenSymbol, tokenId, tokenData, fees, secretHash));
         require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
         tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
-        require(s_htransfers[tinfo.id] > 0, "SafeTransfer: request not exist");
-        require(uint64(s_htransfers[tinfo.id]) > now, "SafeTranfer: expired");
-        require(uint64(s_htransfers[tinfo.id]>>64) <= now, "SafeTranfer: not available yet");
+        tinfo.tr = s_htransfers[tinfo.id]; 
+        require(tinfo.tr > 0, "SafeTransfer: request not exist");
+        require(uint64(tinfo.tr) > now, "SafeTranfer: expired");
+        require(uint64(tinfo.tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_htransfers[tinfo.id];
         s_fees = s_fees.add(fees);
