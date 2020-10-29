@@ -345,8 +345,8 @@ contract SafeTransfer is AccessControl {
         onlyActivator()
     {
         bytes32 id = keccak256(abi.encode(from, to, value, fees, secretHash));
-        require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_transfers[id];
+        require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_transfers[id];
         s_fees = s_fees + (tr>>128); // autoRetreive fees
@@ -455,8 +455,8 @@ contract SafeTransfer is AccessControl {
         onlyActivator()
     {
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, from, to, value, fees, secretHash));
-        require(s_erc20Transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_erc20Transfers[id];
+        require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_erc20Transfers[id];
         s_fees = s_fees + (tr>>128); // autoRetreive fees
@@ -569,8 +569,8 @@ contract SafeTransfer is AccessControl {
         onlyActivator()
     {
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, from, to, tokenId, tokenData, fees, secretHash));
-        require(s_erc721Transfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_erc721Transfers[id];
+        require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_erc721Transfers[id];
         s_fees = s_fees + (tr>>128); // autoRetreive fees
@@ -719,8 +719,8 @@ contract SafeTransfer is AccessControl {
         onlyActivator()
     {
         bytes32 id = keccak256(abi.encode(from, value, id1));
-        require(s_htransfers[id] > 0, "SafeTransfer: request not exist");
         uint256 tr = s_htransfers[id];
+        require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) <= now, "SafeTranfer: not expired");
         delete  s_htransfers[id];
         s_fees = s_fees + (tr>>128);
