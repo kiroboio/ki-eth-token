@@ -2,8 +2,8 @@
 pragma solidity 0.6.12;
 
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "./Claimable.sol";
 
 struct Account {
     uint256 nonce;  
@@ -141,7 +141,7 @@ struct Entities {
     address wallet;
 }
 
-contract Pool is Claimable {
+contract Pool is AccessControl {
     using AccountUtils for Account;
     using SupplyUtils for Supply;
     using SafeERC20 for IERC20;
@@ -163,6 +163,9 @@ contract Pool is Claimable {
     bytes32 public DOMAIN_SEPARATOR;
     bytes public DOMAIN_SEPARATOR_ASCII;
     uint256 public CHAIN_ID;
+
+    // keccak256("ADMIN_ROLE");
+    bytes32 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     // keccak256("acceptTokens(address recipient,uint256 value,bytes32 secretHash)");
     bytes32 public constant ACCEPT_TYPEHASH = 0xf728cfc064674dacd2ced2a03acd588dfd299d5e4716726c6d5ec364d16406eb;
@@ -189,8 +192,13 @@ contract Pool is Claimable {
     event MaxTokensPerIssueChanged(uint256 from, uint256 to);
     event MaxTokensPerBlockChanged(uint256 from, uint256 to);
 
-    modifier onlyAdmins() {
-        require(msg.sender == s_owner || msg.sender == s_entities.manager, "Pool: not owner or manager");
+    modifier onlyAdmin() {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Pool: not an admin");    
+        _;
+    }
+
+    modifier onlyManager() {
+        require(hasRole(ADMIN_ROLE, msg.sender) || msg.sender == s_entities.manager, "Pool: not admin or manager");
         _;
     }
 
@@ -199,6 +207,9 @@ contract Pool is Claimable {
         assembly {
             chainId := chainid()
         }
+
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(ADMIN_ROLE, msg.sender);
      
         s_entities.token = tokenContract;
         s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10*1000*(10**18), maxTokensPerBlock: 50*1000*(10**18)});
@@ -230,40 +241,40 @@ contract Pool is Claimable {
     }
 
 
-    // ----------- Owner Functions ------------
+    // ----------- Admin Functions ------------
 
 
-    function setManager(address manager) external onlyOwner() {
+    function setManager(address manager) external onlyAdmin() {
         require(manager != address(this), "Pool: self cannot be mananger");
         require(manager != s_entities.token, "Pool: token cannot be manager");
         emit ManagerChanged(s_entities.manager, manager);
         s_entities.manager = manager;
     }
 
-    function setWallet(address wallet) external onlyOwner() {
+    function setWallet(address wallet) external onlyAdmin() {
         require(wallet != address(this), "Pool: self cannot be wallet");
         require(wallet != s_entities.token, "Pool: token cannot be wallt");
         emit WalletChanged(s_entities.wallet, wallet);
         s_entities.wallet = wallet;
     }
 
-    function setReleaseDelay(uint256 blocks) external onlyOwner() {
+    function setReleaseDelay(uint256 blocks) external onlyAdmin() {
         require(blocks <= MAX_RELEASE_DELAY, "Pool: exeeds max release delay");
         emit ReleaseDelayChanged(s_limits.releaseDelay, blocks);
         s_limits.releaseDelay = blocks;
     }
 
-    function setMaxTokensPerIssue(uint256 tokens) external onlyOwner() {
+    function setMaxTokensPerIssue(uint256 tokens) external onlyAdmin() {
         emit MaxTokensPerIssueChanged(s_limits.maxTokensPerIssue, tokens);
         s_limits.maxTokensPerIssue = tokens;
     }
 
-    function setMaxTokensPerBlock(uint256 tokens) external onlyOwner() {
+    function setMaxTokensPerBlock(uint256 tokens) external onlyAdmin() {
         emit MaxTokensPerBlockChanged(s_limits.maxTokensPerBlock, tokens);
         s_limits.maxTokensPerBlock = tokens;
     }
 
-    function resyncTotalSupply(uint256 value) external onlyAdmins() returns (uint256) {
+    function resyncTotalSupply(uint256 value) external onlyManager() returns (uint256) {
         uint256 tokens = ownedTokens();
         require(tokens >= s_supply.total, "Pool: internal error, check contract logic"); 
         require(value >= s_supply.total, "Pool: only transferTokens can decrease total supply");
@@ -275,20 +286,20 @@ contract Pool is Claimable {
     // ----------- Admins Functions ------------
 
 
-    function transferEther(uint256 value) external onlyAdmins() {
+    function transferEther(uint256 value) external onlyManager() {
         require(s_entities.wallet != address(0), "Pool: wallet not set");
         payable(s_entities.wallet).transfer(value);
         emit EtherTransfered(s_entities.wallet, value);
     }
 
-    function transferTokens(uint256 value) external onlyAdmins() {
+    function transferTokens(uint256 value) external onlyManager() {
         require(s_entities.wallet != address(0), "Pool: wallet not set");
         s_supply.decrease(value);
         IERC20(s_entities.token).safeTransfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
     }
 
-    function distributeTokens(address to, uint256 value) external onlyAdmins() {
+    function distributeTokens(address to, uint256 value) external onlyManager() {
         _distributeTokens(to, value);
     }
     
@@ -311,7 +322,7 @@ contract Pool is Claimable {
      * @param value The number of tokens to issue.
      * @param secretHash The keccak256 of the confirmation secret.
     */
-    function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyAdmins() {
+    function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyManager() {
         require(value <= s_limits.maxTokensPerIssue, "Pool: exeeds max tokens per call");
         _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
@@ -334,7 +345,7 @@ contract Pool is Claimable {
         bool eip712
     )
         external 
-        onlyAdmins()
+        onlyManager()
     {
         require(s_accounts[recipient].secretHash == keccak256(c_secret), "Pool: wrong secret");
         require(
@@ -347,7 +358,7 @@ contract Pool is Claimable {
 
     function executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s, bool eip712)
         external
-        onlyAdmins()
+        onlyManager()
     {
         require(validatePayment(from, value, v, r, s, eip712), "Pool: wrong signature or data");
         Account storage sp_account = s_accounts[from];
