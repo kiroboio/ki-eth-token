@@ -204,6 +204,8 @@ contract SafeSwap is AccessControl {
     }
 
     constructor (address activator) public {
+        s_fees = 1; // only for testing
+
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
@@ -358,7 +360,7 @@ contract SafeSwap is AccessControl {
         emit Retrieved(msg.sender, to, id, valueToSend);
     }
 
-    function collect(
+    function swap(
         address payable from,
         address token0,
         uint256 value0,

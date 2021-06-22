@@ -106,7 +106,7 @@ contract('SafeSwap', async accounts => {
     const secretHash = sha3(secret)
     await token.approve(st.address, 1e12, { from: user1 })
     await st.deposit(user1, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 700 })
-    await st.collect(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret), { from: user1, value: 10 })
+    await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret), { from: user1, value: 10 })
   })
 /*
   it('should be able to collect a transfer timed request', async () => {
