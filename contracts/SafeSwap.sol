@@ -6,7 +6,7 @@ import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract SafeTransfer is AccessControl {
+contract SafeSwap is AccessControl {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -45,9 +45,13 @@ contract SafeTransfer is AccessControl {
     event Deposited(
         address indexed from,
         address indexed to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash
+        address indexed token0,
+        uint256 value0,
+        uint256 fees0,
+        bytes32 secretHash0,
+        address token1,
+        uint256 value1,
+        uint256 fees1
     );
     
     event TimedDeposited(
@@ -72,7 +76,8 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         address indexed to,
         bytes32 indexed id,
-        uint256 value
+        uint256 value0,
+        uint256 value1
     );
 
     event ERC20Deposited(
@@ -258,25 +263,58 @@ contract SafeTransfer is AccessControl {
 
     function deposit(
         address payable to,
-        uint256 value,
-        uint256 fees,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
         bytes32 secretHash
     ) 
         payable external
     {
-        require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
+        if (token0 == address(0)) {
+            require(msg.value == value0.add(fees0), "SafeTransfer: value mismatch");
+        } else {
+            require(msg.value == fees0, "SafeTransfer: value mismatch");
+        }
         require(to != msg.sender, "SafeTransfer: sender==recipient");
-        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
+        bytes32 id = keccak256(abi.encode(msg.sender, to, token0, value0, fees0, token1, value1, fees1, secretHash));
         require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
         s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit Deposited(msg.sender, to, value, fees, secretHash);
+        emit Deposited(msg.sender, to, token0, value0, fees0, secretHash, token1, value1, fees1);
     }
-
+/*
+    function deposit2(
+        address payable to,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        bytes32 secretHash0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
+        bytes32 secretHash1
+    ) 
+        payable external
+    {
+        if (token1 == addrerss(0)) {
+            require(msg.value == value1.add(fees1), "SafeTransfer: value mismatch");
+        } else {
+            require(msg.value == fees1, "SafeTransfer: value mismatch");
+        }
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
+        bytes32 id = keccak256(abi.encode(to, msg.sender, token0, value0, fees0, secretHash0, token1, value1));
+        require(s_transfers[id] != 0, "SafeTransfer: request not exist"); 
+        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
+        emit Deposited(msg.sender, to, token0, value0, fees0, secretHash0, token1, value1);
+    }
     function timedDeposit(
         address payable to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        bytes32 secretHash0,
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
@@ -293,45 +331,68 @@ contract SafeTransfer is AccessControl {
         emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
     }
 
+*/
+
     function retrieve(
-        address payable to,
-        uint256 value,
-        uint256 fees,
+        address to,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
         bytes32 secretHash
     )   
-        external 
+        external
     {
-        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
+        bytes32 id = keccak256(abi.encode(msg.sender, to, token0, value0, fees0, token1, value1, fees1, secretHash));
         require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         delete s_transfers[id];
-        uint256 valueToSend = value.add(fees);
+        uint256 valueToSend;
+        if (token0 == address(0)) {
+            valueToSend = value0.add(fees0);
+        } else {
+            valueToSend = fees0;
+        }
         msg.sender.transfer(valueToSend);
         emit Retrieved(msg.sender, to, id, valueToSend);
     }
 
     function collect(
-        address from,
-        address payable to,
-        uint256 value,
-        uint256 fees,
+        address payable from,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,       
         bytes32 secretHash,
         bytes calldata secret
     ) 
-        external
-        onlyActivator()
+        payable external
     {
-        bytes32 id = keccak256(abi.encode(from, to, value, fees, secretHash));
+        require(token0 != token1, "SafeTransfer: try to swap the same token");
+        bytes32 id = keccak256(abi.encode(from, msg.sender, token0, value0, fees0, token1, value1, fees1, secretHash));
         uint256 tr = s_transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
         require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_transfers[id];
-        s_fees = s_fees.add(fees);
-        to.transfer(value);
-        emit Collected(from, to, id, value);
+        s_fees = s_fees.add(fees0).add(fees1);
+        if (token0 == address(0)) {
+            msg.sender.transfer(value0);
+        } else {
+            IERC20(token0).safeTransferFrom(from, msg.sender, value0);
+        }
+        if (token1 == address(0)) {
+            from.transfer(value1);
+        } else {
+            IERC20(token1).safeTransferFrom(msg.sender, from, value1);
+        }
+        emit Collected(from, msg.sender, id, value0, value1);
     }
-
+/*
    function autoRetrieve(
         address payable from,
         address to,
@@ -415,7 +476,6 @@ contract SafeTransfer is AccessControl {
 
     function collectERC20(
         address token,
-        string calldata tokenSymbol,
         address from,
         address payable to,
         uint256 value,
@@ -423,10 +483,10 @@ contract SafeTransfer is AccessControl {
         bytes32 secretHash,
         bytes calldata secret
     ) 
-        external
+        public
         onlyActivator()
     {
-        bytes32 id = keccak256(abi.encode(token, tokenSymbol, from, to, value, fees, secretHash));
+        bytes32 id = keccak256(abi.encode(token, from, to, value, fees, secretHash));
         uint256 tr = s_erc20Transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
@@ -723,5 +783,34 @@ contract SafeTransfer is AccessControl {
         from.transfer(toRetrieve);
         emit HRetrieved(from, id1, toRetrieve);
     }
+
+    function swap(
+        address from,
+        address to,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        bytes32 secretHash0,
+        bytes calldata secret0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
+        bytes32 secretHash1,
+        bytes calldata secret1
+    ) 
+        external
+    {
+        if (token0 == address(0)) {
+            collect(from, payable(to), value0, fees0, secretHash0, secret0);
+        } else {
+            collectERC20(token0, from, payable(to), value0, fees0, secretHash0, secret0);
+        }
+        if (token1 == address(0)) {
+            collect(from, payable(to), value1, fees1, secretHash1, secret1);
+        } else {
+            collectERC20(token0, from, payable(to), value1, fees1, secretHash1, secret1);
+        }
+    }
+*/
 
 }
