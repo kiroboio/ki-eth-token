@@ -71,7 +71,14 @@ contract SafeSwap is AccessControl {
         bytes32 indexed id,
         uint256 value
     );    
-    
+
+    event Rejected(
+        address indexed from,
+        address indexed to,
+        bytes32 indexed id,
+        uint256 value
+    );    
+
     event Collected(
         address indexed from,
         address indexed to,
@@ -286,54 +293,42 @@ contract SafeSwap is AccessControl {
         s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
         emit Deposited(msg.sender, to, token0, value0, fees0, secretHash, token1, value1, fees1);
     }
-/*
-    function deposit2(
-        address payable to,
-        address token0,
-        uint256 value0,
-        uint256 fees0,
-        bytes32 secretHash0,
-        address token1,
-        uint256 value1,
-        uint256 fees1,
-        bytes32 secretHash1
-    ) 
-        payable external
-    {
-        if (token1 == addrerss(0)) {
-            require(msg.value == value1.add(fees1), "SafeTransfer: value mismatch");
-        } else {
-            require(msg.value == fees1, "SafeTransfer: value mismatch");
-        }
-        require(to != msg.sender, "SafeTransfer: sender==recipient");
-        bytes32 id = keccak256(abi.encode(to, msg.sender, token0, value0, fees0, secretHash0, token1, value1));
-        require(s_transfers[id] != 0, "SafeTransfer: request not exist"); 
-        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit Deposited(msg.sender, to, token0, value0, fees0, secretHash0, token1, value1);
-    }
-    function timedDeposit(
-        address payable to,
-        address token0,
-        uint256 value0,
-        uint256 fees0,
-        bytes32 secretHash0,
-        uint64 availableAt,
-        uint64 expiresAt,
-        uint128 autoRetrieveFees
-    ) 
-        payable external
-    {
-        require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
-        require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
-        require(to != msg.sender, "SafeTransfer: sender==recipient");
-        require(expiresAt > now, "SafeTransfer: already expired");
-        bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
-        require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
-        emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
-    }
 
-*/
+    // function timedDeposit(
+    //     address payable to,
+    //     address token0,
+    //     uint256 value0,
+    //     uint256 fees0,
+    //     bytes32 secretHash0,
+    //     uint64 availableAt,
+    //     uint64 expiresAt,
+    //     uint128 autoRetrieveFees
+    // ) 
+    //     payable external
+    // {
+    //     if (token0 == address(0)) {
+    //         require(msg.value == value0.add(fees0), "SafeTransfer: value mismatch");
+    //     } else {
+    //         require(msg.value == fees0, "SafeTransfer: value mismatch");
+    //     }
+    //     require(to != msg.sender, "SafeTransfer: sender==recipient");
+    //     bytes32 id = keccak256(abi.encode(msg.sender, to, token0, value0, fees0, token1, value1, fees1, secretHash));
+    //     require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
+    //     s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
+    //     // emit Deposited(msg.sender, to, token0, value0, fees0, secretHash, token1, value1, fees1);
+
+
+
+    //     require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
+    //     require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
+    //     require(to != msg.sender, "SafeTransfer: sender==recipient");
+    //     require(expiresAt > now, "SafeTransfer: already expired");
+    //     bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
+    //     require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
+    //     s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+    //     // emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
+    // }
+
 
     function retrieve(
         address to,
@@ -359,6 +354,32 @@ contract SafeSwap is AccessControl {
         msg.sender.transfer(valueToSend);
         emit Retrieved(msg.sender, to, id, valueToSend);
     }
+
+    function reject(
+        address payable from,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
+        bytes32 secretHash
+    )   
+        external
+    {
+        bytes32 id = keccak256(abi.encode(from, msg.sender, token0, value0, fees0, token1, value1, fees1, secretHash));
+        require(s_transfers[id] > 0, "SafeTransfer: request not exist");
+        delete s_transfers[id];
+        uint256 valueToSend;
+        if (token0 == address(0)) {
+            valueToSend = value0.add(fees0);
+        } else {
+            valueToSend = fees0;
+        }
+        from.transfer(valueToSend);
+        emit Rejected(from, msg.sender, id, valueToSend);
+    }
+
 
     function swap(
         address payable from,

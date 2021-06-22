@@ -101,6 +101,13 @@ contract('SafeSwap', async accounts => {
     await st.retrieve(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2 })
   })
 
+  it('should be able to reject a transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    await st.deposit(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 700 })
+    await st.reject(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user3 })
+  })
+
   it('should be able to collect a transfer request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
