@@ -117,17 +117,17 @@ contract('SafeSwap', async accounts => {
       await st.deposit(user1, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 100 })
     })
 
-//    await mustRevert(async ()=> {
+   await mustRevert(async ()=> {
       await st.deposit(user1, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 600 })
-//    })
+   })
 
-    // await mustRevert(async ()=> {
+    await mustRevert(async ()=> {
       await st.deposit(user1, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 0 })
-    // })
+    })
 
-    // await mustRevert(async ()=> {
+    await mustRevert(async ()=> {
       await st.deposit(user1, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 1000 })
-    // })
+    })
 
     await st.deposit(user1, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 700 })
 
