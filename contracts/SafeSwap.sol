@@ -409,8 +409,10 @@ contract SafeSwap is AccessControl {
             IERC20(token0).safeTransferFrom(from, msg.sender, value0);
         }
         if (token1 == address(0)) {
+            require(msg.value == value1.add(fees1), "SafeTransfer: value mismatch");
             from.transfer(value1);
         } else {
+            require(msg.value == fees1, "SafeTransfer: value mismatch");
             IERC20(token1).safeTransferFrom(msg.sender, from, value1);
         }
         emit Collected(from, msg.sender, id, value0, value1);
