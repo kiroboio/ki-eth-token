@@ -108,7 +108,134 @@ contract('SafeSwap', async accounts => {
     await st.reject(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user3 })
   })
 
-  it('should be able to collect a transfer request', async () => {
+  it('should fail when to and from are the same', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+
+    await mustRevert(async ()=> {
+      await st.deposit(user4, token.address, 90, 10, ZERO_ADDRESS, 50, 10, secretHash,
+        { from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    })
+  })
+
+  it('should fail when the 2 tokens are the same in deposit', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    await token.approve(st.address, 1e12, { from: user3 })
+    await mustRevert(async ()=> {
+      await st.deposit(user4, ZERO_ADDRESS, 100, 10, ZERO_ADDRESS, 50, 10, secretHash,
+        { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.deposit(user4, token.address, 100, 10, token.address, 50, 10, secretHash,
+        { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+    })
+  })
+
+  it('should fail when the 2 tokens are the same in swap', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    await token.approve(st.address, 1e12, { from: user3 })
+
+    await st.deposit(user4, token.address, 20, 10, ZERO_ADDRESS, 50, 10, secretHash,
+      { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, ZERO_ADDRESS, 20, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 60, nonce: await trNonce(web3, user4) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 20, 10, token.address, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 60, nonce: await trNonce(web3, user4) })
+    })
+
+  })
+
+  it('should fail when deposit and swap IDs are different', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    await token.approve(st.address, 1e12, { from: user3 })
+    
+    await st.deposit(user4, token.address, 70, 10, ZERO_ADDRESS, 50, 10, secretHash,
+    { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 40, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 60, nonce: await trNonce(web3, user4) })
+    })
+  })
+
+  it('should fail when 2 identicale diposites are created', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    await token.approve(st.address, 1e12, { from: user3 })
+    
+    await st.deposit(user4, token.address, 80, 10, ZERO_ADDRESS, 50, 10, secretHash,
+      { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+
+    await mustRevert(async ()=> {
+      await st.deposit(user4, token.address, 80, 10, ZERO_ADDRESS, 50, 10, secretHash,
+        { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+    })
+  })
+
+  it('should be able to collect a transfer request from token to ether', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    await token.approve(st.address, 1e12, { from: user3 })
+    
+    await mustRevert(async ()=> {
+      await st.deposit(user4, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash,
+      { from: user3, value: 40, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.deposit(user4, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash,
+      { from: user3, value: 50, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.deposit(user4, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash,
+      { from: user3, value: 30, nonce: await trNonce(web3, user3) })
+    })
+
+    await st.deposit(user4, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash,
+      { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 50, nonce: await trNonce(web3, user4) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 70, nonce: await trNonce(web3, user4) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 5, nonce: await trNonce(web3, user4) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 0, nonce: await trNonce(web3, user4) })
+    })
+
+    await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: 60, nonce: await trNonce(web3, user4) })
+    
+  })
+      
+
+  it('should be able to collect a transfer request from ether to token', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     await token.approve(st.address, 1e12, { from: user1 })
@@ -139,6 +266,21 @@ contract('SafeSwap', async accounts => {
     await mustRevert(async ()=> {
       await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret),
       { from: user1, value: 60, nonce: await trNonce(web3, user1) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret),
+      { from: user1, value: 6, nonce: await trNonce(web3, user1) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret),
+      { from: user1, value: 50, nonce: await trNonce(web3, user1) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret),
+      { from: user1, value: 70, nonce: await trNonce(web3, user1) })
     })
 
     await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret),

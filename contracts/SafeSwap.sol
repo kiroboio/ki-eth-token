@@ -11,22 +11,26 @@ contract SafeSwap is AccessControl {
     using SafeERC20 for IERC20;
 
     // keccak256("ACTIVATOR_ROLE");
-    bytes32 public constant ACTIVATOR_ROLE = 0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
+    bytes32 public constant ACTIVATOR_ROLE =
+        0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
     // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash)");
-    bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
+    bytes32 public constant HIDDEN_COLLECT_TYPEHASH =
+        0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
 
     // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash)");
-    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
+    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH =
+        0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
 
     // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash)");
-    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
+    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH =
+        0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
 
     bytes32 public DOMAIN_SEPARATOR;
     uint256 public CHAIN_ID;
     bytes32 s_uid;
     uint256 s_fees;
-    
+
     struct TokenInfo {
         bytes32 id;
         bytes32 id1;
@@ -53,31 +57,35 @@ contract SafeSwap is AccessControl {
         uint256 value1,
         uint256 fees1
     );
-    
+
     event TimedDeposited(
         address indexed from,
         address indexed to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
+        address indexed token0,
+        uint256 value0,
+        uint256 fees0,
+        bytes32 secretHash0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
     );
-    
+
     event Retrieved(
         address indexed from,
         address indexed to,
         bytes32 indexed id,
         uint256 value
-    );    
+    );
 
     event Rejected(
         address indexed from,
         address indexed to,
         bytes32 indexed id,
         uint256 value
-    );    
+    );
 
     event Collected(
         address indexed from,
@@ -114,8 +122,8 @@ contract SafeSwap is AccessControl {
         address indexed to,
         bytes32 id,
         uint256 value
-    );    
-    
+    );
+
     event ERC20Collected(
         address indexed token,
         address indexed from,
@@ -151,8 +159,8 @@ contract SafeSwap is AccessControl {
         address indexed to,
         bytes32 id,
         uint256 tokenId
-    );    
-    
+    );
+
     event ERC721Collected(
         address indexed token,
         address indexed from,
@@ -161,11 +169,7 @@ contract SafeSwap is AccessControl {
         uint256 tokenId
     );
 
-    event HDeposited(
-        address indexed from,
-        uint256 value,
-        bytes32 indexed id1
-    );
+    event HDeposited(address indexed from, uint256 value, bytes32 indexed id1);
 
     event HTimedDeposited(
         address indexed from,
@@ -176,11 +180,7 @@ contract SafeSwap is AccessControl {
         uint128 autoRetrieveFees
     );
 
-    event HRetrieved(
-        address indexed from,
-        bytes32 indexed id1,
-        uint256 value
-    );
+    event HRetrieved(address indexed from, bytes32 indexed id1, uint256 value);
 
     event HCollected(
         address indexed from,
@@ -206,11 +206,14 @@ contract SafeSwap is AccessControl {
     );
 
     modifier onlyActivator() {
-        require(hasRole(ACTIVATOR_ROLE, msg.sender), "SafeTransfer: not an activator");    
+        require(
+            hasRole(ACTIVATOR_ROLE, msg.sender),
+            "SafeTransfer: not an activator"
+        );
         _;
     }
 
-    constructor (address activator) public {
+    constructor(address activator) public {
         s_fees = 1; // only for testing
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -225,14 +228,16 @@ contract SafeSwap is AccessControl {
         CHAIN_ID = chainId;
 
         s_uid = bytes32(
-          uint256(VERSION_NUMBER) << 248 |
-          uint256(blockhash(block.number-1)) << 192 >> 16 |
-          uint256(address(this))
+            (uint256(VERSION_NUMBER) << 248) |
+                ((uint256(blockhash(block.number - 1)) << 192) >> 16) |
+                uint256(address(this))
         );
 
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"),
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+                ),
                 keccak256(bytes(NAME)),
                 keccak256(bytes(VERSION)),
                 chainId,
@@ -240,22 +245,33 @@ contract SafeSwap is AccessControl {
                 s_uid
             )
         );
-
     }
 
-    receive () external payable {
+    receive() external payable {
         require(false, "SafeTransfer: not accepting ether directly");
     }
 
-    function transferERC20(address token, address wallet, uint256 value) external onlyActivator() {
+    function transferERC20(
+        address token,
+        address wallet,
+        uint256 value
+    ) external onlyActivator() {
         IERC20(token).safeTransfer(wallet, value);
     }
 
-    function transferERC721(address token, address wallet, uint256 tokenId, bytes calldata data) external onlyActivator() {
+    function transferERC721(
+        address token,
+        address wallet,
+        uint256 tokenId,
+        bytes calldata data
+    ) external onlyActivator() {
         IERC721(token).safeTransferFrom(address(this), wallet, tokenId, data);
     }
 
-    function transferFees(address payable wallet, uint256 value) external onlyActivator() {
+    function transferFees(address payable wallet, uint256 value)
+        external
+        onlyActivator()
+    {
         s_fees = s_fees.sub(value);
         wallet.transfer(value);
     }
@@ -264,7 +280,7 @@ contract SafeSwap is AccessControl {
         return s_fees;
     }
 
-    function uid() view external returns (bytes32) {
+    function uid() external view returns (bytes32) {
         return s_uid;
     }
 
@@ -279,56 +295,107 @@ contract SafeSwap is AccessControl {
         uint256 value1,
         uint256 fees1,
         bytes32 secretHash
-    ) 
-        payable external
-    {
+    ) external payable {
+        require(token0 != token1, "SafeTransfer: try to swap the same token");
         if (token0 == address(0)) {
-            require(msg.value == value0.add(fees0), "SafeTransfer: value mismatch");
+            require(
+                msg.value == value0.add(fees0),
+                "SafeTransfer: value mismatch"
+            );
         } else {
             require(msg.value == fees0, "SafeTransfer: value mismatch");
         }
         require(to != msg.sender, "SafeTransfer: sender==recipient");
-        bytes32 id = keccak256(abi.encode(msg.sender, to, token0, value0, fees0, token1, value1, fees1, secretHash));
-        require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
+        bytes32 id = keccak256(
+            abi.encode(
+                msg.sender,
+                to,
+                token0,
+                value0,
+                fees0,
+                token1,
+                value1,
+                fees1,
+                secretHash
+            )
+        );
+        require(s_transfers[id] == 0, "SafeTransfer: request exist");
         s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit Deposited(msg.sender, to, token0, value0, fees0, secretHash, token1, value1, fees1);
+        emit Deposited(
+            msg.sender,
+            to,
+            token0,
+            value0,
+            fees0,
+            secretHash,
+            token1,
+            value1,
+            fees1
+        );
     }
 
-    // function timedDeposit(
-    //     address payable to,
-    //     address token0,
-    //     uint256 value0,
-    //     uint256 fees0,
-    //     bytes32 secretHash0,
-    //     uint64 availableAt,
-    //     uint64 expiresAt,
-    //     uint128 autoRetrieveFees
-    // ) 
-    //     payable external
-    // {
-    //     if (token0 == address(0)) {
-    //         require(msg.value == value0.add(fees0), "SafeTransfer: value mismatch");
-    //     } else {
-    //         require(msg.value == fees0, "SafeTransfer: value mismatch");
-    //     }
-    //     require(to != msg.sender, "SafeTransfer: sender==recipient");
-    //     bytes32 id = keccak256(abi.encode(msg.sender, to, token0, value0, fees0, token1, value1, fees1, secretHash));
-    //     require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-    //     s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-    //     // emit Deposited(msg.sender, to, token0, value0, fees0, secretHash, token1, value1, fees1);
+    function timedDeposit(
+        address payable to,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
+        bytes32 secretHash,
+        uint64 availableAt,
+        uint64 expiresAt,
+        uint128 autoRetrieveFees
+    ) external payable {
+        require(token0 != token1, "SafeTransfer: try to swap the same token");
+        require(
+            fees0 >= autoRetrieveFees,
+            "SafeTransfer: autoRetrieveFees exeed fees"
+        );
+        require(to != msg.sender, "SafeTransfer: sender==recipient");
+        require(expiresAt > now, "SafeTransfer: already expired");
+        if (token0 == address(0)) {
+            require(
+                msg.value == value0.add(fees0),
+                "SafeTransfer: value mismatch"
+            );
+        } else {
+            require(msg.value == fees0, "SafeTransfer: value mismatch");
+        }
 
-
-
-    //     require(msg.value == value.add(fees), "SafeTransfer: value mismatch");
-    //     require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
-    //     require(to != msg.sender, "SafeTransfer: sender==recipient");
-    //     require(expiresAt > now, "SafeTransfer: already expired");
-    //     bytes32 id = keccak256(abi.encode(msg.sender, to, value, fees, secretHash));
-    //     require(s_transfers[id] == 0, "SafeTransfer: request exist"); 
-    //     s_transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
-    //     // emit TimedDeposited(msg.sender, to, value, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
-    // }
-
+        bytes32 id = keccak256(
+            abi.encode(
+                msg.sender,
+                to,
+                token0,
+                value0,
+                fees0,
+                token1,
+                value1,
+                fees1,
+                secretHash
+            )
+        );
+        require(s_transfers[id] == 0, "SafeTransfer: request exist");
+        s_transfers[id] =
+            uint256(expiresAt) +
+            uint256(availableAt << 64) +
+            (uint256(autoRetrieveFees) << 128);
+        emit TimedDeposited(
+            msg.sender,
+            to,
+            token0,
+            value0,
+            fees0,
+            secretHash,
+            token1,
+            value1,
+            fees1,
+            availableAt,
+            expiresAt,
+            autoRetrieveFees
+        );
+    }
 
     function retrieve(
         address to,
@@ -339,10 +406,20 @@ contract SafeSwap is AccessControl {
         uint256 value1,
         uint256 fees1,
         bytes32 secretHash
-    )   
-        external
-    {
-        bytes32 id = keccak256(abi.encode(msg.sender, to, token0, value0, fees0, token1, value1, fees1, secretHash));
+    ) external {
+        bytes32 id = keccak256(
+            abi.encode(
+                msg.sender,
+                to,
+                token0,
+                value0,
+                fees0,
+                token1,
+                value1,
+                fees1,
+                secretHash
+            )
+        );
         require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         delete s_transfers[id];
         uint256 valueToSend;
@@ -364,10 +441,20 @@ contract SafeSwap is AccessControl {
         uint256 value1,
         uint256 fees1,
         bytes32 secretHash
-    )   
-        external
-    {
-        bytes32 id = keccak256(abi.encode(from, msg.sender, token0, value0, fees0, token1, value1, fees1, secretHash));
+    ) external {
+        bytes32 id = keccak256(
+            abi.encode(
+                from,
+                msg.sender,
+                token0,
+                value0,
+                fees0,
+                token1,
+                value1,
+                fees1,
+                secretHash
+            )
+        );
         require(s_transfers[id] > 0, "SafeTransfer: request not exist");
         delete s_transfers[id];
         uint256 valueToSend;
@@ -380,7 +467,6 @@ contract SafeSwap is AccessControl {
         emit Rejected(from, msg.sender, id, valueToSend);
     }
 
-
     function swap(
         address payable from,
         address token0,
@@ -388,18 +474,27 @@ contract SafeSwap is AccessControl {
         uint256 fees0,
         address token1,
         uint256 value1,
-        uint256 fees1,       
+        uint256 fees1,
         bytes32 secretHash,
         bytes calldata secret
-    ) 
-        payable external
-    {
-        require(token0 != token1, "SafeTransfer: try to swap the same token");
-        bytes32 id = keccak256(abi.encode(from, msg.sender, token0, value0, fees0, token1, value1, fees1, secretHash));
+    ) external payable {
+        bytes32 id = keccak256(
+            abi.encode(
+                from,
+                msg.sender,
+                token0,
+                value0,
+                fees0,
+                token1,
+                value1,
+                fees1,
+                secretHash
+            )
+        );
         uint256 tr = s_transfers[id];
         require(tr > 0, "SafeTransfer: request not exist");
         require(uint64(tr) > now, "SafeTranfer: expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
+        require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
         require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
         delete s_transfers[id];
         s_fees = s_fees.add(fees0).add(fees1);
@@ -409,7 +504,10 @@ contract SafeSwap is AccessControl {
             IERC20(token0).safeTransferFrom(from, msg.sender, value0);
         }
         if (token1 == address(0)) {
-            require(msg.value == value1.add(fees1), "SafeTransfer: value mismatch");
+            require(
+                msg.value == value1.add(fees1),
+                "SafeTransfer: value mismatch"
+            );
             from.transfer(value1);
         } else {
             require(msg.value == fees1, "SafeTransfer: value mismatch");
@@ -417,7 +515,7 @@ contract SafeSwap is AccessControl {
         }
         emit Collected(from, msg.sender, id, value0, value1);
     }
-/*
+    /*
    function autoRetrieve(
         address payable from,
         address to,
@@ -837,5 +935,4 @@ contract SafeSwap is AccessControl {
         }
     }
 */
-
 }
