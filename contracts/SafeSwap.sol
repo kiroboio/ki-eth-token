@@ -87,7 +87,7 @@ contract SafeSwap is AccessControl {
         uint256 value
     );
 
-    event Collected(
+    event Swapped(
         address indexed from,
         address indexed to,
         bytes32 indexed id,
@@ -132,12 +132,37 @@ contract SafeSwap is AccessControl {
         uint256 value
     );
 
+    /*
+            msg.sender,
+            to,
+            token0,
+            value0,
+            fees0,
+            token1,
+            value1,
+            fees1,
+            secretHash
+
+        address payable to,
+        address token0,
+        uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData0,
+        uint256 fees0,
+        address token1,
+        uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData1,
+        uint256 fees1,
+        bytes32 secretHash
+*/
     event ERC721Deposited(
-        address indexed token,
         address indexed from,
         address indexed to,
-        uint256 tokenId,
-        uint256 fees,
+        address indexed token0,
+        uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        uint256 fees0,
+        address token1,
+        uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        uint256 fees1,
         bytes32 secretHash
     );
 
@@ -161,12 +186,14 @@ contract SafeSwap is AccessControl {
         uint256 tokenId
     );
 
-    event ERC721Collected(
-        address indexed token,
+    event ERC721Swapped(
         address indexed from,
         address indexed to,
+        address indexed token0,   
+        uint256 value0,
+        address indexed token1,   
+        uint256 value1,
         bytes32 id,
-        uint256 tokenId
     );
 
     event HDeposited(address indexed from, uint256 value, bytes32 indexed id1);
@@ -296,16 +323,13 @@ contract SafeSwap is AccessControl {
         uint256 fees1,
         bytes32 secretHash
     ) external payable {
-        require(token0 != token1, "SafeTransfer: try to swap the same token");
+        require(token0 != token1, "SafeSwap: try to swap the same token");
         if (token0 == address(0)) {
-            require(
-                msg.value == value0.add(fees0),
-                "SafeTransfer: value mismatch"
-            );
+            require(msg.value == value0.add(fees0), "SafeSwap: value mismatch");
         } else {
-            require(msg.value == fees0, "SafeTransfer: value mismatch");
+            require(msg.value == fees0, "SafeSwap: value mismatch");
         }
-        require(to != msg.sender, "SafeTransfer: sender==recipient");
+        require(to != msg.sender, "SafeSwap: sender==recipient");
         bytes32 id = keccak256(
             abi.encode(
                 msg.sender,
@@ -319,7 +343,7 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] == 0, "SafeTransfer: request exist");
+        require(s_transfers[id] == 0, "SafeSwap: request exist");
         s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
         emit Deposited(
             msg.sender,
@@ -347,20 +371,17 @@ contract SafeSwap is AccessControl {
         uint64 expiresAt,
         uint128 autoRetrieveFees
     ) external payable {
-        require(token0 != token1, "SafeTransfer: try to swap the same token");
+        require(token0 != token1, "SafeSwap: try to swap the same token");
         require(
             fees0 >= autoRetrieveFees,
-            "SafeTransfer: autoRetrieveFees exeed fees"
+            "SafeSwap: autoRetrieveFees exeed fees"
         );
-        require(to != msg.sender, "SafeTransfer: sender==recipient");
-        require(expiresAt > now, "SafeTransfer: already expired");
+        require(to != msg.sender, "SafeSwap: sender==recipient");
+        require(expiresAt > now, "SafeSwap: already expired");
         if (token0 == address(0)) {
-            require(
-                msg.value == value0.add(fees0),
-                "SafeTransfer: value mismatch"
-            );
+            require(msg.value == value0.add(fees0), "SafeSwap: value mismatch");
         } else {
-            require(msg.value == fees0, "SafeTransfer: value mismatch");
+            require(msg.value == fees0, "SafeSwap: value mismatch");
         }
 
         bytes32 id = keccak256(
@@ -376,7 +397,7 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] == 0, "SafeTransfer: request exist");
+        require(s_transfers[id] == 0, "SafeSwap: request exist");
         s_transfers[id] =
             uint256(expiresAt) +
             uint256(availableAt << 64) +
@@ -420,7 +441,7 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] > 0, "SafeTransfer: request not exist");
+        require(s_transfers[id] > 0, "SafeSwap: request not exist");
         delete s_transfers[id];
         uint256 valueToSend;
         if (token0 == address(0)) {
@@ -455,7 +476,7 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] > 0, "SafeTransfer: request not exist");
+        require(s_transfers[id] > 0, "SafeSwap: request not exist");
         delete s_transfers[id];
         uint256 valueToSend;
         if (token0 == address(0)) {
@@ -492,10 +513,10 @@ contract SafeSwap is AccessControl {
             )
         );
         uint256 tr = s_transfers[id];
-        require(tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tr) > now, "SafeTranfer: expired");
-        require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
-        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+        require(tr > 0, "SafeSwap: request not exist");
+        require(uint64(tr) > now, "SafeSwap: expired");
+        require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
+        require(keccak256(secret) == secretHash, "SafeSwap: wrong secret");
         delete s_transfers[id];
         s_fees = s_fees.add(fees0).add(fees1);
         if (token0 == address(0)) {
@@ -504,17 +525,15 @@ contract SafeSwap is AccessControl {
             IERC20(token0).safeTransferFrom(from, msg.sender, value0);
         }
         if (token1 == address(0)) {
-            require(
-                msg.value == value1.add(fees1),
-                "SafeTransfer: value mismatch"
-            );
+            require(msg.value == value1.add(fees1), "SafeSwap: value mismatch");
             from.transfer(value1);
         } else {
-            require(msg.value == fees1, "SafeTransfer: value mismatch");
+            require(msg.value == fees1, "SafeSwap: value mismatch");
             IERC20(token1).safeTransferFrom(msg.sender, from, value1);
         }
-        emit Collected(from, msg.sender, id, value0, value1);
+        emit Swapped(from, msg.sender, id, value0, value1);
     }
+
     /*
    function autoRetrieve(
         address payable from,
@@ -642,10 +661,144 @@ contract SafeSwap is AccessControl {
         from.transfer(fees.sub(tr>>128));
         emit ERC20Retrieved(token, from, to, id, value);
     }
-
+ */
     // ------------------------------- ERC-721 -------------------------------
 
     function depositERC721(
+        address payable to,
+        address token0,
+        uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData0,
+        uint256 fees0,
+        address token1,
+        uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData1,
+        uint256 fees1,
+        bytes32 secretHash
+    ) external payable {
+        if (token0 == address(0)) {
+            //eth to 721
+            require(token0 != token1, "SafeSwap: try to swap ether and ether");
+            require(msg.value == value0.add(fees0), "SafeSwap: value mismatch");
+            require(value1 > 0, "SafeSwap: no token id");
+        } else if (token1 == address(0)) {
+            //721 to eth
+            require(msg.value == fees0, "SafeSwap: value mismatch");
+            require(value0 > 0, "SafeSwap: no token id");
+        } else {
+            //721 to 721
+            require(value0 > 0, "SafeSwap: no token id");
+            require(value1 > 0, "SafeSwap: no token id");
+        }
+        require(to != msg.sender, "SafeSwap: sender==recipient");
+        bytes32 id = keccak256(
+            abi.encode(
+                msg.sender,
+                to,
+                token0,
+                value0,
+                tokenData0,
+                fees0,
+                token1,
+                value1,
+                tokenData1,
+                fees1,
+                secretHash
+            )
+        );
+        require(s_transfers[id] == 0, "SafeSwap: request exist");
+        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
+        emit ERC721Deposited(
+            msg.sender,
+            to,
+            token0,
+            value0,
+            fees0,
+            token1,
+            value1,
+            fees1,
+            secretHash
+        );
+    }
+
+    function swapERC721(
+        address payable from,
+        address token0,
+        uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData0,
+        uint256 fees0,
+        address token1,
+        uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData1,
+        uint256 fees1,
+        bytes32 secretHash,
+        bytes calldata secret
+    ) external payable {
+        bytes32 id = keccak256(
+            abi.encode(
+                from,
+                msg.sender,
+                token0,
+                value0,
+                tokenData0,
+                fees0,
+                token1,
+                value1,
+                tokenData1,
+                fees1,
+                secretHash
+            )
+        );
+        uint256 tr = s_transfers[id];
+        require(tr > 0, "SafeSwap: request not exist");
+        require(uint64(tr) > now, "SafeSwap: expired");
+        require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
+        require(keccak256(secret) == secretHash, "SafeSwap: wrong secret");
+        delete s_transfers[id];
+        s_fees = s_fees.add(fees0).add(fees1);
+        if (token0 == address(0)) { //ether to 721
+            msg.sender.transfer(value0);
+        } else {
+            IERC721(token0).safeTransferFrom(from, msg.sender, value0);
+        }
+        if (token1 == address(0)) {//721 to ether
+            require(msg.value == value1.add(fees1), "SafeSwap: value mismatch");
+            from.transfer(value1);
+        } else {
+            require(msg.value == fees1, "SafeSwap: value mismatch");
+            IERC721(token1).safeTransferFrom(msg.sender, from, value1);
+        }
+        emit ERC721Swapped(from, msg.sender, token0, value0, token1, value1, id);
+    }
+
+    function retrieveERC721(
+        address to,
+        address token0,
+        uint256 value0,
+        bytes calldata tokenData0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        bytes calldata tokenData1,
+        uint256 fees1,
+        bytes32 secretHash
+    ) external {
+        bytes32 id = keccak256(abi.encode(msg.sender,to,token0,value0,tokenData0,fees0,token1,value1,tokenData1,fees1,secretHash));
+        require(s_transfers[id] > 0, "SafeSwap: request not exist");
+        delete s_transfers[id];
+        uint256 valueToSend;
+        if (token0 == address(0)) {
+            valueToSend = value0.add(fees0);
+        } else {
+            valueToSend = fees0;
+        }
+        msg.sender.transfer(valueToSend);
+        emit Retrieved(msg.sender, to, id, valueToSend);
+    }
+
+
+/*
+    function retrieveERC721(
         address token,
         string calldata tokenSymbol,
         address to,
@@ -653,16 +806,14 @@ contract SafeSwap is AccessControl {
         bytes calldata tokenData,
         uint256 fees,
         bytes32 secretHash
-    ) 
-        payable external
+    )   
+        external 
     {
-        require(msg.value == fees, "SafeTransfer: msg.value must match fees");
-        require(tokenId > 0, "SafeTransfer: no token id");
-        require(to != msg.sender, "SafeTransfer: sender==recipient");
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
-        require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
-        s_erc721Transfers[id] = 0xffffffffffffffff;
-        emit ERC721Deposited(token, msg.sender, to, tokenId, fees, secretHash);
+        require(s_erc721Transfers[id]  > 0, "SafeTransfer: request not exist");
+        delete s_erc721Transfers[id];
+        msg.sender.transfer(fees);
+        emit ERC721Retrieved(token, msg.sender, to, id, tokenId);
     }
 
     function timedDepositERC721(
@@ -688,50 +839,6 @@ contract SafeSwap is AccessControl {
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc721Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
         emit ERC721TimedDeposited(token, msg.sender, to, tokenId, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
-    }
-
-    function retrieveERC721(
-        address token,
-        string calldata tokenSymbol,
-        address to,
-        uint256 tokenId,
-        bytes calldata tokenData,
-        uint256 fees,
-        bytes32 secretHash
-    )   
-        external 
-    {
-        bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
-        require(s_erc721Transfers[id]  > 0, "SafeTransfer: request not exist");
-        delete s_erc721Transfers[id];
-        msg.sender.transfer(fees);
-        emit ERC721Retrieved(token, msg.sender, to, id, tokenId);
-    }
-
-    function collectERC721(
-        address token,
-        string calldata tokenSymbol,
-        address from,
-        address payable to,
-        uint256 tokenId,
-        bytes calldata tokenData,
-        uint256 fees,
-        bytes32 secretHash,
-        bytes calldata secret
-    ) 
-        external
-        onlyActivator()
-    {
-        bytes32 id = keccak256(abi.encode(token, tokenSymbol, from, to, tokenId, tokenData, fees, secretHash));
-        uint256 tr = s_erc721Transfers[id];
-        require(tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tr) > now, "SafeTranfer: expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
-        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
-        delete s_erc721Transfers[id];
-        s_fees = s_fees.add(fees);
-        IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
-        emit ERC721Collected(token, from, to, id, tokenId);
     }
 
    function autoRetrieveERC721(
