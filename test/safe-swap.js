@@ -79,13 +79,14 @@ contract('SafeSwap', async accounts => {
     mlog.log('val1                    ', val1)
     mlog.log('val2                    ', val2)
     mlog.log('val3                    ', val3)
-    mlog.log('token721  ',   token721.address);
 
     await token.mint(user1, 1e10, { from: tokenOwner })
     await token.mint(user2, 1e10, { from: tokenOwner })
     await token.mint(user3, 1e10, { from: tokenOwner })
     tokenSymbol = await token.symbol()
-    token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: owner});
+    token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner});
+
+    mlog.log('token721  ',   token721.address);
 
   })
 
