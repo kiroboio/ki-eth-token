@@ -3,6 +3,7 @@
 const Token = artifacts.require("Token")
 const SafeSwap = artifacts.require('SafeSwap')
 const mlog = require('mocha-logger')
+const ERC721Token = artifacts.require("ERC721Token")
 
 const { ethers } = require('ethers')
 const { defaultAbiCoder, keccak256, toUtf8Bytes } = ethers.utils
@@ -50,7 +51,7 @@ contract('SafeSwap', async accounts => {
   const val2  = web3.utils.toWei('0.4', 'gwei')
   const val3  = web3.utils.toWei('0.3', 'gwei')
   const valBN = web3.utils.toBN('0')
-
+  let token721;
   const startValue = 500n * 1000n * 10n ** 18n
 
   before('checking constants', async () => {
@@ -78,11 +79,14 @@ contract('SafeSwap', async accounts => {
     mlog.log('val1                    ', val1)
     mlog.log('val2                    ', val2)
     mlog.log('val3                    ', val3)
+    mlog.log('token721  ',   token721.address);
 
     await token.mint(user1, 1e10, { from: tokenOwner })
     await token.mint(user2, 1e10, { from: tokenOwner })
     await token.mint(user3, 1e10, { from: tokenOwner })
     tokenSymbol = await token.symbol()
+    token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: owner});
+
   })
 
   it('should create an empty contract', async () => {
@@ -323,7 +327,7 @@ function deposit(
     const tokenData = 1;
     await token.approve(st.address, 1e12, { from: user3 })
     
-    await st.depositERC721(user4, ZERO_ADDRESS, 70, tokenData, 10, token.address, tokenId, tokenData, 10, secretHash,
+    await st.depositERC721(user4, ZERO_ADDRESS, 70, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
     { from: user3, value: 80, nonce: await trNonce(web3, user3) })
 
     /*
@@ -339,7 +343,7 @@ function deposit(
         bytes32 secretHash;
         bytes secret;
     */
-    const params = {from: user3, token0: ZERO_ADDRESS, value0: 70, tokenData0:tokenData, fees0:10, token1:token.address, 
+    const params = {from: user3, token0: ZERO_ADDRESS, value0: 70, tokenData0:tokenData, fees0:10, token1:token721.address, 
                     value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
     await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
