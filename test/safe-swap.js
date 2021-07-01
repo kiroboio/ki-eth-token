@@ -69,7 +69,7 @@ contract('SafeSwap', async accounts => {
     st = await SafeSwap.new(user1, { from: user1 })
     mlog.log('web3                    ', web3.version)
     mlog.log('token contract          ', token.address)
-    mlog.log('safe transfer contract  ', st.address)
+    mlog.log('safe swap contract  ', st.address)
     mlog.log('token Owner             ', tokenOwner)
     mlog.log('user1                   ', user1)
     mlog.log('user2                   ', user2)
@@ -89,19 +89,31 @@ contract('SafeSwap', async accounts => {
     assert.equal('0', ''+(await web3.eth.getBalance(st.address)))
   })
 
-  it('should be able to make a transfer request', async () => {
+  /*
+function deposit(
+        address payable to,
+        address token0,
+        uint256 value0,
+        uint256 fees0,
+        address token1,
+        uint256 value1,
+        uint256 fees1,
+        bytes32 secretHash
+  */
+
+  it('should be able to make a swap request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     await st.deposit(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 700 })
   })
 
-  it('should be able to retrieve a transfer request', async () => {
+  it('should be able to retrieve a swap request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     await st.retrieve(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2 })
   })
 
-  it('should be able to reject a transfer request', async () => {
+  it('should be able to reject a swap request', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     await st.deposit(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 700 })
@@ -286,6 +298,54 @@ contract('SafeSwap', async accounts => {
     await st.swap(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, Buffer.from(secret),
       { from: user1, value: 10, nonce: await trNonce(web3, user1) })
   })
+
+  /*                ERC-721     */
+
+  /*
+    function depositERC721(
+       address payable to,
+        address token0,
+        uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData0,
+        uint256 fees0,
+        address token1,
+        uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes calldata tokenData1,
+        uint256 fees1,
+        bytes32 secretHash
+    ) 
+  */
+
+  it('should be able to deposit 721 token - Ether to 721', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const tokenId = 23456;
+    const tokenData = 1;
+    await token.approve(st.address, 1e12, { from: user3 })
+    
+    await st.depositERC721(user4, ZERO_ADDRESS, 70, tokenData, 10, token.address, tokenId, tokenData, 10, secretHash,
+    { from: user3, value: 80, nonce: await trNonce(web3, user3) })
+
+    /*
+        address payable from;
+        address token0;
+        uint256 value0; //in case of ether it's a value, in case of 721 it's tokenId
+        bytes tokenData0;
+        uint256 fees0;
+        address token1;
+        uint256 value1; //in case of ether it's a value, in case of 721 it's tokenId
+        bytes tokenData1;
+        uint256 fees1;
+        bytes32 secretHash;
+        bytes secret;
+    */
+    const params = {from: user3, token0: ZERO_ADDRESS, value0: 70, tokenData0:tokenData, fees0:10, token1:token.address, 
+                    value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+
+    await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+
+    })
+  })
 /*
   it('should be able to collect a transfer timed request', async () => {
     const secret = 'my secret'
@@ -415,4 +475,4 @@ contract('SafeSwap', async accounts => {
     await st.hiddenCollect(user2, user3, 600, 100, secretHash, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: user1 })
   })
 */
-})
+//})
