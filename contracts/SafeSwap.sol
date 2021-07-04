@@ -782,12 +782,12 @@ contract SafeSwap is AccessControl {
             inputs.from.transfer(inputs.value1);
         } else {
             require(msg.value == inputs.fees1, "SafeSwap: value mismatch");
-            /*IERC721(inputs.token1).safeTransferFrom(
+            IERC721(inputs.token1).safeTransferFrom(
                 msg.sender,
                 inputs.from,
                 inputs.value1,
                 inputs.tokenData1
-            );*/
+            );
         }
         emit ERC721Swapped(
             inputs.from,

@@ -10,6 +10,7 @@ const { defaultAbiCoder, keccak256, toUtf8Bytes } = ethers.utils
 const { TypedDataUtils } = require('ethers-eip712')
 
 const sha3 = web3.utils.sha3
+const NFT4 = 23456
 
 const {
   ZERO_ADDRESS,
@@ -85,6 +86,7 @@ contract('SafeSwap', async accounts => {
     await token.mint(user3, 1e10, { from: tokenOwner })
     tokenSymbol = await token.symbol()
     token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner});
+    await token721.selfMint(NFT4, { from: user4 })
 
     mlog.log('token721  ',   token721.address);
 
@@ -324,9 +326,8 @@ function deposit(
   it('should be able to deposit 721 token - Ether to 721', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
-    const tokenId = 23456;
+    const tokenId = NFT4;
     const tokenData = 1;
-    await token.approve(st.address, 1e12, { from: user3 })
     
     await st.depositERC721(user4, ZERO_ADDRESS, 70, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
     { from: user3, value: 80, nonce: await trNonce(web3, user3) })
@@ -347,7 +348,8 @@ function deposit(
     const params = {from: user3, token0: ZERO_ADDRESS, value0: 70, tokenData0:tokenData, fees0:10, token1:token721.address, 
                     value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
-    await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    await token721.approve(st.address, tokenId, { from: user4 })
+   /await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
 
     })
   })

@@ -13,6 +13,10 @@ contract ERC721Token is ERC721 {
         ERC721(name, symbol)
     {}
 
+    function selfMint(uint256 tokenId) public {
+        _mint(msg.sender, tokenId);
+    }
+
     function createTimeframe(string memory tokenURI) public returns (bool) {
         s_tokenId += 1;
         _mint(msg.sender, s_tokenId);
