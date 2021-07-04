@@ -766,12 +766,12 @@ contract SafeSwap is AccessControl {
             //ether to 721
             msg.sender.transfer(inputs.value0);
         } else {
-            /*IERC721(inputs.token0).safeTransferFrom(
+            IERC721(inputs.token0).safeTransferFrom(
                 inputs.from,
                 msg.sender,
                 inputs.value0,
                 inputs.tokenData0
-            );*/
+            );
         }
         if (inputs.token1 == address(0)) {
             //721 to ether

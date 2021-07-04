@@ -11,6 +11,9 @@ const { TypedDataUtils } = require('ethers-eip712')
 
 const sha3 = web3.utils.sha3
 const NFT4 = 23456
+const NFT6 = 12345
+const NFT7 = 45678
+const NFT8 = 45633
 
 const {
   ZERO_ADDRESS,
@@ -47,6 +50,10 @@ contract('SafeSwap', async accounts => {
   const user2 = accounts[3]
   const user3 = accounts[4]
   const user4 = accounts[5]
+  const user5 = accounts[6]
+  const user6 = accounts[7]
+  const user7 = accounts[8]
+  const user8 = accounts[9]
 
   const val1  = web3.utils.toWei('0.5', 'gwei')
   const val2  = web3.utils.toWei('0.4', 'gwei')
@@ -60,6 +67,10 @@ contract('SafeSwap', async accounts => {
       assert(typeof user2         == 'string', 'user2 should be string')
       assert(typeof user3         == 'string', 'user3 should be string')
       assert(typeof user4         == 'string', 'user4 should be string')
+      assert(typeof user5         == 'string', 'user3 should be string')
+      assert(typeof user6         == 'string', 'user4 should be string')
+      assert(typeof user7         == 'string', 'user3 should be string')
+      assert(typeof user8         == 'string', 'user4 should be string')
       assert(typeof val1          == 'string', 'val1  should be big number')
       assert(typeof val2          == 'string', 'val2  should be string')
       assert(typeof val3          == 'string', 'val2  should be string')
@@ -77,6 +88,10 @@ contract('SafeSwap', async accounts => {
     mlog.log('user2                   ', user2)
     mlog.log('user3                   ', user3)
     mlog.log('user4                   ', user4)
+    mlog.log('user5                   ', user5)
+    mlog.log('user6                   ', user6)
+    mlog.log('user7                   ', user7)
+    mlog.log('user8                   ', user8)
     mlog.log('val1                    ', val1)
     mlog.log('val2                    ', val2)
     mlog.log('val3                    ', val3)
@@ -87,6 +102,9 @@ contract('SafeSwap', async accounts => {
     tokenSymbol = await token.symbol()
     token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner});
     await token721.selfMint(NFT4, { from: user4 })
+    await token721.selfMint(NFT6, { from: user6 })
+    await token721.selfMint(NFT7, { from: user7 })
+    await token721.selfMint(NFT8, { from: user8 })
 
     mlog.log('token721  ',   token721.address);
 
@@ -323,7 +341,7 @@ function deposit(
     ) 
   */
 
-  it('should be able to deposit 721 token - Ether to 721', async () => {
+  it('should be able to swap 721 token - Ether to 721', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     const tokenId = NFT4;
@@ -332,26 +350,64 @@ function deposit(
     await st.depositERC721(user4, ZERO_ADDRESS, 70, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
     { from: user3, value: 80, nonce: await trNonce(web3, user3) })
 
-    /*
-        address payable from;
-        address token0;
-        uint256 value0; //in case of ether it's a value, in case of 721 it's tokenId
-        bytes tokenData0;
-        uint256 fees0;
-        address token1;
-        uint256 value1; //in case of ether it's a value, in case of 721 it's tokenId
-        bytes tokenData1;
-        uint256 fees1;
-        bytes32 secretHash;
-        bytes secret;
-    */
     const params = {from: user3, token0: ZERO_ADDRESS, value0: 70, tokenData0:tokenData, fees0:10, token1:token721.address, 
                     value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
     await token721.approve(st.address, tokenId, { from: user4 })
-   /await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
 
     })
+
+    it('should be able to swap 721 token - 721 to Ether', async () => {
+      const secret = 'my secret'
+      const secretHash = sha3(secret)
+      const tokenId = NFT6;
+      const tokenData = 1;
+      
+      await st.depositERC721(user5, token721.address, tokenId, tokenData, 10, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+        { from: user6, value: 10, nonce: await trNonce(web3, user6) })
+  
+      const params = {from: user6, token0:token721.address , value0: tokenId, tokenData0:tokenData, fees0:10, token1:ZERO_ADDRESS, 
+                      value1:80, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+  
+      await token721.approve(st.address, tokenId, { from: user6 })
+      await st.swapERC721(params,{ from: user5, value: 90, nonce: await trNonce(web3, user5) })
+  
+      })
+
+      it('should be able to swap 721 token - 721 to 721', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const tokenId7 = NFT7;
+        const tokenId8 = NFT8;
+        const tokenData = 1;
+        
+        await st.depositERC721(user8, token721.address, tokenId7, tokenData, 10, token721.address, tokenId8, tokenData, 10, secretHash,
+          { from: user7, value: 10, nonce: await trNonce(web3, user7) })
+    
+        const params = {from: user7, token0:token721.address , value0: tokenId7, tokenData0:tokenData, fees0:10, token1:token721.address, 
+                        value1:tokenId8, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+    
+        await token721.approve(st.address, tokenId7, { from: user7 })
+        await token721.approve(st.address, tokenId8, { from: user8 })
+        await st.swapERC721(params,{ from: user8, value: 10, nonce: await trNonce(web3, user8) })
+    
+        })
+
+        it('should be able to deposit and retrieve 721 token - Ether to 721', async () => {
+          const secret = 'my secret'
+          const secretHash = sha3(secret)
+          const tokenId = NFT4;
+          const tokenData = 1;
+          
+          await st.depositERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+          { from: user3, value: 100, nonce: await trNonce(web3, user3) })
+      
+          st.retrieveERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
+        })
+
+
+
   })
 /*
   it('should be able to collect a transfer timed request', async () => {
