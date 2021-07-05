@@ -346,43 +346,53 @@ function deposit(
     const secretHash = sha3(secret)
     const tokenId = NFT4;
     const tokenData = 1;
-    
-    await st.depositERC721(user4, ZERO_ADDRESS, 70, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
-    { from: user3, value: 80, nonce: await trNonce(web3, user3) })
+    const zero_tokenId = 0;
 
-    /*const params = {from: user3, token0: ZERO_ADDRESS, value0: 70, tokenData0:tokenData, fees0:10, token1:token721.address, 
+   /*  await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+        { from: user4, value: 160, nonce: await trNonce(web3, user3) })
+    }) */
+
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+        { from: user3, value: 110, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+        { from: user3, value: 170, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+        { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+        { from: user3, value: 150, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, ZERO_ADDRESS, 120, tokenData, 10, secretHash,
+        { from: user3, value: 160, nonce: await trNonce(web3, user3) })
+    })
+
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, zero_tokenId, tokenData, 10, secretHash,
+        { from: user3, value: 160, nonce: await trNonce(web3, user3) })
+    })
+
+    
+    
+    await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+    { from: user3, value: 160, nonce: await trNonce(web3, user3) })
+
+    const params = {from: user3, token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
                     value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
     await token721.approve(st.address, tokenId, { from: user4 })
-    await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })*/
-
-     /*
-    struct SwapAddresses {
-        address payable from;
-        address token0;
-        address token1;
-    }
-    struct SwapUints {
-        uint256 value0;
-        uint256 fees0;
-        uint256 value1;
-        uint256 fees1;
-    }
-    struct SwapBytes {
-        bytes32 secretHash;
-        bytes calldata tokenData0;
-        bytes calldata tokenData1;
-        bytes calldata secret;
-    }
-    */
-
-    const addresses = {from: user3, token0:ZERO_ADDRESS , token1: token721.address}
-    const uints = {value0: 70, fees0: 10, value1: tokenId, fees1: 10}
-    const bytyes = {secretHash:secretHash ,tokenData0: tokenData, tokenData1:tokenData ,secret:Buffer.from(secret)}
-
-    await token721.approve(st.address, tokenId, { from: user4 })
-    await st.swapERC721(addresses, uints, bytyes, { from: user4, value: 10, nonce: await trNonce(web3, user4) })
-    //await st.swapERC721(addresses, uints, bytyes, tokenData, tokenData, secretHash, secret:Buffer.from(secret), { from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
 
     })
 
@@ -400,7 +410,7 @@ function deposit(
                       value1:80, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
   
       await token721.approve(st.address, tokenId, { from: user6 })
-      await st.swapERC721_1(params,{ from: user5, value: 90, nonce: await trNonce(web3, user5) })
+      await st.swapERC721(params,{ from: user5, value: 90, nonce: await trNonce(web3, user5) })
   
       })
 
@@ -419,7 +429,7 @@ function deposit(
     
         await token721.approve(st.address, tokenId7, { from: user7 })
         await token721.approve(st.address, tokenId8, { from: user8 })
-        await st.swapERC721_1(params,{ from: user8, value: 10, nonce: await trNonce(web3, user8) })
+        await st.swapERC721(params,{ from: user8, value: 10, nonce: await trNonce(web3, user8) })
     
         })
 
@@ -434,8 +444,6 @@ function deposit(
       
           st.retrieveERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
         })
-
-
 
   })
 /*

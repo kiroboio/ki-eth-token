@@ -63,10 +63,10 @@ contract SafeSwap is AccessControl {
         uint256 fees1;
     }
     struct SwapBytes {
-        bytes32 secretHash;
         bytes tokenData0;
         bytes tokenData1;
         bytes secret;
+        bytes32 secretHash;
     }
 
     mapping(bytes32 => uint256) s_transfers;
@@ -753,96 +753,7 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    /*
-    struct SwapAddresses {
-        address payable from;
-        address token0;
-        address token1;
-    }
-    struct SwapUints {
-        uint256 value0;
-        uint256 fees0;
-        uint256 value1;
-        uint256 fees1;
-    }
-    struct SwapBytes {
-        bytes32 secretHash;
-        bytes tokenData0;
-        bytes tokenData1;
-        bytes secret;
-    }
-    */
-
-    function swapERC721(
-        SwapAddresses memory addresses,
-        SwapUints memory uints,
-        SwapBytes memory swapBytes
-    ) external payable {
-        bytes32 id = keccak256(
-            abi.encode(
-                addresses.from,
-                msg.sender,
-                addresses.token0,
-                uints.value0,
-                swapBytes.tokenData0,
-                uints.fees0,
-                addresses.token1,
-                uints.value1,
-                swapBytes.tokenData1,
-                uints.fees1,
-                swapBytes.secretHash
-            )
-        );
-        uint256 tr = s_transfers[id];
-        require(tr > 0, "SafeSwap: request not exist");
-        require(uint64(tr) > now, "SafeSwap: expired");
-        require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
-
-        require(
-            keccak256(swapBytes.secret) == swapBytes.secretHash,
-            "SafeSwap: wrong secret"
-        );
-        delete s_transfers[id];
-        s_fees = s_fees.add(uints.fees0).add(uints.fees1);
-        if (addresses.token0 == address(0)) {
-            //ether to 721
-            msg.sender.transfer(uints.value0);
-        } else {
-            IERC721(addresses.token0).safeTransferFrom(
-                addresses.from,
-                msg.sender,
-                uints.value0,
-                swapBytes.tokenData0
-            );
-        }
-        if (addresses.token1 == address(0)) {
-            //721 to ether
-            require(
-                msg.value == uints.value1.add(uints.fees1),
-                "SafeSwap: value mismatch"
-            );
-            addresses.from.transfer(uints.value1);
-        } else {
-            require(msg.value == uints.fees1, "SafeSwap: value mismatch");
-            IERC721(addresses.token1).safeTransferFrom(
-                msg.sender,
-                addresses.from,
-                uints.value1,
-                swapBytes.tokenData1
-            );
-        }
-        emit ERC721Swapped(
-            addresses.from,
-            msg.sender,
-            addresses.token0,
-            uints.value0,
-            addresses.token1,
-            uints.value1,
-            id
-        );
-    }
-
-    function swapERC721_1(SwapErc721Struct memory inputs) external payable {
+    function swapERC721(SwapErc721Struct memory inputs) external payable {
         bytes32 id = keccak256(
             abi.encode(
                 inputs.from,
@@ -946,24 +857,6 @@ contract SafeSwap is AccessControl {
     }
 
     /*
-    function retrieveERC721(
-        address token,
-        string calldata tokenSymbol,
-        address to,
-        uint256 tokenId,
-        bytes calldata tokenData,
-        uint256 fees,
-        bytes32 secretHash
-    )   
-        external 
-    {
-        bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
-        require(s_erc721Transfers[id]  > 0, "SafeTransfer: request not exist");
-        delete s_erc721Transfers[id];
-        msg.sender.transfer(fees);
-        emit ERC721Retrieved(token, msg.sender, to, id, tokenId);
-    }
-
     function timedDepositERC721(
         address token,
         string calldata tokenSymbol,
