@@ -14,6 +14,10 @@ const NFT4 = 23456
 const NFT6 = 12345
 const NFT7 = 45678
 const NFT8 = 45633
+const NFT9 = 73454
+const NFT10 = 54654
+const NFT11 = 45454
+const NFT12 = 45455
 
 const {
   ZERO_ADDRESS,
@@ -67,10 +71,10 @@ contract('SafeSwap', async accounts => {
       assert(typeof user2         == 'string', 'user2 should be string')
       assert(typeof user3         == 'string', 'user3 should be string')
       assert(typeof user4         == 'string', 'user4 should be string')
-      assert(typeof user5         == 'string', 'user3 should be string')
-      assert(typeof user6         == 'string', 'user4 should be string')
-      assert(typeof user7         == 'string', 'user3 should be string')
-      assert(typeof user8         == 'string', 'user4 should be string')
+      assert(typeof user5         == 'string', 'user5 should be string')
+      assert(typeof user6         == 'string', 'user6 should be string')
+      assert(typeof user7         == 'string', 'user7 should be string')
+      assert(typeof user8         == 'string', 'user8 should be string')
       assert(typeof val1          == 'string', 'val1  should be big number')
       assert(typeof val2          == 'string', 'val2  should be string')
       assert(typeof val3          == 'string', 'val2  should be string')
@@ -222,6 +226,11 @@ function deposit(
     const secret = 'my secret'
     const secretHash = sha3(secret)
     await token.approve(st.address, 1e12, { from: user3 })
+
+    let balance7 = await web3.eth.getBalance(user3)
+    let balance8 = await web3.eth.getBalance(user4)
+    console.log("user3 balance =", web3.utils.fromWei(balance7,'ether'))
+    console.log("user4 balance =", web3.utils.fromWei(balance8,'ether'))
     
     await mustRevert(async ()=> {
       await st.deposit(user4, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash,
@@ -268,6 +277,11 @@ function deposit(
 
     await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
       { from: user4, value: 60, nonce: await trNonce(web3, user4) })
+
+      balance7 = await web3.eth.getBalance(user3)
+     balance8 = await web3.eth.getBalance(user4)
+      console.log("user3 balance =", web3.utils.fromWei(balance7,'ether'))
+      console.log("user4 balance =", web3.utils.fromWei(balance8,'ether'))
     
   })
       
@@ -341,77 +355,204 @@ function deposit(
     ) 
   */
 
+
   it('should be able to swap 721 token - Ether to 721', async () => {
     const secret = 'my secret'
+    const secret2 = 'my secret word'
     const secretHash = sha3(secret)
     const tokenId = NFT4;
     const tokenData = 1;
     const zero_tokenId = 0;
 
-   /*  await mustRevert(async ()=> {
-      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
-        { from: user4, value: 160, nonce: await trNonce(web3, user3) })
-    }) */
+    let balance1 = await web3.eth.getBalance(user3)
+    let balance2 = await web3.eth.getBalance(user4)
+    console.log(web3.utils.fromWei(balance1,'ether'))
+    console.log(web3.utils.fromWei(balance2,'ether'))
 
+
+    //msg.value < value0 + fees0 
     await mustRevert(async ()=> {
       await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
         { from: user3, value: 110, nonce: await trNonce(web3, user3) })
     })
 
+    //msg.value > value0 + fees0
     await mustRevert(async ()=> {
       await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
         { from: user3, value: 170, nonce: await trNonce(web3, user3) })
     })
 
+    //msg.value = fees0
     await mustRevert(async ()=> {
       await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
         { from: user3, value: 10, nonce: await trNonce(web3, user3) })
     })
 
+    ////msg.value = value0
     await mustRevert(async ()=> {
       await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
         { from: user3, value: 150, nonce: await trNonce(web3, user3) })
     })
 
+    //ether to ether
     await mustRevert(async ()=> {
       await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, ZERO_ADDRESS, 120, tokenData, 10, secretHash,
         { from: user3, value: 160, nonce: await trNonce(web3, user3) })
     })
 
+    //ether to 721 when tokenId is 0
     await mustRevert(async ()=> {
       await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, zero_tokenId, tokenData, 10, secretHash,
         { from: user3, value: 160, nonce: await trNonce(web3, user3) })
     })
+    
 
-    
-    
     await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
     { from: user3, value: 160, nonce: await trNonce(web3, user3) })
+
+    //same trx second time
+    await mustRevert(async ()=> {
+      await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+      { from: user3, value: 160, nonce: await trNonce(web3, user3) })
+    })
 
     const params = {from: user3, token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
                     value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
+    const params1 = {from: user3, token0: ZERO_ADDRESS, value0: 160, tokenData0:tokenData, fees0:10, token1:token721.address, 
+      value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+
+    const params2 = {from: user3, token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
+        value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:sha3(secret), secret:Buffer.from(secret2)}
+
     await token721.approve(st.address, tokenId, { from: user4 })
+
+    //request not exists
+    await mustRevert(async ()=> {
+      await st.swapERC721(params1,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    })
+
+    //wrong secret
+    await mustRevert(async ()=> {
+      await st.swapERC721(params2,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    })
+
     await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+
+    balance1 = await web3.eth.getBalance(user3)
+    balance2 = await web3.eth.getBalance(user4)
+    console.log(web3.utils.fromWei(balance1,'ether'))
+    console.log(web3.utils.fromWei(balance2,'ether'))
 
     })
 
-    
-    it('should be able to swap 721 token - 721 to Ether', async () => {
+    it('should fail on sender == recepient - Ether to 721', async () => {
+      const secret = 'my secret'
+      const secretHash = sha3(secret)
+      const tokenId = NFT4;
+      const tokenData = 1;
+      const zero_tokenId = 0;
+  
+       await mustRevert(async ()=> {
+        await st.depositERC721(user4, ZERO_ADDRESS, 150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+          { from: user4, value: 160, nonce: await trNonce(web3, user4) })
+      }) 
+    })
+
+    it('should fail on value mismatch - 721 to Ether', async () => {
       const secret = 'my secret'
       const secretHash = sha3(secret)
       const tokenId = NFT6;
       const tokenData = 1;
+      const zero_tokenId = 0;
+      let balance5 = await web3.eth.getBalance(user5)
+      let balance6 = await web3.eth.getBalance(user6)
+      console.log(web3.utils.fromWei(balance5,'ether'))
+      console.log(web3.utils.fromWei(balance6,'ether'))
+
+      //no tokenId
+      await mustRevert(async ()=> {
+        await st.depositERC721(user5, token721.address, zero_tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+          { from: user6, value: 10, nonce: await trNonce(web3, user6) })
+      })
       
-      await st.depositERC721(user5, token721.address, tokenId, tokenData, 10, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
-        { from: user6, value: 10, nonce: await trNonce(web3, user6) })
+      //msg.value < fees0
+      await mustRevert(async ()=> {
+        await st.depositERC721(user5, token721.address, tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+          { from: user6, value: 18, nonce: await trNonce(web3, user6) })
+      })
+
+      //msg.value > fees0
+      await mustRevert(async ()=> {
+        await st.depositERC721(user5, token721.address, tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+          { from: user6, value: 22, nonce: await trNonce(web3, user6) })
+      })
+
+      //msg.value == fees1
+      await mustRevert(async ()=> {
+        await st.depositERC721(user5, token721.address, tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+          { from: user6, value: 10, nonce: await trNonce(web3, user6) })
+      })
+
+      //msg.value == 0
+      await mustRevert(async ()=> {
+        await st.depositERC721(user5, token721.address, tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+          { from: user6, value: 0, nonce: await trNonce(web3, user6) })
+      })
+
+      await st.depositERC721(user5, token721.address, tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
+        { from: user6, value: 20, nonce: await trNonce(web3, user6) })
   
-      const params = {from: user6, token0:token721.address , value0: tokenId, tokenData0:tokenData, fees0:10, token1:ZERO_ADDRESS, 
+      const params = {from: user6, token0:token721.address , value0: tokenId, tokenData0:tokenData, fees0:20, token1:ZERO_ADDRESS, 
                       value1:80, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
   
       await token721.approve(st.address, tokenId, { from: user6 })
+
+      //msg.value > inputs.value1.add(inputs.fees1)
+      await mustRevert(async ()=> {
+        await st.swapERC721(params,{ from: user5, value: 100, nonce: await trNonce(web3, user5) })
+      })
+
+      //msg.value < inputs.value1.add(inputs.fees1)
+      await mustRevert(async ()=> {
+        await st.swapERC721(params,{ from: user5, value: 70, nonce: await trNonce(web3, user5) })
+      })
+
+      //msg.value == inputs.value1
+      await mustRevert(async ()=> {
+        await st.swapERC721(params,{ from: user5, value: 80, nonce: await trNonce(web3, user5) })
+      })
+
+      //msg.value == inputs.fees1
+      await mustRevert(async ()=> {
+        await st.swapERC721(params,{ from: user5, value: 10, nonce: await trNonce(web3, user5) })
+      })
+
       await st.swapERC721(params,{ from: user5, value: 90, nonce: await trNonce(web3, user5) })
-  
+        
+      balance5 = await web3.eth.getBalance(user5)
+      balance6 = await web3.eth.getBalance(user6)
+      console.log(web3.utils.fromWei(balance5,'ether'))
+      console.log(web3.utils.fromWei(balance6,'ether'))
+    })
+
+      it('should be fail on no tokenIds - 721 to 721', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const tokenId7 = NFT7;
+        const tokenId8 = NFT8;
+        const tokenData = 1;
+        const zero_tokenId = 0;
+        
+        await mustRevert(async ()=> {
+          await st.depositERC721(user8, token721.address, zero_tokenId, tokenData, 10, token721.address, tokenId8, tokenData, 10, secretHash,
+            { from: user7, value: 10, nonce: await trNonce(web3, user7) })
+        })
+
+        await mustRevert(async ()=> {
+          await st.depositERC721(user8, token721.address, tokenId7, tokenData, 10, token721.address, zero_tokenId, tokenData, 10, secretHash,
+            { from: user7, value: 10, nonce: await trNonce(web3, user7) })
+        })
       })
 
       it('should be able to swap 721 token - 721 to 721', async () => {
@@ -444,6 +585,24 @@ function deposit(
       
           st.retrieveERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
         })
+
+
+        /* it('should fail in swap on no request exists  - Ether to 721', async () => {
+          const secret = 'my secret word'
+          const secretHash = sha3(secret)
+          const tokenId = NFT4;
+          const tokenData = 1;
+          const zero_tokenId = 0;
+          
+          await st.depositERC721(user4, ZERO_ADDRESS, 180, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+            { from: user3, value: 190, nonce: await trNonce(web3, user3) })
+        
+            const params = {from: user3, token0: ZERO_ADDRESS, value0: 180, tokenData0:tokenData, fees0:10, token1:token721.address, 
+                            value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+        
+            await token721.approve(st.address, tokenId, { from: user4 })
+            await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+        })  */
 
   })
 /*
