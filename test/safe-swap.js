@@ -226,24 +226,33 @@ function deposit(
     const secret = 'my secret'
     const secretHash = sha3(secret)
     const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
+    const gasPrice = await web3.eth.getGasPrice()
 
     let senderBalance = await web3.eth.getBalance(user3)
     let recipientBalance = await web3.eth.getBalance(user4)
     console.log('senderBalance before the swap = ', web3.utils.fromWei(senderBalance ,'ether'))
     console.log('recipientBalance before the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
 
+    console.log('senderBalance before the swap = ', web3.utils.fromWei(await token.balanceOf(user3, { from: user3 }) ,'ether'))
+    console.log('recipientBalance before the swap = ', web3.utils.fromWei(await token.balanceOf(user4, { from: user4 }),'ether'))
+
+
     await token.approve(st.address, 1e12, { from: user3 })
 
     await st.deposit(user4, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash,
       { from: user3, value: 10, nonce: await trNonce(web3, user3) })
 
-    await st.swap(user3, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash, Buffer.from(secret),
+    const res = await st.swap(user3, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash, Buffer.from(secret),
       { from: user4, value: value150+10, nonce: await trNonce(web3, user4) })
+
+    console.log('gas used in wei ', res.receipt.gasUsed * gasPrice)
 
     senderBalance = await web3.eth.getBalance(user3)
     recipientBalance = await web3.eth.getBalance(user4)
     console.log('senderBalance after the swap = ', web3.utils.fromWei(senderBalance ,'ether'))
     console.log('recipientBalance after the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
+    console.log('senderBalance after the swap = ', web3.utils.fromWei(await token.balanceOf(user3, { from: user3 }) ,'ether'))
+    console.log(`recipientBalance after the swap = ${web3.utils.fromWei(await token.balanceOf(user4, { from: user4 }) ,'ether')}`)
     
   })
 
