@@ -225,6 +225,31 @@ function deposit(
   it('should be able to collect a transfer request from token to ether', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
+    const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
+
+    let senderBalance = await web3.eth.getBalance(user3)
+    let recipientBalance = await web3.eth.getBalance(user4)
+    console.log('senderBalance before the swap = ', web3.utils.fromWei(senderBalance ,'ether'))
+    console.log('recipientBalance before the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
+
+    await token.approve(st.address, 1e12, { from: user3 })
+
+    await st.deposit(user4, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash,
+      { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+
+    await st.swap(user3, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash, Buffer.from(secret),
+      { from: user4, value: value150+10, nonce: await trNonce(web3, user4) })
+
+    senderBalance = await web3.eth.getBalance(user3)
+    recipientBalance = await web3.eth.getBalance(user4)
+    console.log('senderBalance after the swap = ', web3.utils.fromWei(senderBalance ,'ether'))
+    console.log('recipientBalance after the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
+    
+  })
+
+  /* it('should be able to collect a transfer request from token to ether', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
     await token.approve(st.address, 1e12, { from: user3 })
     
     await mustRevert(async ()=> {
@@ -273,7 +298,7 @@ function deposit(
     await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
       { from: user4, value: 60, nonce: await trNonce(web3, user4) })
     
-  })
+  }) */
       
 
   it('should be able to collect a transfer request from ether to token', async () => {
@@ -345,15 +370,43 @@ function deposit(
     ) 
   */
 
+    it('should be able to swap 721 token - Ether to 721', async () => {
+      const secret = 'my secret'
+      const secretHash = sha3(secret)
+      const tokenId = NFT4;
+      const tokenData = 1;
+      const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
+  
+      let senderBalance = await web3.eth.getBalance(user3)
+      let recipientBalance = await web3.eth.getBalance(user4)
+      console.log('senderBalance before the swap = ', web3.utils.fromWei(senderBalance ,'ether'))
+      console.log('recipientBalance before the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
+  
+      await st.depositERC721(user4, ZERO_ADDRESS, value150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+          { from: user3, value: value150+10, nonce: await trNonce(web3, user3) })
+  
+      const params = {from: user3, token0: ZERO_ADDRESS, value0: value150, tokenData0:tokenData, fees0:10, token1:token721.address, 
+                      value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+      
+      await token721.approve(st.address, tokenId, { from: user4 })
+  
+      await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+  
+      senderBalance = await web3.eth.getBalance(user3)
+      recipientBalance = await web3.eth.getBalance(user4)
+      console.log('senderBalance after the swap = ', web3.utils.fromWei(senderBalance ,'ether'))
+      console.log('recipientBalance after the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
+  
+      })
 
-  it('should be able to swap 721 token - Ether to 721', async () => {
+
+  /* it('should be able to swap 721 token - Ether to 721', async () => {
     const secret = 'my secret'
     const secret2 = 'my secret word'
     const secretHash = sha3(secret)
     const tokenId = NFT4;
     const tokenData = 1;
     const zero_tokenId = 0;
-
 
     //msg.value < value0 + fees0 
     await mustRevert(async ()=> {
@@ -424,7 +477,7 @@ function deposit(
 
     await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
 
-    })
+    }) */
 
     it('should fail on sender == recepient - Ether to 721', async () => {
       const secret = 'my secret'
