@@ -7,10 +7,9 @@ import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-/**
-@title SafeSwap constract 
-@author Tal Asa <tal@kirobo.io> , Ori Shalom <oris@kirobo.io> 
-@notice handles swapping of token between 2 parties:
+/** @title SafeSwap constract 
+    @author Tal Asa <tal@kirobo.io> , Ori Shalom <oris@kirobo.io> 
+    @notice handles swapping of token between 2 parties:
         sender - fills the information for both parties 
         addresses - his address and the recipient address
         token - address of the specific token to be transferred (eth, token20, token721)
@@ -29,7 +28,6 @@ contract SafeSwap is AccessControl {
     bytes32 public constant ACTIVATOR_ROLE =
         0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
-
     // keccak256("hiddenSwap(address from,address to,address token0,uint256 value0,uint256 fees0,address token1,uint256 value1,uint256 fees1,bytes32 secretHash)");
     bytes32 public constant HIDDEN_SWAP_TYPEHASH =
         0x0f11af065228fe4d4a82a264c46914620a3a99413bfee68f390bd6a3ba05e2c2;
@@ -43,14 +41,7 @@ contract SafeSwap is AccessControl {
     bytes32 s_uid;
     uint256 s_fees;
 
-    struct TokenInfo {
-        bytes32 id;
-        bytes32 id1;
-        uint256 tr;
-    }
-
-    struct SwapStruct {
-        address payable from;
+    struct SwapInfo {
         address token0;
         uint256 value0;
         uint256 fees0;
@@ -60,8 +51,7 @@ contract SafeSwap is AccessControl {
         bytes32 secretHash;
     }
 
-    struct SwapErc721Struct {
-        address payable from;
+    struct SwapERC721Info {
         address token0;
         uint256 value0; //in case of ether it's a value, in case of 721 it's tokenId
         bytes tokenData0;
@@ -70,65 +60,6 @@ contract SafeSwap is AccessControl {
         uint256 value1; //in case of ether it's a value, in case of 721 it's tokenId
         bytes tokenData1;
         uint256 fees1;
-        bytes32 secretHash;
-        bytes secret;
-    }
-
-    struct SwapAutoRetrieveERC721 {
-        address to;
-        address token0;
-        uint256 value0;
-        bytes tokenData0;
-        uint256 fees0;
-        address token1;
-        uint256 value1;
-        bytes tokenData1;
-        uint256 fees1;
-        bytes32 secretHash;
-    }
-
-    struct SwapRetrieveERC721 {
-        address to;
-        address token0;
-        uint256 value0;
-        bytes tokenData0;
-        uint256 fees0;
-        address token1;
-        uint256 value1;
-        bytes tokenData1;
-        uint256 fees1;
-        bytes32 secretHash;
-    }
-    struct SwapTimedDepositERC721 {
-        address payable to;
-        address token0;
-        uint256 value0; //in case of ether it's a value, in case of 721 it's tokenId
-        bytes tokenData0;
-        uint256 fees0;
-        address token1;
-        uint256 value1; //in case of ether it's a value, in case of 721 it's tokenId
-        bytes tokenData1;
-        uint256 fees1;
-        bytes32 secretHash;
-        uint64 availableAt;
-        uint64 expiresAt;
-        uint128 autoRetrieveFees;
-    }
-    struct SwapAddresses {
-        address payable from;
-        address token0;
-        address token1;
-    }
-    struct SwapUints {
-        uint256 value0;
-        uint256 fees0;
-        uint256 value1;
-        uint256 fees1;
-    }
-    struct SwapBytes {
-        bytes tokenData0;
-        bytes tokenData1;
-        bytes secret;
         bytes32 secretHash;
     }
 
@@ -137,7 +68,7 @@ contract SafeSwap is AccessControl {
     mapping(bytes32 => uint256) s_erc721Transfers;
     mapping(bytes32 => uint256) s_htransfers;
 
-    string public constant NAME = "Kirobo Safe Transfer";
+    string public constant NAME = "Kirobo Safe Swap";
     string public constant VERSION = "1";
     uint8 public constant VERSION_NUMBER = 0x1;
 
@@ -380,7 +311,7 @@ contract SafeSwap is AccessControl {
         return s_uid;
     }
 
-    // --------------------------------- ETH ---------------------------------
+    // --------------------------------- ETH <==> ERC20 ---------------------------------
 
     /**
     @notice deposit - safe swap function that the sender side fills with all the relevet information for the swap
@@ -749,7 +680,7 @@ contract SafeSwap is AccessControl {
     /**
     @notice swapERC721 - the recipient side, besically approves the info sent by the sender.
             once this function is submitted successuly the swap is made
-    @param inputs: a struct (SwapErc721Struct) defimed above containing the following params:
+    @param info: a struct (SwapErc721Struct) defimed above containing the following params:
         to:     address of the recipient
         token0: the address of the token he is sending to the recipient
         value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
@@ -763,20 +694,20 @@ contract SafeSwap is AccessControl {
         fees1: the amount of fees the recipient needs to pay for the swap
         secretHash: a hash of the secret phrase 
      */
-    function swapERC721(SwapErc721Struct memory inputs) external payable {
+    function swapERC721(address payable from, SwapERC721Info memory info, bytes calldata secret) external payable {
         bytes32 id = keccak256(
             abi.encode(
-                inputs.from,
+                from,
                 msg.sender,
-                inputs.token0,
-                inputs.value0,
-                inputs.tokenData0,
-                inputs.fees0,
-                inputs.token1,
-                inputs.value1,
-                inputs.tokenData1,
-                inputs.fees1,
-                inputs.secretHash
+                info.token0,
+                info.value0,
+                info.tokenData0,
+                info.fees0,
+                info.token1,
+                info.value1,
+                info.tokenData1,
+                info.fees1,
+                info.secretHash
             )
         );
         uint256 tr = s_erc721Transfers[id];
@@ -784,45 +715,45 @@ contract SafeSwap is AccessControl {
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
         require(
-            keccak256(inputs.secret) == inputs.secretHash,
+            keccak256(secret) == info.secretHash,
             "SafeSwap: wrong secret"
         );
         delete s_erc721Transfers[id];
-        s_fees = s_fees.add(inputs.fees0).add(inputs.fees1);
-        if (inputs.token0 == address(0)) {
+        s_fees = s_fees.add(info.fees0).add(info.fees1);
+        if (info.token0 == address(0)) {
             //ether to 721
-            msg.sender.transfer(inputs.value0);
+            msg.sender.transfer(info.value0);
         } else {
-            IERC721(inputs.token0).safeTransferFrom(
-                inputs.from,
+            IERC721(info.token0).safeTransferFrom(
+                from,
                 msg.sender,
-                inputs.value0,
-                inputs.tokenData0
+                info.value0,
+                info.tokenData0
             );
         }
-        if (inputs.token1 == address(0)) {
+        if (info.token1 == address(0)) {
             //721 to ether
             require(
-                msg.value == inputs.value1.add(inputs.fees1),
+                msg.value == info.value1.add(info.fees1),
                 "SafeSwap: value mismatch"
             );
-            inputs.from.transfer(inputs.value1);
+            from.transfer(info.value1);
         } else {
-            require(msg.value == inputs.fees1, "SafeSwap: value mismatch");
-            IERC721(inputs.token1).safeTransferFrom(
+            require(msg.value == info.fees1, "SafeSwap: value mismatch");
+            IERC721(info.token1).safeTransferFrom(
                 msg.sender,
-                inputs.from,
-                inputs.value1,
-                inputs.tokenData1
+                from,
+                info.value1,
+                info.tokenData1
             );
         }
         emit ERC721Swapped(
-            inputs.from,
+            from,
             msg.sender,
-            inputs.token0,
-            inputs.value0,
-            inputs.token1,
-            inputs.value1,
+            info.token0,
+            info.value0,
+            info.token1,
+            info.value1,
             id
         );
     }
@@ -831,7 +762,7 @@ contract SafeSwap is AccessControl {
     @notice retrieveERC721 - gives the functionallity of the undo for swaps containing ERC721 tokens
             after the sender sends the deposit he can undo it (for what ever reason)
             until the recipient didnt approved the swap (swap function below)
-    @param inputs: a struct (SwapRetrieveERC721) defimed above containing the following params:    
+    @param info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
             to: address of the recipient
             token0: the address of the token he is sending to the recipient
             value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
@@ -846,61 +777,61 @@ contract SafeSwap is AccessControl {
             secretHash: a hash of the secret phrase 
 
      */
-    function retrieveERC721(SwapRetrieveERC721 memory inputs) external {
+    function retrieveERC721(address to, SwapERC721Info memory info) external {
         bytes32 id = keccak256(
             abi.encode(
                 msg.sender,
-                inputs.to,
-                inputs.token0,
-                inputs.value0,
-                inputs.tokenData0,
-                inputs.fees0,
-                inputs.token1,
-                inputs.value1,
-                inputs.tokenData1,
-                inputs.fees1,
-                inputs.secretHash
+                to,
+                info.token0,
+                info.value0,
+                info.tokenData0,
+                info.fees0,
+                info.token1,
+                info.value1,
+                info.tokenData1,
+                info.fees1,
+                info.secretHash
             )
         );
         require(s_erc721Transfers[id] > 0, "SafeSwap: request not exist");
         delete s_erc721Transfers[id];
         uint256 valueToSend;
-        if (inputs.token0 == address(0)) {
-            valueToSend = inputs.value0.add(inputs.fees0);
+        if (info.token0 == address(0)) {
+            valueToSend = info.value0.add(info.fees0);
         } else {
-            valueToSend = inputs.fees0;
+            valueToSend = info.fees0;
         }
         msg.sender.transfer(valueToSend);
-        if (inputs.token0 == address(0)) {
-            emit Retrieved(msg.sender, inputs.to, id, valueToSend);
+        if (info.token0 == address(0)) {
+            emit Retrieved(msg.sender, to, id, valueToSend);
         } else {
             emit ERC721Retrieved(
-                inputs.token0,
+                info.token0,
                 msg.sender,
-                inputs.to,
+                to,
                 id,
-                inputs.value0
+                info.value0
             );
         }
     }
 
-    function autoRetrieveERC721(SwapAutoRetrieveERC721 memory inputs)
+    function autoRetrieveERC721(address to, SwapERC721Info memory info)
         external
         onlyActivator()
     {
         bytes32 id = keccak256(
             abi.encode(
                 msg.sender,
-                inputs.to,
-                inputs.token0,
-                inputs.value0,
-                inputs.tokenData0,
-                inputs.fees0,
-                inputs.token1,
-                inputs.value1,
-                inputs.tokenData1,
-                inputs.fees1,
-                inputs.secretHash
+                to,
+                info.token0,
+                info.value0,
+                info.tokenData0,
+                info.fees0,
+                info.token1,
+                info.value1,
+                info.tokenData1,
+                info.fees1,
+                info.secretHash
             )
         );
         uint256 tr = s_erc721Transfers[id];
@@ -909,83 +840,89 @@ contract SafeSwap is AccessControl {
         delete s_erc721Transfers[id];
         s_fees = s_fees + (tr >> 128); // autoRetreive fees
         uint256 valueToRetrieve;
-        if (inputs.token0 == address(0)) {
-            valueToRetrieve = inputs.value0.add(inputs.fees0).sub(tr >> 128);
+        if (info.token0 == address(0)) {
+            valueToRetrieve = info.value0.add(info.fees0).sub(tr >> 128);
         } else {
-            valueToRetrieve = inputs.fees0.sub(tr >> 128);
+            valueToRetrieve = info.fees0.sub(tr >> 128);
         }
         msg.sender.transfer(valueToRetrieve);
-        if (inputs.token0 == address(0)) {
-            emit Retrieved(msg.sender, inputs.to, id, valueToRetrieve);
+        if (info.token0 == address(0)) {
+            emit Retrieved(msg.sender, to, id, valueToRetrieve);
         } else {
             emit ERC721Retrieved(
-                inputs.token0,
+                info.token0,
                 msg.sender,
-                inputs.to,
+                to,
                 id,
-                inputs.value0
+                info.value0
             );
         }
     }
 
-    function timedDepositERC721(SwapTimedDepositERC721 memory inputs)
+    function timedDepositERC721(
+        address to,
+        SwapERC721Info memory info,
+        uint64 availableAt,
+        uint64 expiresAt,
+        uint128 autoRetrieveFees
+)
         external
         payable
     {
-        if (inputs.token0 == address(0)) {
+        if (info.token0 == address(0)) {
             //eth to 721
             require(
-                inputs.token0 != inputs.token1,
+                info.token0 != info.token1,
                 "SafeSwap: try to swap ether and ether"
             );
             require(
-                msg.value == inputs.value0.add(inputs.fees0),
+                msg.value == info.value0.add(info.fees0),
                 "SafeSwap: value mismatch"
             );
-            require(inputs.value1 > 0, "SafeSwap: no token id");
-        } else if (inputs.token1 == address(0)) {
+            require(info.value1 > 0, "SafeSwap: no token id");
+        } else if (info.token1 == address(0)) {
             //721 to eth
-            require(msg.value == inputs.fees0, "SafeSwap: value mismatch");
-            require(inputs.value0 > 0, "SafeSwap: no token id");
+            require(msg.value == info.fees0, "SafeSwap: value mismatch");
+            require(info.value0 > 0, "SafeSwap: no token id");
         } else {
             //721 to 721
-            require(inputs.value0 > 0, "SafeSwap: no token id");
-            require(inputs.value1 > 0, "SafeSwap: no token id");
+            require(info.value0 > 0, "SafeSwap: no token id");
+            require(info.value1 > 0, "SafeSwap: no token id");
         }
-        require(inputs.expiresAt > now, "SafeSwap: already expired");
+        require(expiresAt > now, "SafeSwap: already expired");
         bytes32 id = keccak256(
             abi.encode(
                 msg.sender,
-                inputs.to,
-                inputs.token0,
-                inputs.value0,
-                inputs.tokenData0,
-                inputs.fees0,
-                inputs.token1,
-                inputs.value1,
-                inputs.tokenData1,
-                inputs.fees1,
-                inputs.secretHash
+                to,
+                info.token0,
+                info.value0,
+                info.tokenData0,
+                info.fees0,
+                info.token1,
+                info.value1,
+                info.tokenData1,
+                info.fees1,
+                info.secretHash
             )
         );
         require(s_erc721Transfers[id] == 0, "SafeSwap: request exist");
         s_erc721Transfers[id] =
-            uint256(inputs.expiresAt) +
-            (uint256(inputs.availableAt) << 64) +
-            (uint256(inputs.autoRetrieveFees) << 128);
+            uint256(expiresAt) +
+            (uint256(availableAt) << 64) +
+            (uint256(autoRetrieveFees) << 128);
         emit ERC721TimedDeposited(
             msg.sender,
-            inputs.to,
-            inputs.token0,
-            inputs.value0,
-            inputs.fees0,
-            inputs.token1,
-            inputs.value1,
-            inputs.fees1,
-            inputs.secretHash,
-            inputs.availableAt,
-            inputs.expiresAt,
-            inputs.autoRetrieveFees
+            to,
+            info.token0,
+            info.value0,
+            info.fees0,
+            info.token1,
+            info.value1,
+            info.fees1,
+            info.secretHash,
+            availableAt,
+            expiresAt,
+            autoRetrieveFees
         );
     }
 
@@ -1051,7 +988,8 @@ contract SafeSwap is AccessControl {
     }
 
     function hiddenSwap(
-        SwapStruct memory inputs,
+        address payable from,
+        SwapInfo memory info,
         bytes calldata secret,
         uint8 v,
         bytes32 r,
@@ -1059,97 +997,102 @@ contract SafeSwap is AccessControl {
     ) 
         external payable
     {
-        bytes32 id1 = keccak256(abi.encode(HIDDEN_SWAP_TYPEHASH, inputs.from, msg.sender, inputs.token0, inputs.value0, inputs.fees0, inputs.token1, inputs.value1, inputs.fees1, inputs.secretHash));
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == inputs.from, "SafeTransfer: wrong signature");
-        bytes32 id = keccak256(abi.encode(inputs.from, inputs.value0.add(inputs.fees0), id1));        
+        bytes32 id1 = keccak256(abi.encode(HIDDEN_SWAP_TYPEHASH, from, msg.sender, info.token0, info.value0, info.fees0, info.token1, info.value1, info.fees1, info.secretHash));
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
+        bytes32 id = keccak256(abi.encode(from, info.value0.add(info.fees0), id1));        
         uint256 tr = s_htransfers[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
-        require(keccak256(secret) == inputs.secretHash, "SafeSwap: wrong secret");
+        require(keccak256(secret) == info.secretHash, "SafeSwap: wrong secret");
         delete s_htransfers[id];
-        s_fees = s_fees.add(inputs.fees0).add(inputs.fees1);
-        if (inputs.token0 == address(0)) {
-            msg.sender.transfer(inputs.value0);
+        s_fees = s_fees.add(info.fees0).add(info.fees1);
+        if (info.token0 == address(0)) {
+            msg.sender.transfer(info.value0);
         } else {
-            IERC20(inputs.token0).safeTransferFrom(inputs.from, msg.sender, inputs.value0);
+            IERC20(info.token0).safeTransferFrom(from, msg.sender, info.value0);
         }
-        if (inputs.token1 == address(0)) {
-            require(msg.value == inputs.value1.add(inputs.fees1), "SafeSwap: value mismatch");
-            inputs.from.transfer(inputs.value1);
+        if (info.token1 == address(0)) {
+            require(msg.value == info.value1.add(info.fees1), "SafeSwap: value mismatch");
+            from.transfer(info.value1);
         } else {
-            require(msg.value == inputs.fees1, "SafeSwap: value mismatch");
-            IERC20(inputs.token1).safeTransferFrom(msg.sender, inputs.from, inputs.value1);
+            require(msg.value == info.fees1, "SafeSwap: value mismatch");
+            IERC20(info.token1).safeTransferFrom(msg.sender, from, info.value1);
         }
         emit HSwapped(
-            inputs.from,
+            from,
             msg.sender,
             id1,
-            inputs.token0,
-            inputs.value0,
-            inputs.token1,
-            inputs.value1
+            info.token0,
+            info.value0,
+            info.token1,
+            info.value1
         );
     }
 
     function hiddenSwapERC721(
-        SwapErc721Struct memory inputs,
+        address payable from,
+        SwapERC721Info memory info,
+        bytes calldata secret,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) 
         external payable
     {
-        bytes32 id1 = keccak256(abi.encode(HIDDEN_ERC721_SWAP_TYPEHASH, inputs.from, msg.sender, inputs.token0, inputs.value0, inputs.tokenData0, inputs.fees0, inputs.token1, inputs.value1, inputs.tokenData1, inputs.fees1, inputs.secretHash));
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == inputs.from, "SafeTransfer: wrong signature");
-        bytes32 id = keccak256(abi.encode(inputs.from, inputs.value0.add(inputs.fees0), id1));        
+        bytes32 id1 = _calcHiddenERC712Id1(from, info);
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
+        bytes32 id = keccak256(abi.encode(from, info.value0.add(info.fees0), id1));        
         uint256 tr = s_htransfers[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
         require(
-            keccak256(inputs.secret) == inputs.secretHash,
+            keccak256(secret) == info.secretHash,
             "SafeSwap: wrong secret"
         );
         delete s_htransfers[id];
-        s_fees = s_fees.add(inputs.fees0).add(inputs.fees1);
-        if (inputs.token0 == address(0)) {
+        s_fees = s_fees.add(info.fees0).add(info.fees1);
+        if (info.token0 == address(0)) {
             //ether to 721
-            msg.sender.transfer(inputs.value0);
+            msg.sender.transfer(info.value0);
         } else {
-            IERC721(inputs.token0).safeTransferFrom(
-                inputs.from,
+            IERC721(info.token0).safeTransferFrom(
+                from,
                 msg.sender,
-                inputs.value0,
-                inputs.tokenData0
+                info.value0,
+                info.tokenData0
             );
         }
-        if (inputs.token1 == address(0)) {
+        if (info.token1 == address(0)) {
             //721 to ether
             require(
-                msg.value == inputs.value1.add(inputs.fees1),
+                msg.value == info.value1.add(info.fees1),
                 "SafeSwap: value mismatch"
             );
-            inputs.from.transfer(inputs.value1);
+            from.transfer(info.value1);
         } else {
-            require(msg.value == inputs.fees1, "SafeSwap: value mismatch");
-            IERC721(inputs.token1).safeTransferFrom(
+            require(msg.value == info.fees1, "SafeSwap: value mismatch");
+            IERC721(info.token1).safeTransferFrom(
                 msg.sender,
-                inputs.from,
-                inputs.value1,
-                inputs.tokenData1
+                from,
+                info.value1,
+                info.tokenData1
             );
         }
         emit HERC721Swapped(
-            inputs.from,
+            from,
             msg.sender,
             id1,
-            inputs.token0,
-            inputs.value0,
-            inputs.token1,
-            inputs.value1
+            info.token0,
+            info.value0,
+            info.token1,
+            info.value1
         );
+    }
 
+    function _calcHiddenERC712Id1(address from, SwapERC721Info memory info) private view returns (bytes32) {
+        return keccak256(abi.encode(HIDDEN_ERC721_SWAP_TYPEHASH, from, msg.sender, info.token0, info.value0, info.tokenData0, info.fees0, info.token1, info.value1, info.tokenData1, info.fees1, info.secretHash));
     }
 
 }
