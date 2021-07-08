@@ -29,17 +29,14 @@ contract SafeSwap is AccessControl {
     bytes32 public constant ACTIVATOR_ROLE =
         0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
-    // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash)");
-    bytes32 public constant HIDDEN_COLLECT_TYPEHASH =
-        0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
 
-    // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash)");
-    bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH =
-        0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
+    // keccak256("hiddenSwap(address from,address to,address token0,uint256 value0,uint256 fees0,address token1,uint256 value1,uint256 fees1,bytes32 secretHash)");
+    bytes32 public constant HIDDEN_SWAP_TYPEHASH =
+        0x0f11af065228fe4d4a82a264c46914620a3a99413bfee68f390bd6a3ba05e2c2;
 
-    // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash)");
-    bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH =
-        0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
+    // keccak256("hiddenSwapERC721(address from,address to,address token0,uint256 value0,bytes tokenData0,uint256 fees0,address token1,uint256 value1,bytes tokenData1,uint256 fees1,bytes32 secretHash)");
+    bytes32 public constant HIDDEN_ERC721_SWAP_TYPEHASH =
+        0x22eb06b067ef6305a65d8334d41817cd2fb49f43ee331996ed20687c8152e5ed;
 
     bytes32 public DOMAIN_SEPARATOR;
     uint256 public CHAIN_ID;
@@ -50,6 +47,17 @@ contract SafeSwap is AccessControl {
         bytes32 id;
         bytes32 id1;
         uint256 tr;
+    }
+
+    struct SwapStruct {
+        address payable from;
+        address token0;
+        uint256 value0;
+        uint256 fees0;
+        address token1;
+        uint256 value1;
+        uint256 fees1;
+        bytes32 secretHash;
     }
 
     struct SwapErc721Struct {
@@ -272,27 +280,25 @@ contract SafeSwap is AccessControl {
 
     event HRetrieved(address indexed from, bytes32 indexed id1, uint256 value);
 
-    event HCollected(
+
+    event HSwapped(
         address indexed from,
         address indexed to,
         bytes32 indexed id1,
-        uint256 value
+        address token0,
+        uint256 value0,
+        address token1,
+        uint256 value1
     );
 
-    event HERC20Collected(
-        address indexed token,
+    event HERC721Swapped(
         address indexed from,
         address indexed to,
-        bytes32 id1,
-        uint256 value
-    );
-
-    event HERC721Collected(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        bytes32 id1,
-        uint256 tokenId
+        bytes32 indexed id1,
+        address token0,
+        uint256 value0,
+        address token1,
+        uint256 value1
     );
 
     modifier onlyActivator() {
@@ -984,7 +990,7 @@ contract SafeSwap is AccessControl {
     }
 
     // ----------------------- Hidden ETH / ERC-20 / ERC-721 -----------------------
-    /*
+
     function hiddenRetrieve(bytes32 id1, uint256 value) external {
         bytes32 id = keccak256(abi.encode(msg.sender, value, id1));
         require(s_htransfers[id] > 0, "SafeSwap: request not exist");
@@ -1010,14 +1016,14 @@ contract SafeSwap is AccessControl {
     }
     
 
-    unction hiddenSwapDeposit(bytes32 id1) external payable {
+    function hiddenDeposit(bytes32 id1) external payable {
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeSwap: request exist");
         s_htransfers[id] = 0xffffffffffffffff;
         emit HDeposited(msg.sender, msg.value, id1);
     }
 
-    function hiddenSwapTimedDeposit(
+    function hiddenTimedDeposit(
         bytes32 id1,
         uint64 availableAt,
         uint64 expiresAt,
@@ -1044,97 +1050,106 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    function hiddenCollect(
-        address from,
-        address payable to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
+    function hiddenSwap(
+        SwapStruct memory inputs,
         bytes calldata secret,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) 
-        external
-        onlyActivator()
+        external payable
     {
-        bytes32 id1 = keccak256(abi.encode(HIDDEN_COLLECT_TYPEHASH, from, to, value, fees, secretHash));
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
-        bytes32 id = keccak256(abi.encode(from, value.add(fees), id1));
+        bytes32 id1 = keccak256(abi.encode(HIDDEN_SWAP_TYPEHASH, inputs.from, msg.sender, inputs.token0, inputs.value0, inputs.fees0, inputs.token1, inputs.value1, inputs.fees1, inputs.secretHash));
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == inputs.from, "SafeTransfer: wrong signature");
+        bytes32 id = keccak256(abi.encode(inputs.from, inputs.value0.add(inputs.fees0), id1));        
         uint256 tr = s_htransfers[id];
-        require(tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tr) > now, "SafeTranfer: expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
-        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+        require(tr > 0, "SafeSwap: request not exist");
+        require(uint64(tr) > now, "SafeSwap: expired");
+        require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
+        require(keccak256(secret) == inputs.secretHash, "SafeSwap: wrong secret");
         delete s_htransfers[id];
-        s_fees = s_fees.add(fees);
-        to.transfer(value);
-        emit HCollected(from, to, id1, value);
+        s_fees = s_fees.add(inputs.fees0).add(inputs.fees1);
+        if (inputs.token0 == address(0)) {
+            msg.sender.transfer(inputs.value0);
+        } else {
+            IERC20(inputs.token0).safeTransferFrom(inputs.from, msg.sender, inputs.value0);
+        }
+        if (inputs.token1 == address(0)) {
+            require(msg.value == inputs.value1.add(inputs.fees1), "SafeSwap: value mismatch");
+            inputs.from.transfer(inputs.value1);
+        } else {
+            require(msg.value == inputs.fees1, "SafeSwap: value mismatch");
+            IERC20(inputs.token1).safeTransferFrom(msg.sender, inputs.from, inputs.value1);
+        }
+        emit HSwapped(
+            inputs.from,
+            msg.sender,
+            id1,
+            inputs.token0,
+            inputs.value0,
+            inputs.token1,
+            inputs.value1
+        );
     }
 
-    function hiddenCollectERC20(
-        address from,
-        address to,
-        address token,
-        string memory tokenSymbol,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
-        bytes calldata secret,
+    function hiddenSwapERC721(
+        SwapErc721Struct memory inputs,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) 
-        external
-        onlyActivator()
+        external payable
     {
-        TokenInfo memory tinfo;
-        tinfo.id1 = keccak256(abi.encode(HIDDEN_ERC20_COLLECT_TYPEHASH, from, to, token, tokenSymbol, value, fees, secretHash));
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
-        tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
-        uint256 tr = s_htransfers[tinfo.id];
-        require(tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tr) > now, "SafeTranfer: expired");
-        require(uint64(tr>>64) <= now, "SafeTranfer: not available yet");
-        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
-        delete s_htransfers[tinfo.id];
-        s_fees = s_fees.add(fees);
-        IERC20(token).safeTransferFrom(from, to, value);
-        emit HERC20Collected(token, from, to, tinfo.id1, value);
+        bytes32 id1 = keccak256(abi.encode(HIDDEN_ERC721_SWAP_TYPEHASH, inputs.from, msg.sender, inputs.token0, inputs.value0, inputs.tokenData0, inputs.fees0, inputs.token1, inputs.value1, inputs.tokenData1, inputs.fees1, inputs.secretHash));
+        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == inputs.from, "SafeTransfer: wrong signature");
+        bytes32 id = keccak256(abi.encode(inputs.from, inputs.value0.add(inputs.fees0), id1));        
+        uint256 tr = s_htransfers[id];
+        require(tr > 0, "SafeSwap: request not exist");
+        require(uint64(tr) > now, "SafeSwap: expired");
+        require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
+        require(
+            keccak256(inputs.secret) == inputs.secretHash,
+            "SafeSwap: wrong secret"
+        );
+        delete s_htransfers[id];
+        s_fees = s_fees.add(inputs.fees0).add(inputs.fees1);
+        if (inputs.token0 == address(0)) {
+            //ether to 721
+            msg.sender.transfer(inputs.value0);
+        } else {
+            IERC721(inputs.token0).safeTransferFrom(
+                inputs.from,
+                msg.sender,
+                inputs.value0,
+                inputs.tokenData0
+            );
+        }
+        if (inputs.token1 == address(0)) {
+            //721 to ether
+            require(
+                msg.value == inputs.value1.add(inputs.fees1),
+                "SafeSwap: value mismatch"
+            );
+            inputs.from.transfer(inputs.value1);
+        } else {
+            require(msg.value == inputs.fees1, "SafeSwap: value mismatch");
+            IERC721(inputs.token1).safeTransferFrom(
+                msg.sender,
+                inputs.from,
+                inputs.value1,
+                inputs.tokenData1
+            );
+        }
+        emit HERC721Swapped(
+            inputs.from,
+            msg.sender,
+            id1,
+            inputs.token0,
+            inputs.value0,
+            inputs.token1,
+            inputs.value1
+        );
+
     }
 
-    function hiddenCollectERC721(
-        address from,
-        address to,
-        address token,
-        string memory tokenSymbol,
-        uint256 tokenId,
-        bytes memory tokenData,
-        uint256 fees,
-        bytes32 secretHash,
-        bytes calldata secret,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) 
-        external
-        onlyActivator()
-    {
-        TokenInfo memory tinfo;
-        tinfo.id1 = keccak256(abi.encode(HIDDEN_ERC721_COLLECT_TYPEHASH, from, to, token, tokenSymbol, tokenId, tokenData, fees, secretHash));
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, tinfo.id1)), v, r, s) == from, "SafeTransfer: wrong signature");
-        tinfo.id = keccak256(abi.encode(from, fees, tinfo.id1));
-        tinfo.tr = s_htransfers[tinfo.id]; 
-        require(tinfo.tr > 0, "SafeTransfer: request not exist");
-        require(uint64(tinfo.tr) > now, "SafeTranfer: expired");
-        require(uint64(tinfo.tr>>64) <= now, "SafeTranfer: not available yet");
-        require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
-        delete s_htransfers[tinfo.id];
-        s_fees = s_fees.add(fees);
-        IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
-        emit HERC721Collected(token, from, to, tinfo.id1, tokenId);
-    }
-
-   
-*/
 }
