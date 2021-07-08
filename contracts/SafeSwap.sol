@@ -15,7 +15,7 @@ import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
         token - address of the specific token to be transferred (eth, token20, token721)
         value - the value that he will be sending and the value he will be recieving
         fees - both parties fees
-        secretHash - a hash of his secret phrase for the secure transfer
+        secretHash - a hash of his secret for the secure transfer
 
         recipient - checks that all the agreed between the two is the info is filled correctly
         and if so, approves the swap
@@ -211,7 +211,6 @@ contract SafeSwap is AccessControl {
 
     event HRetrieved(address indexed from, bytes32 indexed id1, uint256 value);
 
-
     event HSwapped(
         address indexed from,
         address indexed to,
@@ -313,17 +312,16 @@ contract SafeSwap is AccessControl {
 
     // --------------------------------- ETH <==> ERC20 ---------------------------------
 
-    /**
-    @notice deposit - safe swap function that the sender side fills with all the relevet information for the swap
-            this function deels with Ether and token20 swaps
-    @param to: address of the recipient
-    @param token0: the address of the token he is sending to the recipient
-    @param value0: the amount being sent to the recipient side in the selected token in token0
-    @param fees0: the amount of fees the he needs to pay for the swap
-    @param token1: the address of the token he is recieving from the recipient 
-    @param value1: the amount being sent to him by the recipient in the selected token in token1
-    @param fees1: the amount of fees the recipient needs to pay for the swap
-    @param secretHash: a hash of the secret phrase 
+    /** @notice deposit - safe swap function that the sender side fills with all the relevet information for the swap
+               this function deels with Ether and token20 swaps
+        @param to: address of the recipient
+        @param token0: the address of the token he is sending to the recipient
+        @param value0: the amount being sent to the recipient side in the selected token in token0
+        @param fees0: the amount of fees the he needs to pay for the swap
+        @param token1: the address of the token he is recieving from the recipient 
+        @param value1: the amount being sent to him by the recipient in the selected token in token1
+        @param fees1: the amount of fees the recipient needs to pay for the swap
+        @param secretHash: a hash of the secret 
  */
     function deposit(
         address payable to,
@@ -370,19 +368,18 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    /**
-    @notice timedDeposit - handles deposits like the above deposit function with an addition that has a timer in seconds
-    @param to: address of the recipient
-    @param token0: the address of the token he is sending to the recipient
-    @param value0: the amount being sent to the recipient side in the selected token in token0
-    @param fees0: the amount of fees the he needs to pay for the swap
-    @param token1: the address of the token he is recieving from the recipient 
-    @param value1: the amount being sent to him by the recipient in the selected token in token1
-    @param fees1: the amount of fees the recipient needs to pay for the swap
-    @param secretHash: a hash of the secret phrase 
-    @param availableAt: sets a start time in seconds for when the deposite can happen
-    @param expiresAt: sets an end time in seconds for when the deposite can happen
-    @param autoRetrieveFees: the amount of fees that will be collected from the sender in case of retrieve
+    /** @notice timedDeposit - handles deposits with an addition that has a timer in seconds
+        @param to: address of the recipient
+        @param token0: the address of the token he is sending to the recipient
+        @param value0: the amount being sent to the recipient side in the selected token in token0
+        @param fees0: the amount of fees the he needs to pay for the swap
+        @param token1: the address of the token he is recieving from the recipient 
+        @param value1: the amount being sent to him by the recipient in the selected token in token1
+        @param fees1: the amount of fees the recipient needs to pay for the swap
+        @param secretHash: a hash of the secret 
+        @param availableAt: sets a start time in seconds for when the deposite can happen
+        @param expiresAt: sets an end time in seconds for when the deposite can happen
+        @param autoRetrieveFees: the amount of fees that will be collected from the sender in case of retrieve
      */
     function timedDeposit(
         address payable to,
@@ -444,18 +441,17 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    /**
-    @notice Retrieve - gives the functionallity of the undo
-            after the sender sends the deposit he can undo it (for what ever reason)
-            until the recipient didnt approved the swap (swap function below)
-    @param to: address of the recipient
-    @param token0: the address of the token he is sending to the recipient
-    @param value0: the amount being sent to the recipient side in the selected token in token0
-    @param fees0: the amount of fees the he needs to pay for the swap
-    @param token1: the address of the token he is recieving from the recipient 
-    @param value1: the amount being sent to him by the recipient in the selected token in token1
-    @param fees1: the amount of fees the recipient needs to pay for the swap
-    @param secretHash: a hash of the secret phrase 
+    /** @notice Retrieve - gives the functionallity of the undo
+                after the sender sends the deposit he can undo it (for what ever reason)
+                until the recipient didnt approved the swap (swap function below)
+        @param to: address of the recipient
+        @param token0: the address of the token he is sending to the recipient
+        @param value0: the amount being sent to the recipient side in the selected token in token0
+        @param fees0: the amount of fees the he needs to pay for the swap
+        @param token1: the address of the token he is recieving from the recipient 
+        @param value1: the amount being sent to him by the recipient in the selected token in token1
+        @param fees1: the amount of fees the recipient needs to pay for the swap
+        @param secretHash: a hash of the secret 
      */
     function retrieve(
         address to,
@@ -492,17 +488,16 @@ contract SafeSwap is AccessControl {
         emit Retrieved(msg.sender, to, id, valueToSend);
     }
 
-    /**
-    @notice Swap - the recipient side approves the info sent by the sender.
-            once this function is submitted successuly the swap is made
-    @param from: address of the recipient
-    @param token0: the address of the token he is sending to the recipient
-    @param value0: the amount being sent to the recipient side in the selected token in token0
-    @param fees0: the amount of fees the he needs to pay for the swap
-    @param token1: the address of the token he is recieving from the recipient 
-    @param value1: the amount being sent to him by the recipient in the selected token in token1
-    @param fees1: the amount of fees the recipient needs to pay for the swap
-    @param secretHash: a hash of the secret phrase 
+    /** @notice Swap - the recipient side approves the info sent by the sender.
+                once this function is submitted successuly the swap is made
+        @param from: address of the recipient
+        @param token0: the address of the token he is sending to the recipient
+        @param value0: the amount being sent to the recipient side in the selected token in token0
+        @param fees0: the amount of fees the he needs to pay for the swap
+        @param token1: the address of the token he is recieving from the recipient 
+        @param value1: the amount being sent to him by the recipient in the selected token in token1
+        @param fees1: the amount of fees the recipient needs to pay for the swap
+        @param secretHash: a hash of the secret 
      */
     function swap(
         address payable from,
@@ -550,19 +545,18 @@ contract SafeSwap is AccessControl {
         emit Swapped(from, msg.sender, id, token0, value0, token1, value1);
     }
 
-    /**
-    @notice autoRetrieve - gives the functionallity of the undo with addittion of automation.
-            after the sender sends the deposit he can undo it (for what ever reason)
-            until the recipient didnt approved the swap (swap function below)
-            the autoRetrieve automatically retrieves the funds when a time that was set by the sender is met
-    @param to: address of the recipient
-    @param token0: the address of the token he is sending to the recipient
-    @param value0: the amount being sent to the recipient side in the selected token in token0
-    @param fees0: the amount of fees the he needs to pay for the swap
-    @param token1: the address of the token he is recieving from the recipient 
-    @param value1: the amount being sent to him by the recipient in the selected token in token1
-    @param fees1: the amount of fees the recipient needs to pay for the swap
-    @param secretHash: a hash of the secret phrase 
+    /** @notice autoRetrieve - gives the functionallity of the undo with addittion of automation.
+                after the sender sends the deposit he can undo it (for what ever reason)
+                until the recipient didnt approved the swap (swap function below)
+                the autoRetrieve automatically retrieves the funds when a time that was set by the sender is met
+        @param to: address of the recipient
+        @param token0: the address of the token he is sending to the recipient
+        @param value0: the amount being sent to the recipient side in the selected token in token0
+        @param fees0: the amount of fees the he needs to pay for the swap
+        @param token1: the address of the token he is recieving from the recipient 
+        @param value1: the amount being sent to him by the recipient in the selected token in token1
+        @param fees1: the amount of fees the recipient needs to pay for the swap
+        @param secretHash: a hash of the secret 
      */
     function autoRetrieve(
         address to,
@@ -604,21 +598,20 @@ contract SafeSwap is AccessControl {
 
     // ------------------------------- ERC-721 -------------------------------
 
-    /**
-    @notice depositERC721  - safe swap function that the sender side fills with all the relevet information for the swap
-                    this function deels with Ether and token721 swaps
-    @param to: address of the recipient
-    @param token0: the address of the token he is sending to the recipient
-    @param value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
-                   in case of token721 - it's the tokenId of the token721
-    @param tokenData0: data on the token Id (only in token721)
-    @param fees0: the amount of fees the he needs to pay for the swap
-    @param token1: the address of the token he is recieving from the recipient 
-    @param value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
-                   in case of token721 - it's the tokenId of the token721
-    @param tokenData1: data on the token Id (only in token721)
-    @param fees1: the amount of fees the recipient needs to pay for the swap
-    @param secretHash: a hash of the secret phrase                     
+    /** @notice depositERC721  - safe swap function that the sender side fills with all the relevet information for the swap
+                this function deels with Ether and token721 swaps
+        @param to: address of the recipient
+        @param token0: the address of the token he is sending to the recipient
+        @param value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                       in case of token721 - it's the tokenId of the token721
+        @param tokenData0: data on the token Id (only in token721)
+        @param fees0: the amount of fees the he needs to pay for the swap
+        @param token1: the address of the token he is recieving from the recipient 
+        @param value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                       in case of token721 - it's the tokenId of the token721
+        @param tokenData1: data on the token Id (only in token721)
+        @param fees1: the amount of fees the recipient needs to pay for the swap
+        @param secretHash: a hash of the secret                     
  */
     function depositERC721(
         address payable to,
@@ -677,24 +670,28 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    /**
-    @notice swapERC721 - the recipient side, besically approves the info sent by the sender.
-            once this function is submitted successuly the swap is made
-    @param info: a struct (SwapErc721Struct) defimed above containing the following params:
-        to:     address of the recipient
-        token0: the address of the token he is sending to the recipient
-        value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
-                in case of token721 - it's the tokenId of the token721
-        tokenData0: data on the token Id (only in token721)
-        fees0: the amount of fees the he needs to pay for the swap
-        token1: the address of the token he is recieving from the recipient 
-        value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
-                in case of token721 - it's the tokenId of the token721
-        tokenData1: data on the token Id (only in token721)
-        fees1: the amount of fees the recipient needs to pay for the swap
-        secretHash: a hash of the secret phrase 
+    /** @notice swapERC721 - the recipient side, besically approves the info sent by the sender.
+                once this function is submitted successuly the swap is made
+        @param from: address of the recipient
+        @param info: a struct (SwapErc721Struct) defimed above containing the following params:
+                token0: the address of the token he is sending to the recipient
+                value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                        in case of token721 - it's the tokenId of the token721
+                tokenData0: data on the token Id (only in token721)
+                fees0: the amount of fees the he needs to pay for the swap
+                token1: the address of the token he is recieving from the recipient 
+                value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                        in case of token721 - it's the tokenId of the token721
+                tokenData1: data on the token Id (only in token721)
+                fees1: the amount of fees the recipient needs to pay for the swap
+                secretHash: a hash of the secret 
+        @param secret: secret made up of passcode, private salt and public salt
      */
-    function swapERC721(address payable from, SwapERC721Info memory info, bytes calldata secret) external payable {
+    function swapERC721(
+        address payable from,
+        SwapERC721Info memory info,
+        bytes calldata secret
+    ) external payable {
         bytes32 id = keccak256(
             abi.encode(
                 from,
@@ -714,10 +711,7 @@ contract SafeSwap is AccessControl {
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
-        require(
-            keccak256(secret) == info.secretHash,
-            "SafeSwap: wrong secret"
-        );
+        require(keccak256(secret) == info.secretHash, "SafeSwap: wrong secret");
         delete s_erc721Transfers[id];
         s_fees = s_fees.add(info.fees0).add(info.fees1);
         if (info.token0 == address(0)) {
@@ -758,24 +752,23 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    /**
-    @notice retrieveERC721 - gives the functionallity of the undo for swaps containing ERC721 tokens
-            after the sender sends the deposit he can undo it (for what ever reason)
-            until the recipient didnt approved the swap (swap function below)
-    @param info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
-            to: address of the recipient
-            token0: the address of the token he is sending to the recipient
-            value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
-                    in case of token721 - it's the tokenId of the token721
-            tokenData0: data on the token Id (only in token721)
-            fees0: the amount of fees the he needs to pay for the swap
-            token1: the address of the token he is recieving from the recipient 
-            value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
-                    in case of token721 - it's the tokenId of the token721
-            tokenData1: data on the token Id (only in token721)
-            fees1: the amount of fees the recipient needs to pay for the swap
-            secretHash: a hash of the secret phrase 
-
+    /** @notice retrieveERC721 - gives the functionallity of the undo for swaps containing ERC721 tokens
+                after the sender sends the deposit he can undo it (for what ever reason)
+                until the recipient didnt approved the swap (swap function below)
+        @param  to: address of the recipient
+        @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
+                    to: address of the recipient
+                    token0: the address of the token he is sending to the recipient
+                    value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData0: data on the token Id (only in token721)
+                    fees0: the amount of fees the he needs to pay for the swap
+                    token1: the address of the token he is recieving from the recipient 
+                    value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData1: data on the token Id (only in token721)
+                    fees1: the amount of fees the recipient needs to pay for the swap
+                    secretHash: a hash of the secret
      */
     function retrieveERC721(address to, SwapERC721Info memory info) external {
         bytes32 id = keccak256(
@@ -805,16 +798,28 @@ contract SafeSwap is AccessControl {
         if (info.token0 == address(0)) {
             emit Retrieved(msg.sender, to, id, valueToSend);
         } else {
-            emit ERC721Retrieved(
-                info.token0,
-                msg.sender,
-                to,
-                id,
-                info.value0
-            );
+            emit ERC721Retrieved(info.token0, msg.sender, to, id, info.value0);
         }
     }
 
+    /** @notice autoRetrieveERC721 - gives the functionallity of the undo for swaps containing ERC721 tokens with addittion of automation.
+                after the sender sends the deposit he can undo it (for what ever reason)
+                until the recipient didnt approved the swap (swap function below)
+        @param  to: address of the recipient
+        @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
+                    to: address of the recipient
+                    token0: the address of the token he is sending to the recipient
+                    value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData0: data on the token Id (only in token721)
+                    fees0: the amount of fees the he needs to pay for the swap
+                    token1: the address of the token he is recieving from the recipient 
+                    value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData1: data on the token Id (only in token721)
+                    fees1: the amount of fees the recipient needs to pay for the swap
+                    secretHash: a hash of the secret
+     */
     function autoRetrieveERC721(address to, SwapERC721Info memory info)
         external
         onlyActivator()
@@ -849,26 +854,36 @@ contract SafeSwap is AccessControl {
         if (info.token0 == address(0)) {
             emit Retrieved(msg.sender, to, id, valueToRetrieve);
         } else {
-            emit ERC721Retrieved(
-                info.token0,
-                msg.sender,
-                to,
-                id,
-                info.value0
-            );
+            emit ERC721Retrieved(info.token0, msg.sender, to, id, info.value0);
         }
     }
 
+    /** @notice timedDepositERC721 - handles deposits for ERC721 tokens with an addition that has a timer in seconds
+        @param  to: address of the recipient
+        @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
+                    to: address of the recipient
+                    token0: the address of the token he is sending to the recipient
+                    value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData0: data on the token Id (only in token721)
+                    fees0: the amount of fees the he needs to pay for the swap
+                    token1: the address of the token he is recieving from the recipient 
+                    value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData1: data on the token Id (only in token721)
+                    fees1: the amount of fees the recipient needs to pay for the swap
+                    secretHash: a hash of the secret
+        @param availableAt: sets a start time in seconds for when the deposite can happen
+        @param expiresAt: sets an end time in seconds for when the deposite can happen
+        @param autoRetrieveFees: the amount of fees that will be collected from the sender in case of retrieve
+     */
     function timedDepositERC721(
         address to,
         SwapERC721Info memory info,
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
-)
-        external
-        payable
-    {
+    ) external payable {
         if (info.token0 == address(0)) {
             //eth to 721
             require(
@@ -928,6 +943,10 @@ contract SafeSwap is AccessControl {
 
     // ----------------------- Hidden ETH / ERC-20 / ERC-721 -----------------------
 
+    /** @notice hiddenRetrieve - an abillity to retrive (undo) without exposing the info of the sender 
+        @param  id1: a hash of the info being hided (sender address, token exc...)
+        @param  value: the amount being sent to the recipient side in the selected token
+     */
     function hiddenRetrieve(bytes32 id1, uint256 value) external {
         bytes32 id = keccak256(abi.encode(msg.sender, value, id1));
         require(s_htransfers[id] > 0, "SafeSwap: request not exist");
@@ -936,6 +955,12 @@ contract SafeSwap is AccessControl {
         emit HRetrieved(msg.sender, id1, value);
     }
 
+    /** @notice hiddenAutoRetrieve - an abillity to retrive (undo) without exposing the info of the sender 
+                with the addition of the automation abillity
+        @param  from: the address of the sender
+        @param  id1: a hash of the info being hided
+        @param  value: the amount being sent to the recipient side in the selected token
+     */
     function hiddenAutoRetrieve(
         address payable from,
         bytes32 id1,
@@ -951,8 +976,10 @@ contract SafeSwap is AccessControl {
         from.transfer(toRetrieve);
         emit HRetrieved(from, id1, toRetrieve);
     }
-    
 
+    /** @notice hiddenDeposit - an ability to deposit without exposing the trx details
+        @param  id1: a hash of the info being hided (sender address, token exc...)
+     */
     function hiddenDeposit(bytes32 id1) external payable {
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
         require(s_htransfers[id] == 0, "SafeSwap: request exist");
@@ -960,6 +987,13 @@ contract SafeSwap is AccessControl {
         emit HDeposited(msg.sender, msg.value, id1);
     }
 
+    /** @notice hiddenTimedDeposit - an ability to deposit without exposing the trx details 
+                with an addition that has a timer in seconds
+        @param  id1: a hash of the info being hided (sender address, token exc...)
+        @param availableAt: sets a start time in seconds for when the deposite can happen
+        @param expiresAt: sets an end time in seconds for when the deposite can happen
+        @param autoRetrieveFees: the amount of fees that will be collected from the sender in case of retrieve
+     */
     function hiddenTimedDeposit(
         bytes32 id1,
         uint64 availableAt,
@@ -987,6 +1021,26 @@ contract SafeSwap is AccessControl {
         );
     }
 
+    /** @notice hiddenSwap - an ability to swap without exposing the trx details 
+        @param  from: address of the recipient 
+        @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
+                    to: address of the recipient
+                    token0: the address of the token he is sending to the recipient
+                    value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData0: data on the token Id (only in token721)
+                    fees0: the amount of fees the he needs to pay for the swap
+                    token1: the address of the token he is recieving from the recipient 
+                    value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData1: data on the token Id (only in token721)
+                    fees1: the amount of fees the recipient needs to pay for the swap
+                    secretHash: a hash of the secret
+        @param  secret: secret made up of passcode, private salt and public salt
+        @param  v:
+        @param  r:
+        @param  s:
+     */
     function hiddenSwap(
         address payable from,
         SwapInfo memory info,
@@ -994,12 +1048,33 @@ contract SafeSwap is AccessControl {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) 
-        external payable
-    {
-        bytes32 id1 = keccak256(abi.encode(HIDDEN_SWAP_TYPEHASH, from, msg.sender, info.token0, info.value0, info.fees0, info.token1, info.value1, info.fees1, info.secretHash));
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
-        bytes32 id = keccak256(abi.encode(from, info.value0.add(info.fees0), id1));        
+    ) external payable {
+        bytes32 id1 = keccak256(
+            abi.encode(
+                HIDDEN_SWAP_TYPEHASH,
+                from,
+                msg.sender,
+                info.token0,
+                info.value0,
+                info.fees0,
+                info.token1,
+                info.value1,
+                info.fees1,
+                info.secretHash
+            )
+        );
+        require(
+            ecrecover(
+                keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)),
+                v,
+                r,
+                s
+            ) == from,
+            "SafeTransfer: wrong signature"
+        );
+        bytes32 id = keccak256(
+            abi.encode(from, info.value0.add(info.fees0), id1)
+        );
         uint256 tr = s_htransfers[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
@@ -1013,7 +1088,10 @@ contract SafeSwap is AccessControl {
             IERC20(info.token0).safeTransferFrom(from, msg.sender, info.value0);
         }
         if (info.token1 == address(0)) {
-            require(msg.value == info.value1.add(info.fees1), "SafeSwap: value mismatch");
+            require(
+                msg.value == info.value1.add(info.fees1),
+                "SafeSwap: value mismatch"
+            );
             from.transfer(info.value1);
         } else {
             require(msg.value == info.fees1, "SafeSwap: value mismatch");
@@ -1030,6 +1108,26 @@ contract SafeSwap is AccessControl {
         );
     }
 
+    /** @notice hiddenSwapERC721 - an ability to swap without exposing the trx details for ERC721 tokens
+        @param  from: address of the recipient
+        @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
+                    to: address of the recipient
+                    token0: the address of the token he is sending to the recipient
+                    value0: in case of Ether  - the amount being sent to the recipient side in the selected token in token0
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData0: data on the token Id (only in token721)
+                    fees0: the amount of fees the he needs to pay for the swap
+                    token1: the address of the token he is recieving from the recipient 
+                    value1: in case of Ether  - the amount being sent to the recipient side in the selected token in token1
+                            in case of token721 - it's the tokenId of the token721
+                    tokenData1: data on the token Id (only in token721)
+                    fees1: the amount of fees the recipient needs to pay for the swap
+                    secretHash: a hash of the secret
+        @param  secret: secret made up of passcode, private salt and public salt
+        @param  v:
+        @param  r:
+        @param  s:
+     */
     function hiddenSwapERC721(
         address payable from,
         SwapERC721Info memory info,
@@ -1037,20 +1135,25 @@ contract SafeSwap is AccessControl {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) 
-        external payable
-    {
+    ) external payable {
         bytes32 id1 = _calcHiddenERC712Id1(from, info);
-        require(ecrecover(keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)), v, r, s) == from, "SafeTransfer: wrong signature");
-        bytes32 id = keccak256(abi.encode(from, info.value0.add(info.fees0), id1));        
+        require(
+            ecrecover(
+                keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)),
+                v,
+                r,
+                s
+            ) == from,
+            "SafeTransfer: wrong signature"
+        );
+        bytes32 id = keccak256(
+            abi.encode(from, info.value0.add(info.fees0), id1)
+        );
         uint256 tr = s_htransfers[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
-        require(
-            keccak256(secret) == info.secretHash,
-            "SafeSwap: wrong secret"
-        );
+        require(keccak256(secret) == info.secretHash, "SafeSwap: wrong secret");
         delete s_htransfers[id];
         s_fees = s_fees.add(info.fees0).add(info.fees1);
         if (info.token0 == address(0)) {
@@ -1091,8 +1194,31 @@ contract SafeSwap is AccessControl {
         );
     }
 
-    function _calcHiddenERC712Id1(address from, SwapERC721Info memory info) private view returns (bytes32) {
-        return keccak256(abi.encode(HIDDEN_ERC721_SWAP_TYPEHASH, from, msg.sender, info.token0, info.value0, info.tokenData0, info.fees0, info.token1, info.value1, info.tokenData1, info.fees1, info.secretHash));
+    /** @notice _calcHiddenERC712Id1 - private view function that calculates the id of the hidden ERC721 token swap
+        @param  from: address of the recipient
+        @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:   
+    */
+    function _calcHiddenERC712Id1(address from, SwapERC721Info memory info)
+        private
+        view
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encode(
+                    HIDDEN_ERC721_SWAP_TYPEHASH,
+                    from,
+                    msg.sender,
+                    info.token0,
+                    info.value0,
+                    info.tokenData0,
+                    info.fees0,
+                    info.token1,
+                    info.value1,
+                    info.tokenData1,
+                    info.fees1,
+                    info.secretHash
+                )
+            );
     }
-
 }
