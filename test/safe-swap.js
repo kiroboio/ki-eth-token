@@ -145,13 +145,6 @@ function deposit(
     await st.retrieve(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2 })
   })
 
-  it('should be able to reject a swap request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    await st.deposit(user3, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user2, value: 700 })
-    await st.reject(user2, ZERO_ADDRESS, 600, 100, token.address, 50, 10, secretHash, { from: user3 })
-  })
-
   it('should fail when to and from are the same', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
@@ -234,6 +227,7 @@ function deposit(
     return bigInt(endAmount).eq(bigInt(finalAmount));
   }
 
+  /*
   it('should be able to collect a transfer request from token to ether', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
@@ -271,9 +265,9 @@ function deposit(
     }else{
       console.log("ether amount not correct")
     }
-  })
+  })*/
 
-  /* it('should be able to collect a transfer request from token to ether', async () => {
+  it('should be able to collect a transfer request from token to ether', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     await token.approve(st.address, 1e12, { from: user3 })
@@ -324,7 +318,7 @@ function deposit(
     await st.swap(user3, token.address, 30, 10, ZERO_ADDRESS, 50, 10, secretHash, Buffer.from(secret),
       { from: user4, value: 60, nonce: await trNonce(web3, user4) })
     
-  }) */
+  }) 
       
 
   it('should be able to collect a transfer request from ether to token', async () => {
@@ -381,21 +375,7 @@ function deposit(
 
   /*                ERC-721     */
 
-  /*
-    function depositERC721(
-       address payable to,
-        address token0,
-        uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
-        bytes calldata tokenData0,
-        uint256 fees0,
-        address token1,
-        uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
-        bytes calldata tokenData1,
-        uint256 fees1,
-        bytes32 secretHash
-    ) 
-  */
-
+/*
     it('should be able to swap 721 token - Ether to 721', async () => {
       const secret = 'my secret'
       const secretHash = sha3(secret)
@@ -430,9 +410,10 @@ function deposit(
         console.log("ether amount not correct")
       } 
       })
+      */
 
 
-  /* it('should be able to swap 721 token - Ether to 721', async () => {
+  it('should be able to swap 721 token - Ether to 721', async () => {
     const secret = 'my secret'
     const secret2 = 'my secret word'
     const secretHash = sha3(secret)
@@ -509,7 +490,7 @@ function deposit(
 
     await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
 
-    }) */
+    }) 
 
     it('should fail on sender == recepient - Ether to 721', async () => {
       const secret = 'my secret'
@@ -660,8 +641,11 @@ function deposit(
           /* await mustRevert(async ()=> {
             st.retrieveERC721(user4, ZERO_ADDRESS, 80, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
           }) */
+          const params = {from: user4, token0:ZERO_ADDRESS , value0: 90, tokenData0:tokenData, fees0:10, token1:token721.address, 
+            value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
-          st.retrieveERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
+
+          st.retrieveERC721(params, { from: user3 })
         })
 
   })
