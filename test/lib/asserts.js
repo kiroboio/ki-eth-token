@@ -6,7 +6,7 @@ const mochaLogger = require("mocha-logger");
 
 const assertRevert = (err) => {
   if (web3.version.startsWith("1")) {
-    // console.log(JSON.stringify(err))
+    //console.log(JSON.stringify(err))
     assert.ok(err && err.hijackedStack && err.hijackedStack.includes('revert'))
   } else {
     assert.ok(err && err.message && err.message.includes('revert'));

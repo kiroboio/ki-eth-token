@@ -2,8 +2,8 @@
 pragma solidity 0.6.12;
 
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "./Claimable.sol";
 
 struct Account {
     uint256 nonce;  
@@ -23,7 +23,7 @@ library AccountUtils {
             self.nonce =
                 uint256(1) << 240 |
                 uint256(blockhash(block.number-1)) << 80 >> 32 |
-                block.timestamp;
+                now;
         }
     }
 
@@ -32,7 +32,7 @@ library AccountUtils {
         uint256 nonce = 
             ++count << 240 |
             uint256(blockhash(block.number-1)) << 80 >> 32 |
-            block.timestamp;
+            now;
         require(uint16(self.nonce) != uint16(nonce), "Pool: too soon");
         self.nonce = nonce;
     }
@@ -141,13 +141,13 @@ struct Entities {
     address wallet;
 }
 
-contract Pool is Claimable {
+contract Pool is AccessControl {
     using AccountUtils for Account;
     using SupplyUtils for Supply;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    uint256 private s_uid;
+    bytes32 private s_uid;
     Supply private s_supply;
     Limits private s_limits;
     Entities private s_entities;
@@ -156,15 +156,25 @@ contract Pool is Claimable {
 
     mapping(address => Account) private s_accounts;
 
-    uint8 public constant VERSION = 0x1;
+    uint8 public constant VERSION_NUMBER = 0x1;
     uint256 public constant MAX_RELEASE_DELAY = 11_520; // about 48h
-    
+    string public constant NAME = "Kirobo Pool";
+    string public constant VERSION = "1";
     bytes32 public DOMAIN_SEPARATOR;
+    bytes public DOMAIN_SEPARATOR_ASCII;
+    uint256 public CHAIN_ID;
+
+    // keccak256("ADMIN_ROLE");
+    bytes32 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
+
     // keccak256("acceptTokens(address recipient,uint256 value,bytes32 secretHash)");
     bytes32 public constant ACCEPT_TYPEHASH = 0xf728cfc064674dacd2ced2a03acd588dfd299d5e4716726c6d5ec364d16406eb;
 
     // keccak256("payment(address from,uint256 value,uint256 nonce)");
     bytes32 public constant PAYMENT_TYPEHASH = 0x841d82f71fa4558203bb763733f6b3326ecaf324143e12fb9b6a9ed958fc4ee0;
+
+    // keccak256("buyTokens(address recipient,uint256 eth,uint256 kiro,uint256 expires)");
+    bytes32 public constant BUY_TYPEHASH = 0x866880cdfbc2380b3f4581d70707601f3d190bc04c3ee9cfcdac070a5f87b758;
 
     event TokensIssued(address indexed account, uint256 value, bytes32 secretHash);
     event TokensAccepted(address indexed account, bool directCall);
@@ -182,34 +192,47 @@ contract Pool is Claimable {
     event MaxTokensPerIssueChanged(uint256 from, uint256 to);
     event MaxTokensPerBlockChanged(uint256 from, uint256 to);
 
-    modifier onlyAdmins() {
-        require(msg.sender == s_owner || msg.sender == s_entities.manager, "Pool: not owner or manager");
+    modifier onlyAdmin() {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Pool: not an admin");    
+        _;
+    }
+
+    modifier onlyManager() {
+        require(hasRole(ADMIN_ROLE, msg.sender) || msg.sender == s_entities.manager, "Pool: not admin or manager");
         _;
     }
 
     constructor(address tokenContract) public {
-        uint chainId;
+        uint256 chainId;
         assembly {
             chainId := chainid()
         }
+
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(ADMIN_ROLE, msg.sender);
      
         s_entities.token = tokenContract;
         s_limits = Limits({releaseDelay: 240, maxTokensPerIssue: 10*1000*(10**18), maxTokensPerBlock: 50*1000*(10**18)});
-        s_uid = (
-          uint256(VERSION) << 248 |
+        s_uid = bytes32(
+          uint256(VERSION_NUMBER) << 248 |
           uint256(blockhash(block.number-1)) << 192 >> 16 |
           uint256(address(this))
         );
 
+        CHAIN_ID = chainId;
+
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,uint256 salt)"),
-                keccak256(bytes("Kirobo Pool")),
-                keccak256(bytes('1')),
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"),
+                keccak256(bytes(NAME)),
+                keccak256(bytes(VERSION)),
                 chainId,
                 address(this),
                 s_uid
             )
+        );
+        DOMAIN_SEPARATOR_ASCII = _hashToAscii(
+            DOMAIN_SEPARATOR
         );
     }
 
@@ -218,40 +241,40 @@ contract Pool is Claimable {
     }
 
 
-    // ----------- Owner Functions ------------
+    // ----------- Admin Functions ------------
 
 
-    function setManager(address manager) external onlyOwner() {
+    function setManager(address manager) external onlyAdmin() {
         require(manager != address(this), "Pool: self cannot be mananger");
         require(manager != s_entities.token, "Pool: token cannot be manager");
         emit ManagerChanged(s_entities.manager, manager);
         s_entities.manager = manager;
     }
 
-    function setWallet(address wallet) external onlyOwner() {
+    function setWallet(address wallet) external onlyAdmin() {
         require(wallet != address(this), "Pool: self cannot be wallet");
         require(wallet != s_entities.token, "Pool: token cannot be wallt");
         emit WalletChanged(s_entities.wallet, wallet);
         s_entities.wallet = wallet;
     }
 
-    function setReleaseDelay(uint256 blocks) external onlyOwner() {
+    function setReleaseDelay(uint256 blocks) external onlyAdmin() {
         require(blocks <= MAX_RELEASE_DELAY, "Pool: exeeds max release delay");
         emit ReleaseDelayChanged(s_limits.releaseDelay, blocks);
         s_limits.releaseDelay = blocks;
     }
 
-    function setMaxTokensPerIssue(uint256 tokens) external onlyOwner() {
+    function setMaxTokensPerIssue(uint256 tokens) external onlyAdmin() {
         emit MaxTokensPerIssueChanged(s_limits.maxTokensPerIssue, tokens);
         s_limits.maxTokensPerIssue = tokens;
     }
 
-    function setMaxTokensPerBlock(uint256 tokens) external onlyOwner() {
+    function setMaxTokensPerBlock(uint256 tokens) external onlyAdmin() {
         emit MaxTokensPerBlockChanged(s_limits.maxTokensPerBlock, tokens);
         s_limits.maxTokensPerBlock = tokens;
     }
 
-    function resyncTotalSupply(uint256 value) external onlyAdmins() returns (uint256) {
+    function resyncTotalSupply(uint256 value) external onlyManager() returns (uint256) {
         uint256 tokens = ownedTokens();
         require(tokens >= s_supply.total, "Pool: internal error, check contract logic"); 
         require(value >= s_supply.total, "Pool: only transferTokens can decrease total supply");
@@ -263,20 +286,20 @@ contract Pool is Claimable {
     // ----------- Admins Functions ------------
 
 
-    function transferEther(uint256 value) external onlyAdmins() {
+    function transferEther(uint256 value) external onlyManager() {
         require(s_entities.wallet != address(0), "Pool: wallet not set");
         payable(s_entities.wallet).transfer(value);
         emit EtherTransfered(s_entities.wallet, value);
     }
 
-    function transferTokens(uint256 value) external onlyAdmins() {
+    function transferTokens(uint256 value) external onlyManager() {
         require(s_entities.wallet != address(0), "Pool: wallet not set");
         s_supply.decrease(value);
         IERC20(s_entities.token).safeTransfer(s_entities.wallet, value);
         emit TokensTransfered(s_entities.wallet, value);
     }
 
-    function distributeTokens(address to, uint256 value) external onlyAdmins() {
+    function distributeTokens(address to, uint256 value) external onlyManager() {
         _distributeTokens(to, value);
     }
     
@@ -299,7 +322,7 @@ contract Pool is Claimable {
      * @param value The number of tokens to issue.
      * @param secretHash The keccak256 of the confirmation secret.
     */
-    function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyAdmins() {
+    function issueTokens(address to, uint256 value, bytes32 secretHash) external onlyManager() {
         require(value <= s_limits.maxTokensPerIssue, "Pool: exeeds max tokens per call");
         _validateTokensPerBlock(value);
         Account storage sp_account = s_accounts[to];
@@ -313,31 +336,31 @@ contract Pool is Claimable {
     }
 
     function executeAcceptTokens(
-        bool eip712,
         address recipient,
         uint256 value,
         bytes calldata c_secret,
         uint8 v,
         bytes32 r,
-        bytes32 s
+        bytes32 s,
+        bool eip712
     )
         external 
-        onlyAdmins()
+        onlyManager()
     {
         require(s_accounts[recipient].secretHash == keccak256(c_secret), "Pool: wrong secret");
         require(
-            validateAcceptTokens(eip712, recipient, value, keccak256(c_secret), v, r ,s),
+            validateAcceptTokens(recipient, value, keccak256(c_secret), v, r ,s, eip712),
             "Pool: wrong signature or data"
         );
         _acceptTokens(recipient, value);
         emit TokensAccepted(recipient, false);
     }
 
-    function executePayment(bool eip712, address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+    function executePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s, bool eip712)
         external
-        onlyAdmins()
+        onlyManager()
     {
-        require(validatePayment(eip712, from, value, v, r, s), "Pool: wrong signature or data");
+        require(validatePayment(from, value, v, r, s, eip712), "Pool: wrong signature or data");
         Account storage sp_account = s_accounts[from];
         sp_account.updateNonce();
         sp_account.payment(value);
@@ -349,14 +372,13 @@ contract Pool is Claimable {
     // ----------- External Functions ------------
 
 
-    function executeBuyTokens(bool eip712, uint256 eth, uint256 kbt, uint256 expires, uint8 v, bytes32 r, bytes32 s) 
+    function executeBuyTokens(uint256 kiro, uint256 expires, uint8 v, bytes32 r, bytes32 s, bool eip712) 
         external
         payable
     {
-        require(validateBuyTokens(eip712, msg.sender, eth, kbt, expires, v, r, s), "Pool: wrong signature or data");
-        require(block.timestamp <= expires, "Pool: too late");
-        require(msg.value == eth, "Pool: value mismatch");
-        _distributeTokens(msg.sender, kbt);
+        require(validateBuyTokens(msg.sender, msg.value, kiro, expires, v, r, s, eip712), "Pool: wrong signature or data");
+        require(now <= expires, "Pool: too late");
+        _distributeTokens(msg.sender, kiro);
     }
 
     function acceptTokens(uint256 value, bytes calldata c_secret) external {
@@ -473,7 +495,7 @@ contract Pool is Claimable {
         );
     }
 
-    function uid() view external returns (uint256) {
+    function uid() view external returns (bytes32) {
         return s_uid;
     }
 
@@ -489,69 +511,46 @@ contract Pool is Claimable {
     // ----------- Public Functions ------------
 
 
-    function generateBuyTokensMessage(bool eip712, address recipient, uint256 eth, uint256 kbt, uint256 expires)
+    function generateBuyTokensMessage(address recipient, uint256 eth, uint256 kiro, uint256 expires)
         public view
         returns (bytes memory)
     {
-        if (eip712) {
-            return abi.encode(
-                PAYMENT_TYPEHASH,
-                recipient,
-                eth,
-                kbt,
-                expires
-            );
-        }
-        return abi.encodePacked(
-            s_uid,
-            this.generatePaymentMessage.selector,
+        Account storage sp_account = s_accounts[recipient]; 
+    
+        return abi.encode(
+            BUY_TYPEHASH,
             recipient,
             eth,
-            kbt,
-            expires
+            kiro,
+            expires,
+            sp_account.issueBlock
         );
     }
 
-    function generateAcceptTokensMessage(bool eip712, address recipient, uint256 value, bytes32 secretHash)
+    function generateAcceptTokensMessage(address recipient, uint256 value, bytes32 secretHash)
         public view 
         returns (bytes memory)
     {
         require(s_accounts[recipient].secretHash == secretHash, "Pool: wrong secret hash");
         require(s_accounts[recipient].pending == value, "Pool: value must equal pending(issued tokens)");
-        if (eip712) {
-            return abi.encode(
-                ACCEPT_TYPEHASH,
-                recipient,
-                value,
-                secretHash
-            );
-        }
-        return abi.encodePacked(
-            s_uid,
-            this.generateAcceptTokensMessage.selector,
+            
+        return abi.encode(
+            ACCEPT_TYPEHASH,
             recipient,
             value,
             secretHash
         );
     }
 
-    function generatePaymentMessage(bool eip712, address from, uint256 value)
+    function generatePaymentMessage(address from, uint256 value)
         public view
         returns (bytes memory)
     {
         Account storage sp_account = s_accounts[from]; 
         require(sp_account.balance >= value, "Pool: account balnace too low");
-        if (eip712) {
-            return abi.encode(
-                PAYMENT_TYPEHASH,
-                from,
-                value,
-                sp_account.nonce
-            );
-        }
-        return abi.encodePacked(
-            s_uid,
-            this.generatePaymentMessage.selector,
+        
+        return abi.encode(
+            PAYMENT_TYPEHASH,
             from,
             value,
             sp_account.nonce
@@ -559,53 +558,53 @@ contract Pool is Claimable {
     }
 
     function validateBuyTokens(
-        bool eip712,
         address from,
         uint256 eth,
-        uint256 kbt,
+        uint256 kiro,
         uint256 expires,
         uint8 v,
         bytes32 r,
-        bytes32 s
+        bytes32 s,
+        bool eip712
     )
         public view 
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            eip712,
-            keccak256(generateBuyTokensMessage(eip712, from, eth, kbt, expires))
+            keccak256(generateBuyTokensMessage(from, eth, kiro, expires)),
+            eip712
         );
         address addr = ecrecover(message, v, r, s);
         return addr == s_entities.manager;      
     }
 
     function validateAcceptTokens(
-        bool eip712,
         address recipient,
         uint256 value,
         bytes32 secretHash,
         uint8 v,
         bytes32 r,
-        bytes32 s
+        bytes32 s,
+        bool eip712
     )
         public view 
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            eip712,
-            keccak256(generateAcceptTokensMessage(eip712, recipient, value, secretHash))
+            keccak256(generateAcceptTokensMessage(recipient, value, secretHash)),
+            eip712
         );
         address addr = ecrecover(message, v, r, s);
         return addr == recipient;
     }
 
-    function validatePayment(bool eip712, address from, uint256 value, uint8 v, bytes32 r, bytes32 s)
+    function validatePayment(address from, uint256 value, uint8 v, bytes32 r, bytes32 s, bool eip712)
         public view 
         returns (bool)
     {
         bytes32 message = _messageToRecover(
-            eip712,
-            keccak256(generatePaymentMessage(eip712, from, value))
+            keccak256(generatePaymentMessage(from, value)),
+            eip712
         );
         address addr = ecrecover(message, v, r, s);
         return addr == from;      
@@ -635,18 +634,24 @@ contract Pool is Claimable {
         s_supply.acceptPending(value);
     }
 
-    function _messageToRecover(bool eip712, bytes32 hashedUnsignedMessage)
+    function _messageToRecover(bytes32 hashedUnsignedMessage, bool eip712)
         private view 
         returns (bytes32)
     {
-        bytes memory unsignedMessageBytes = _hashToAscii(
-            hashedUnsignedMessage
-        );
         if (eip712) {
-            return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashedUnsignedMessage));
-            // return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, unsignedMessageBytes));
+            return keccak256(abi.encodePacked
+            (
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                hashedUnsignedMessage
+            ));
         }
-        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n64", unsignedMessageBytes));
+        return keccak256(abi.encodePacked
+        (
+            "\x19Ethereum Signed Message:\n128",
+            DOMAIN_SEPARATOR_ASCII,
+            _hashToAscii(hashedUnsignedMessage)
+        ));
     }
 
     function _hashToAscii(bytes32 hash) private pure returns (bytes memory) {

@@ -51,7 +51,7 @@ const getPrivateKey = (address) => {
 
 
 contract('Pool', async accounts => {
-  let token, pool
+  let token, pool, DOMAIN_SEPARATOR
   const tokenOwner = accounts[1]
   const poolOwner = accounts[2]
   const user1 = accounts[3]
@@ -85,29 +85,33 @@ contract('Pool', async accounts => {
 
   before('setup contract for the test', async () => {
     
-    mlog.log('web3           ', web3.version)
+    mlog.log('web3             ', web3.version)
 
     token = await Token.deployed()
     pool = await Pool.deployed()
+    DOMAIN_SEPARATOR = (await pool.DOMAIN_SEPARATOR()).slice(2)
 
-    mlog.log('token contract ', token.address)
-    mlog.log('pool contract  ', pool.address)
-    mlog.log('tokenOwner     ', tokenOwner)
-    mlog.log('poolOwner      ', poolOwner)
-    mlog.log('manager        ', manager)
-    mlog.log('wallet         ', wallet)
-    mlog.log('user1          ', user1)
-    mlog.log('user2          ', user2)
-    mlog.log('user3          ', user3)
-    mlog.log('user4          ', user4)
-    mlog.log('user5          ', user5)
-    mlog.log('val1           ', val1)
-    mlog.log('val2           ', val2)
-    mlog.log('val3           ', val3)
+    mlog.log('chain id         ', await pool.CHAIN_ID())
+
+    mlog.log('DOMAIN_SEPARATOR ', DOMAIN_SEPARATOR)
+    mlog.log('pool uid         ', await pool.uid())
+    mlog.log('token contract   ', token.address)
+    mlog.log('pool contract    ', pool.address)
+    mlog.log('tokenOwner       ', tokenOwner)
+    mlog.log('poolOwner        ', poolOwner)
+    mlog.log('manager          ', manager)
+    mlog.log('wallet           ', wallet)
+    mlog.log('user1            ', user1)
+    mlog.log('user2            ', user2)
+    mlog.log('user3            ', user3)
+    mlog.log('user4            ', user4)
+    mlog.log('user5            ', user5)
+    mlog.log('val1             ', val1)
+    mlog.log('val2             ', val2)
+    mlog.log('val3             ', val3)
 
   })
 
-  /*
   it('should create an empty pool', async () => {
     const balance = await web3.eth.getBalance(pool.address)
     assert.equal(balance.toString(10), web3.utils.toBN('0').toString(10))
@@ -341,11 +345,13 @@ contract('Pool', async accounts => {
     const secret = 'my secret'
     const secretHash = web3.utils.sha3(secret)
     await pool.issueTokens(user1, tokens, secretHash, { from: poolOwner })
-    const message = await pool.generateAcceptTokensMessage(false, user1, tokens, secretHash, { from: poolOwner })
+    const message = await pool.generateAcceptTokensMessage(user1, tokens, secretHash, { from: poolOwner })
     mlog.log('message: ', message)
     mlog.log(`parsed message: ${JSON.stringify(parseAcceptTokensMessage(message))}`)
     const messageHash = web3.utils.sha3(message)
-    const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user1))
+    mlog.log('message Hash: ', messageHash.slice(2))
+    mlog.log('to sign: ', DOMAIN_SEPARATOR + messageHash.slice(2))
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + messageHash.slice(2), getPrivateKey(user1))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
       messageHash: rlp.messageHash,
@@ -353,9 +359,9 @@ contract('Pool', async accounts => {
       r: rlp.r,
       s: rlp.s,
     }))
-    assert(await pool.validateAcceptTokens(false, user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
+    assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, false, { from: user1 }), 'invalid signature')
     mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
-    await pool.executeAcceptTokens(false, user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, false, { from: poolOwner} )
   })
   
   it ('should not be able to accept when address, value or secretHash do not match', async () => {
@@ -373,15 +379,15 @@ contract('Pool', async accounts => {
     })
     nonce = await web3.eth.getTransactionCount(manager)
     await mustRevert(async () => {
-      await pool.generateAcceptTokensMessage(false, user1, 200, secretHash, { from: manager, nonce })
+      await pool.generateAcceptTokensMessage(user1, 200, secretHash, { from: manager, nonce })
     })
     nonce = await web3.eth.getTransactionCount(manager)
     await mustRevert(async () => {
-      await pool.generateAcceptTokensMessage(false, user2, 500, secretHash, { from: manager, nonce })
+      await pool.generateAcceptTokensMessage(user2, 500, secretHash, { from: manager, nonce })
     })
     nonce = await web3.eth.getTransactionCount(manager)
     await mustRevert(async () => {
-      await pool.generateAcceptTokensMessage(false, user1, 500, web3.utils.sha3(secret+'x'), { from: manager, nonce })
+      await pool.generateAcceptTokensMessage(user1, 500, web3.utils.sha3(secret+'x'), { from: manager, nonce })
     })
     nonce = await web3.eth.getTransactionCount(user1)
     await pool.acceptTokens(500, Buffer.from(secret), { from: user1, nonce } )
@@ -392,10 +398,10 @@ contract('Pool', async accounts => {
     await token.mint(user2, val1, { from: tokenOwner, nonce })
     await token.approve(pool.address, val2, { from: user2 })
     await pool.depositTokens(val3, { from: user2 })
-    const message = await pool.generatePaymentMessage(false, user2, 200, { from: poolOwner })
+    const message = await pool.generatePaymentMessage(user2, 200, { from: poolOwner })
     mlog.log('message: ', message)
     mlog.log(`parsed message: ${JSON.stringify(parsePaymentMessage(message))}`)
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(message).slice(2), getPrivateKey(user2))
     mlog.log('rlp', JSON.stringify(rlp))
     mlog.log('recover', web3.eth.accounts.recover({
         messageHash: rlp.messageHash,
@@ -403,51 +409,51 @@ contract('Pool', async accounts => {
         r: rlp.r,
         s: rlp.s,
     }))
-    assert(await pool.validatePayment(false, user2, 200, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    assert(await pool.validatePayment(user2, 200, rlp.v, rlp.r, rlp.s, false, { from: user2 }), 'invalid signature')
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
     await advanceTime(1)
-    await pool.executePayment(false, user2, 200, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    await pool.executePayment(user2, 200, rlp.v, rlp.r, rlp.s, false, { from: poolOwner} )
     mlog.log('account info: ', JSON.stringify(await pool.account(user2), {from: user2 }))
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))
   })
 
   it ('should not be able to executing the same payment twice', async () => {
-    const message = await pool.generatePaymentMessage(false, user2, 100, { from: manager })
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
-    assert(await pool.validatePayment(false, user2, 100, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    const message = await pool.generatePaymentMessage(user2, 100, { from: manager })
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 100, rlp.v, rlp.r, rlp.s, false, { from: user2 }), 'invalid signature')
     const prevNonce = parseNonce((await pool.account(user2,{from: user2 })).nonce)
     await advanceTime(1)
-    await pool.executePayment(false, user2, 100, rlp.v, rlp.r, rlp.s, { from: manager} )
-    assert.equal(await pool.validatePayment(false, user2, 100, rlp.v, rlp.r, rlp.s, { from: manager }), false)
+    await pool.executePayment(user2, 100, rlp.v, rlp.r, rlp.s, false, { from: manager} )
+    assert.equal(await pool.validatePayment(user2, 100, rlp.v, rlp.r, rlp.s, false, { from: manager }), false)
     await mustRevert(async () => {
-      await pool.executePayment(false, user2, 100, rlp.v, rlp.r, rlp.s, { from: manager} )
+      await pool.executePayment(user2, 100, rlp.v, rlp.r, rlp.s, false, { from: manager} )
     })
     let nonce = await web3.eth.getTransactionCount(manager)
     await advanceTime(1)
-    assert.equal(await pool.validatePayment(false, user2, 100, rlp.v, rlp.r, rlp.s, { from: manager }), false)
+    assert.equal(await pool.validatePayment(user2, 100, rlp.v, rlp.r, rlp.s, false, { from: manager }), false)
     await mustRevert(async () => {
-      await pool.executePayment(false, user2, 100, rlp.v, rlp.r, rlp.s, { from: manager, nonce} )
+      await pool.executePayment(user2, 100, rlp.v, rlp.r, rlp.s, false, { from: manager, nonce} )
     })
   })
 
   it ('should not be able to executing unused passed payments', async () => {
     let nonce = await web3.eth.getTransactionCount(manager)
-    const message = await pool.generatePaymentMessage(false,user2, 700, { from: manager })
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
-    assert(await pool.validatePayment(false, user2, 700, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
-    const newMessage = await pool.generatePaymentMessage(false, user2, 800, { from: manager })
-    const newRlp = await web3.eth.accounts.sign(web3.utils.sha3(newMessage).slice(2), getPrivateKey(user2))
-    assert(await pool.validatePayment(false, user2, 800, newRlp.v, newRlp.r, newRlp.s, { from: manager }), 'invalid signature')
-    await pool.executePayment(false, user2, 800, newRlp.v, newRlp.r, newRlp.s, { from: manager, nonce} )
+    const message = await pool.generatePaymentMessage(user2, 700, { from: manager })
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 700, rlp.v, rlp.r, rlp.s, false, { from: user2 }), 'invalid signature')
+    const newMessage = await pool.generatePaymentMessage(user2, 800, { from: manager })
+    const newRlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(newMessage).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 800, newRlp.v, newRlp.r, newRlp.s, false, { from: manager }), 'invalid signature')
+    await pool.executePayment(user2, 800, newRlp.v, newRlp.r, newRlp.s, false, { from: manager, nonce} )
     await mustRevert(async () => {
-      await pool.executePayment(false, user2, 700, rlp.v, rlp.r, rlp.s, { from: manager} )
+      await pool.executePayment(user2, 700, rlp.v, rlp.r, rlp.s, false, { from: manager} )
     })
     await advanceTime(1)
     nonce = await web3.eth.getTransactionCount(manager)
-    assert.equal(await pool.validatePayment(false, user2, 700, rlp.v, rlp.r, rlp.s, { from: manager }), false)
+    assert.equal(await pool.validatePayment(user2, 700, rlp.v, rlp.r, rlp.s, false, { from: manager }), false)
     await mustRevert(async () => {
-      await pool.executePayment(false, user2, 700, rlp.v, rlp.r, rlp.s, { from: manager, nonce} )
+      await pool.executePayment(user2, 700, rlp.v, rlp.r, rlp.s, false, { from: manager, nonce} )
     })
   })
 
@@ -505,13 +511,13 @@ contract('Pool', async accounts => {
   })
 
   it ('should change account\'s nonce when executing payment', async() => {
-    const message = await pool.generatePaymentMessage(false, user2, 500, { from: poolOwner })
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user2))
-    assert(await pool.validatePayment(false, user2, 500, rlp.v, rlp.r, rlp.s, { from: user2 }), 'invalid signature')
+    const message = await pool.generatePaymentMessage(user2, 500, { from: poolOwner })
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(message).slice(2), getPrivateKey(user2))
+    assert(await pool.validatePayment(user2, 500, rlp.v, rlp.r, rlp.s, false, { from: user2 }), 'invalid signature')
     mlog.log('nonce: ', JSON.stringify(parseNonce((await pool.account(user2,{from: user2 })).nonce)))  
     const prevNonce = parseNonce((await pool.account(user2,{from: user2 })).nonce)
     await advanceTime(1)
-    await pool.executePayment(false, user2, 500, rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    await pool.executePayment(user2, 500, rlp.v, rlp.r, rlp.s, false, { from: poolOwner} )
     const newNonce = parseNonce((await pool.account(user2,{from: user2 })).nonce)
     assert.notEqual(prevNonce.count, newNonce.count)
     assert.notEqual(prevNonce.salt, newNonce.salt)
@@ -536,11 +542,11 @@ contract('Pool', async accounts => {
     assert.equal(initPendingSupply + 700, +(await pool.supply({ from: manager })).pending)
     await pool.issueTokens(user4, 200, secretHash, { from: manager })
     assert.equal(initPendingSupply + 200, +(await pool.supply({ from: manager })).pending)
-    const message = await pool.generateAcceptTokensMessage(false, user4, 200, secretHash, { from: manager })
+    const message = await pool.generateAcceptTokensMessage(user4, 200, secretHash, { from: manager })
     const messageHash = web3.utils.sha3(message)
-    const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user4))
-    assert(await pool.validateAcceptTokens(false, user4, 200, secretHash, rlp.v, rlp.r, rlp.s, { from: manager }), 'invalid signature')
-    await pool.executeAcceptTokens(false, user4, 200, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: manager} )
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + messageHash.slice(2), getPrivateKey(user4))
+    assert(await pool.validateAcceptTokens(user4, 200, secretHash, rlp.v, rlp.r, rlp.s, false, { from: manager }), 'invalid signature')
+    await pool.executeAcceptTokens(user4, 200, Buffer.from(secret), rlp.v, rlp.r, rlp.s, false, { from: manager} )
     assert.equal(initPendingSupply, +(await pool.supply({ from: manager })).pending)
   })
 
@@ -558,11 +564,11 @@ contract('Pool', async accounts => {
     assert.equal(initPendingSupply + 800, +(await pool.supply({ from: manager })).pending)
     await pool.issueTokens(user2, 0, secretHash, { from: manager })
     assert.equal(initPendingSupply + 700, +(await pool.supply({ from: manager })).pending)
-    const message = await pool.generateAcceptTokensMessage(false, user4, 300, secretHash, { from: manager })
+    const message = await pool.generateAcceptTokensMessage(user4, 300, secretHash, { from: manager })
     const messageHash = web3.utils.sha3(message)
-    const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user4))
-    assert(await pool.validateAcceptTokens(false, user4, 300, secretHash, rlp.v, rlp.r, rlp.s, { from: manager }), 'invalid signature')
-    await pool.executeAcceptTokens(false, user4, 300, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: manager} )
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + messageHash.slice(2), getPrivateKey(user4))
+    assert(await pool.validateAcceptTokens(user4, 300, secretHash, rlp.v, rlp.r, rlp.s, false, { from: manager }), 'invalid signature')
+    await pool.executeAcceptTokens(user4, 300, Buffer.from(secret), rlp.v, rlp.r, rlp.s, false, { from: manager} )
     assert.equal(initPendingSupply + 400, +(await pool.supply({ from: manager })).pending)
     await pool.acceptTokens(400, Buffer.from(secret), { from: user3 })
     assert.equal(initPendingSupply, +(await pool.supply({ from: manager })).pending)
@@ -573,20 +579,20 @@ contract('Pool', async accounts => {
     const secret = 'my secret 3'
     const secretHash = web3.utils.sha3(secret)
     await pool.issueTokens(user4, 600, secretHash, { from: manager })
-    const message = await pool.generateAcceptTokensMessage(false, user4, 600, secretHash, { from: manager })
+    const message = await pool.generateAcceptTokensMessage(user4, 600, secretHash, { from: manager })
     await pool.issueTokens(user4, 100, secretHash, { from: manager })
     await mustRevert(async ()=> {
-      await pool.generateAcceptTokensMessage(false, user4, 600, secretHash, { from: manager })
+      await pool.generateAcceptTokensMessage(user4, 600, secretHash, { from: manager })
     })
     let nonce = await web3.eth.getTransactionCount(manager)
     const messageHash = web3.utils.sha3(message)
-    const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user4))
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + messageHash.slice(2), getPrivateKey(user4))
     await mustRevert(async ()=> {
-      assert(await pool.validateAcceptTokens(false, user4, 600, secretHash, rlp.v, rlp.r, rlp.s, { from: manager, nonce }), 'invalid signature')
+      assert(await pool.validateAcceptTokens(user4, 600, secretHash, rlp.v, rlp.r, rlp.s, false, { from: manager, nonce }), 'invalid signature')
     })
     nonce = await web3.eth.getTransactionCount(manager)
     await mustRevert(async ()=> {
-      await pool.executeAcceptTokens(false, user4, 600, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: manager, nonce} )
+      await pool.executeAcceptTokens(user4, 600, Buffer.from(secret), rlp.v, rlp.r, rlp.s, false, { from: manager, nonce} )
     })
     nonce = await web3.eth.getTransactionCount(manager)
     await mustRevert(async ()=> {
@@ -719,11 +725,11 @@ contract('Pool', async accounts => {
       await advanceBlock()
     }
     await pool.issueTokens(user5, 235, web3.utils.sha3('secret'), { from: manager})
-    const message = await pool.generatePaymentMessage(false, user5, 20, { from: manager })
-    const rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user5))
-    assert(await pool.validatePayment(false, user5, 20, rlp.v, rlp.r, rlp.s, { from: manager }), 'invalid signature')
+    const message = await pool.generatePaymentMessage(user5, 20, { from: manager })
+    const rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(message).slice(2), getPrivateKey(user5))
+    assert(await pool.validatePayment(user5, 20, rlp.v, rlp.r, rlp.s, false, { from: manager }), 'invalid signature')
     await advanceTime(1)
-    await pool.executePayment(false, user5, 20, rlp.v, rlp.r, rlp.s, { from: manager } )  
+    await pool.executePayment(user5, 20, rlp.v, rlp.r, rlp.s, false, { from: manager } )  
     await pool.withdrawTokens({ from: user5 })
     const user5Balance = +(await pool.account(user5)).balance
     assert.equal(user5Balance, 0) 
@@ -754,11 +760,11 @@ contract('Pool', async accounts => {
     await token.approve(pool.address, 200, { from: user3 })
     await pool.depositTokens(100, { from: user3 })
     await pool.issueTokens(user4, 700, web3.utils.sha3('secret4'), { from: manager })
-    let message = await pool.generateAcceptTokensMessage(false, user4, 700, web3.utils.sha3('secret4'), { from: manager })
+    let message = await pool.generateAcceptTokensMessage(user4, 700, web3.utils.sha3('secret4'), { from: manager })
     let messageHash = web3.utils.sha3(message)
-    let rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user4))
-    assert(await pool.validateAcceptTokens(false, user4, 700, web3.utils.sha3('secret4'), rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
-    await pool.executeAcceptTokens(false, user4, 700, Buffer.from('secret4'), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    let rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + messageHash.slice(2), getPrivateKey(user4))
+    assert(await pool.validateAcceptTokens(user4, 700, web3.utils.sha3('secret4'), rlp.v, rlp.r, rlp.s, false, { from: user1 }), 'invalid signature')
+    await pool.executeAcceptTokens(user4, 700, Buffer.from('secret4'), rlp.v, rlp.r, rlp.s, false, { from: poolOwner} )
     await pool.issueTokens(user4, 100, web3.utils.sha3('secret4'), { from: manager })
     const releaseDelay = +(await pool.limits()).releaseDelay
     await pool.requestWithdrawal(200, { from: user4 })
@@ -773,17 +779,17 @@ contract('Pool', async accounts => {
     await token.mint(user5, 200, { from: tokenOwner })
     await token.approve(pool.address, 200, { from: user5 })
     await pool.depositTokens(200, { from: user5 })
-    message = await pool.generatePaymentMessage(false, user5, 120, { from: manager })
-    rlp = await web3.eth.accounts.sign(web3.utils.sha3(message).slice(2), getPrivateKey(user5))
-    assert(await pool.validatePayment(false, user5, 120, rlp.v, rlp.r, rlp.s, { from: manager }), 'invalid signature')
+    message = await pool.generatePaymentMessage(user5, 120, { from: manager })
+    rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + web3.utils.sha3(message).slice(2), getPrivateKey(user5))
+    assert(await pool.validatePayment(user5, 120, rlp.v, rlp.r, rlp.s, false, { from: manager }), 'invalid signature')
     await advanceTime(1)
-    await pool.executePayment(false, user5, 120, rlp.v, rlp.r, rlp.s, { from: manager } )  
+    await pool.executePayment(user5, 120, rlp.v, rlp.r, rlp.s, false, { from: manager } )  
     await pool.issueTokens(user5, 800, web3.utils.sha3('secret5'), { from: manager })
-    message = await pool.generateAcceptTokensMessage(false, user5, 800, web3.utils.sha3('secret5'), { from: manager })
+    message = await pool.generateAcceptTokensMessage(user5, 800, web3.utils.sha3('secret5'), { from: manager })
     messageHash = web3.utils.sha3(message)
-    rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user5))
-    assert(await pool.validateAcceptTokens(false, user5, 800, web3.utils.sha3('secret5'), rlp.v, rlp.r, rlp.s, { from: user5 }), 'invalid signature')
-    await pool.executeAcceptTokens(false, user5, 800, Buffer.from('secret5'), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    rlp = await web3.eth.accounts.sign(DOMAIN_SEPARATOR + messageHash.slice(2), getPrivateKey(user5))
+    assert(await pool.validateAcceptTokens(user5, 800, web3.utils.sha3('secret5'), rlp.v, rlp.r, rlp.s, false, { from: user5 }), 'invalid signature')
+    await pool.executeAcceptTokens(user5, 800, Buffer.from('secret5'), rlp.v, rlp.r, rlp.s, false, { from: poolOwner} )
     const supply = await pool.supply()
     const user1Account = await pool.account(user1)
     const user2Account = await pool.account(user2)
@@ -826,63 +832,88 @@ contract('Pool', async accounts => {
     assert.equal(user5Tokens, user5InitTokens) 
   })
 
-  it('should be able to generate,validate & execute "accept tokens" message', async () => {
+  it('eip712: should be able to generate,validate & execute "accept tokens" message', async () => {
     const tokens = 500
-    const secret = 'my secret'
+    const secret = 'my secret2'
     const secretHash = web3.utils.sha3(secret)
     await pool.issueTokens(user1, tokens, secretHash, { from: poolOwner })
-    const message = await pool.generateAcceptTokensMessage(true, user1, tokens, secretHash, { from: poolOwner })
+    const message = await pool.generateAcceptTokensMessage(user1, tokens, secretHash, { from: poolOwner })
     mlog.log('message: ', message)
     const typedData = {
       types: {
         EIP712Domain: [
-          {name: "name", type: "string"},
-          {name: "version", type: "string"},
-          {name: "chainId", type: "uint256"},
-          {name: "verifyingContract", type: "address"},
-          {name: "salt", type: "uint256"}
+          { name: "name",               type: "string" },
+          { name: "version",            type: "string" },
+          { name: "chainId",            type: "uint256" },
+          { name: "verifyingContract",  type: "address" },
+          { name: "salt",               type: "bytes32" }
         ],
-        Person: [
-          {name: "name", type: "string"},
-          {name: "wallet", type: "address"},  
-
-          // address recipient, uint256 value, bytes32 secretHash
+        acceptTokens: [
+          { name: 'recipient',          type: 'address' },
+          { name: 'value',              type: 'uint256' },
+          { name: 'secretHash',         type: 'bytes32' },
         ]
       },
-      primaryType: 'Person',
+      primaryType: 'acceptTokens',
       domain: {
-        name: 'Kirobo Pool',
-        version: '1',
-        chainId: 1,
+        name: await pool.NAME(),
+        version: await pool.VERSION(),
+        chainId: '0x' + web3.utils.toBN(await pool.CHAIN_ID()).toString('hex'), // await web3.eth.getChainId(),
         verifyingContract: pool.address,
         salt: await pool.uid(),
       },
       message: {
-        'name': 'Bob',
-        'wallet': '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'
+        recipient: user1,
+        value: '0x' + web3.utils.toBN(tokens).toString('hex'),
+        secretHash,
       }
     }
+    mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
+    const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
+    const domainHashHex = ethers.utils.hexlify(domainHash)
+    mlog.log('CHAIN_ID', await pool.CHAIN_ID())
+    mlog.log('DOMAIN_SEPARATOR', await pool.DOMAIN_SEPARATOR())
+    mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
     
-    const digest = TypedDataUtils.encodeDigest(typedData)
-    const digestHex = ethers.utils.hexlify(digest)
+    const { defaultAbiCoder, keccak256, toUtf8Bytes } = ethers.utils
+
+    mlog.log('DOMAIN_SEPARATOR (calculated2)', keccak256(defaultAbiCoder.encode(
+        ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address', 'bytes32'],
+        [
+          keccak256(
+            toUtf8Bytes('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)')
+          ),
+          keccak256(toUtf8Bytes(await pool.NAME())),
+          keccak256(toUtf8Bytes(await pool.VERSION())),
+          '0x' + web3.utils.toBN(await pool.CHAIN_ID()).toString('hex'),
+          pool.address,
+          await pool.uid(),
+        ]
+    )))
+
+    const messageDigest = TypedDataUtils.encodeDigest(typedData)
+    const messageDigestHex = ethers.utils.hexlify(messageDigest)
+    let signingKey = new ethers.utils.SigningKey(getPrivateKey(user1));
+    const sig = signingKey.signDigest(messageDigest)
+    const rlp = ethers.utils.splitSignature(sig)
+    rlp.v = '0x' + rlp.v.toString(16)
+    // const messageDigestHash = messageDigestHex.slice(2)
+    // mlog.log('messageDigestHash', messageDigestHash)
+    mlog.log('user1', user1, 'tokens', tokens, 'secretHash', secretHash)
+    const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
+    const messageHashHex = ethers.utils.hexlify(messageHash)
+    mlog.log('messageHash (calculated)', messageHashHex)
     
-    const wallet = new ethers.Wallet(getPrivateKey(user1))
-    const signature = await wallet.signMessage(digest)
-    mlog.log('signature', JSON.stringify(signature))
-    // mlog.log(`parsed message: ${JSON.stringify(parseAcceptTokensMessage(message))}`)
-    // const messageHash = web3.utils.sha3(message)
-    // const rlp = await web3.eth.accounts.sign(messageHash.slice(2), getPrivateKey(user1))
-    // mlog.log('rlp', JSON.stringify(rlp))
-    // mlog.log('recover', web3.eth.accounts.recover({
-    //   messageHash: rlp.messageHash,
-    //   v: rlp.v,
-    //   r: rlp.r,
-    //   s: rlp.s,
-    // }))
-    // assert(await pool.validateAcceptTokens(false, user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, { from: user1 }), 'invalid signature')
-    // mlog.log('account info: ', JSON.stringify(await pool.account(user1), {from: user1 }))
-    // await pool.executeAcceptTokens(false, user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: poolOwner} )
+    const message2Hash = keccak256(message)
+    mlog.log('messageHash (calculated 2)', message2Hash)
+    
+    mlog.log('rlp', JSON.stringify(rlp))
+    mlog.log('recover', ethers.utils.recoverAddress(messageDigest, sig))
+    assert(await pool.validateAcceptTokens(user1, tokens, secretHash, rlp.v, rlp.r, rlp.s, true, { from: user1 }), 'invalid signature')
+    mlog.log('account info: ', JSON.stringify(await pool.account(user1), { from: user1 }))
+    await pool.executeAcceptTokens(user1, tokens, Buffer.from(secret), rlp.v, rlp.r, rlp.s, true, { from: poolOwner} )
+    mlog.log('account info: ', JSON.stringify(await pool.account(user1), { from: user1 }))
   })
-  */  
+  
   
 })

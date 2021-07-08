@@ -48,7 +48,8 @@ module.exports = {
     test: {
       network_id: "*",
       provider: function() {
-        const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        // const mnemonic2 = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        const mnemonic = 'front assume robust donkey senior economy maple enhance click bright game alcohol'
         const port = 7545
         if (!server) {
           server = ganache.server({ mnemonic })
@@ -61,7 +62,8 @@ module.exports = {
     ganache: {
       network_id: "*",
       provider: function() {
-        const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        // const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        const mnemonic = 'front assume robust donkey senior economy maple enhance click bright game alcohol'
         const port = 8545
         const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
         return provider
@@ -119,6 +121,10 @@ module.exports = {
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
+    reporter: 'eth-gas-reporter',
+    reporterOptions : {
+      url: 'http://127.0.0.1:8545',
+    },
     // timeout: 100000
   },
 
