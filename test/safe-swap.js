@@ -467,28 +467,28 @@ function deposit(
       { from: user3, value: 160, nonce: await trNonce(web3, user3) })
     })
 
-    const params = {from: user3, token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
-                    value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+    const params = {token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
+                    value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash}
 
-    const params1 = {from: user3, token0: ZERO_ADDRESS, value0: 160, tokenData0:tokenData, fees0:10, token1:token721.address, 
-      value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+    const params1 = {token0: ZERO_ADDRESS, value0: 160, tokenData0:tokenData, fees0:10, token1:token721.address, 
+      value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash}
 
-    const params2 = {from: user3, token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
-        value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:sha3(secret), secret:Buffer.from(secret2)}
+    const params2 = {token0: ZERO_ADDRESS, value0: 150, tokenData0:tokenData, fees0:10, token1:token721.address, 
+        value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:sha3(secret)}
 
     await token721.approve(st.address, tokenId, { from: user4 })
 
     //request not exists
     await mustRevert(async ()=> {
-      await st.swapERC721(params1,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+      await st.swapERC721(user3, params1, Buffer.from(secret), { from: user4, value: 10, nonce: await trNonce(web3, user4) })
     })
 
     //wrong secret
     await mustRevert(async ()=> {
-      await st.swapERC721(params2,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+      await st.swapERC721(user3, params2, Buffer.from(secret2), { from: user4, value: 10, nonce: await trNonce(web3, user4) })
     })
 
-    await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+    await st.swapERC721(user3, params, Buffer.from(secret), { from: user4, value: 10, nonce: await trNonce(web3, user4) })
 
     }) 
 
@@ -545,32 +545,32 @@ function deposit(
       await st.depositERC721(user5, token721.address, tokenId, tokenData, 20, ZERO_ADDRESS, 80, tokenData, 10, secretHash,
         { from: user6, value: 20, nonce: await trNonce(web3, user6) })
   
-      const params = {from: user6, token0:token721.address , value0: tokenId, tokenData0:tokenData, fees0:20, token1:ZERO_ADDRESS, 
-                      value1:80, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+      const params = {token0:token721.address , value0: tokenId, tokenData0:tokenData, fees0:20, token1:ZERO_ADDRESS, 
+                      value1:80, tokenData1:tokenData, fees1:10, secretHash:secretHash}
   
       await token721.approve(st.address, tokenId, { from: user6 })
 
       //msg.value > inputs.value1.add(inputs.fees1)
       await mustRevert(async ()=> {
-        await st.swapERC721(params,{ from: user5, value: 100, nonce: await trNonce(web3, user5) })
+        await st.swapERC721(user6, params,Buffer.from(secret), { from: user5, value: 100, nonce: await trNonce(web3, user5) })
       })
 
       //msg.value < inputs.value1.add(inputs.fees1)
       await mustRevert(async ()=> {
-        await st.swapERC721(params,{ from: user5, value: 70, nonce: await trNonce(web3, user5) })
+        await st.swapERC721(user6, params, Buffer.from(secret), { from: user5, value: 70, nonce: await trNonce(web3, user5) })
       })
 
       //msg.value == inputs.value1
       await mustRevert(async ()=> {
-        await st.swapERC721(params,{ from: user5, value: 80, nonce: await trNonce(web3, user5) })
+        await st.swapERC721(user6, params,Buffer.from(secret), { from: user5, value: 80, nonce: await trNonce(web3, user5) })
       })
 
       //msg.value == inputs.fees1
       await mustRevert(async ()=> {
-        await st.swapERC721(params,{ from: user5, value: 10, nonce: await trNonce(web3, user5) })
+        await st.swapERC721(user6, params, Buffer.from(secret), { from: user5, value: 10, nonce: await trNonce(web3, user5) })
       })
 
-      await st.swapERC721(params,{ from: user5, value: 90, nonce: await trNonce(web3, user5) })
+      await st.swapERC721(user6, params, Buffer.from(secret), { from: user5, value: 90, nonce: await trNonce(web3, user5) })
         
     })
 
@@ -598,33 +598,33 @@ function deposit(
           { from: user7, value: 20, nonce: await trNonce(web3, user7) })
 
 
-        const params = {from: user7, token0:token721.address , value0: tokenId7, tokenData0:tokenData, fees0:20, token1:token721.address, 
-                        value1:tokenId8, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+        const params = {token0:token721.address , value0: tokenId7, tokenData0:tokenData, fees0:20, token1:token721.address, 
+                        value1:tokenId8, tokenData1:tokenData, fees1:10, secretHash:secretHash}
     
         await token721.approve(st.address, tokenId7, { from: user7 })
         await token721.approve(st.address, tokenId8, { from: user8 })
 
         //msg.value > value1  
         await mustRevert(async ()=> {
-          await st.swapERC721(params,{ from: user8, value: 12, nonce: await trNonce(web3, user8) })
+          await st.swapERC721(user7, params, Buffer.from(secret), { from: user8, value: 12, nonce: await trNonce(web3, user8) })
         })
 
         //msg.value < value1
         await mustRevert(async ()=> {
-          await st.swapERC721(params,{ from: user8, value: 8, nonce: await trNonce(web3, user8) })
+          await st.swapERC721(user7, params, Buffer.from(secret), { from: user8, value: 8, nonce: await trNonce(web3, user8) })
         })
 
         //msg.value == 0
         await mustRevert(async ()=> {
-          await st.swapERC721(params,{ from: user8, value: 12, nonce: await trNonce(web3, user8) })
+          await st.swapERC721(user7, params, Buffer.from(secret), { from: user8, value: 12, nonce: await trNonce(web3, user8) })
         })
 
         //msg.value == value0
         await mustRevert(async ()=> {
-          await st.swapERC721(params,{ from: user8, value: 20, nonce: await trNonce(web3, user8) })
+          await st.swapERC721(user7, params, Buffer.from(secret), { from: user8, value: 20, nonce: await trNonce(web3, user8) })
         })
 
-        await st.swapERC721(params,{ from: user8, value: 10, nonce: await trNonce(web3, user8) })
+        await st.swapERC721(user7, params, Buffer.from(secret), { from: user8, value: 10, nonce: await trNonce(web3, user8) })
 
       })
 
