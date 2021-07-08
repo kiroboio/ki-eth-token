@@ -63,10 +63,8 @@ contract SafeSwap is AccessControl {
         bytes32 secretHash;
     }
 
-    mapping(bytes32 => uint256) s_transfers;
-    mapping(bytes32 => uint256) s_erc20Transfers;
-    mapping(bytes32 => uint256) s_erc721Transfers;
-    mapping(bytes32 => uint256) s_htransfers;
+    mapping(bytes32 => uint256) s_swaps;
+    mapping(bytes32 => uint256) s_hswaps;
 
     string public constant NAME = "Kirobo Safe Swap";
     string public constant VERSION = "1";
@@ -234,14 +232,12 @@ contract SafeSwap is AccessControl {
     modifier onlyActivator() {
         require(
             hasRole(ACTIVATOR_ROLE, msg.sender),
-            "SafeTransfer: not an activator"
+            "SafeSwap: not an activator"
         );
         _;
     }
 
     constructor(address activator) public {
-        s_fees = 1; // only for testing
-
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
@@ -274,7 +270,7 @@ contract SafeSwap is AccessControl {
     }
 
     receive() external payable {
-        require(false, "SafeTransfer: not accepting ether directly");
+        require(false, "SafeSwap: not accepting ether directly");
     }
 
     function transferERC20(
@@ -353,8 +349,8 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] == 0, "SafeSwap: request exist");
-        s_transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
+        require(s_swaps[id] == 0, "SafeSwap: request exist");
+        s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
         emit SwapDeposited(
             msg.sender,
             to,
@@ -420,8 +416,8 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] == 0, "SafeSwap: request exist");
-        s_transfers[id] =
+        require(s_swaps[id] == 0, "SafeSwap: request exist");
+        s_swaps[id] =
             uint256(expiresAt) +
             uint256(availableAt << 64) +
             (uint256(autoRetrieveFees) << 128);
@@ -476,8 +472,8 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_transfers[id] > 0, "SafeSwap: request not exist");
-        delete s_transfers[id];
+        require(s_swaps[id] > 0, "SafeSwap: request not exist");
+        delete s_swaps[id];
         uint256 valueToSend;
         if (token0 == address(0)) {
             valueToSend = value0.add(fees0);
@@ -509,7 +505,9 @@ contract SafeSwap is AccessControl {
         uint256 fees1,
         bytes32 secretHash,
         bytes calldata secret
-    ) external payable {
+    ) 
+        external payable
+    {
         bytes32 id = keccak256(
             abi.encode(
                 from,
@@ -523,12 +521,12 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        uint256 tr = s_transfers[id];
+        uint256 tr = s_swaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
         require(keccak256(secret) == secretHash, "SafeSwap: wrong secret");
-        delete s_transfers[id];
+        delete s_swaps[id];
         s_fees = s_fees.add(fees0).add(fees1);
         if (token0 == address(0)) {
             msg.sender.transfer(value0);
@@ -567,7 +565,10 @@ contract SafeSwap is AccessControl {
         uint256 value1,
         uint256 fees1,
         bytes32 secretHash
-    ) external onlyActivator() {
+    ) 
+        external
+        onlyActivator()
+    {
         bytes32 id = keccak256(
             abi.encode(
                 msg.sender,
@@ -581,10 +582,10 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        uint256 tr = s_transfers[id];
+        uint256 tr = s_swaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) <= now, "SafeSwap: not expired");
-        delete s_transfers[id];
+        delete s_swaps[id];
         s_fees = s_fees + (tr >> 128); // autoRetreive fees
         uint256 valueToRetrieve;
         if (token0 == address(0)) {
@@ -624,7 +625,9 @@ contract SafeSwap is AccessControl {
         bytes calldata tokenData1,
         uint256 fees1,
         bytes32 secretHash
-    ) external payable {
+    ) 
+        external payable
+    {
         if (token0 == address(0)) {
             //eth to 721
             require(token0 != token1, "SafeSwap: try to swap ether and ether");
@@ -655,8 +658,8 @@ contract SafeSwap is AccessControl {
                 secretHash
             )
         );
-        require(s_erc721Transfers[id] == 0, "SafeSwap: request exist");
-        s_erc721Transfers[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
+        require(s_swaps[id] == 0, "SafeSwap: request exist");
+        s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
         emit ERC721SwapDeposited(
             msg.sender,
             to,
@@ -691,7 +694,9 @@ contract SafeSwap is AccessControl {
         address payable from,
         SwapERC721Info memory info,
         bytes calldata secret
-    ) external payable {
+    ) 
+        external payable 
+    {
         bytes32 id = keccak256(
             abi.encode(
                 from,
@@ -707,12 +712,12 @@ contract SafeSwap is AccessControl {
                 info.secretHash
             )
         );
-        uint256 tr = s_erc721Transfers[id];
+        uint256 tr = s_swaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
         require(keccak256(secret) == info.secretHash, "SafeSwap: wrong secret");
-        delete s_erc721Transfers[id];
+        delete s_swaps[id];
         s_fees = s_fees.add(info.fees0).add(info.fees1);
         if (info.token0 == address(0)) {
             //ether to 721
@@ -786,8 +791,8 @@ contract SafeSwap is AccessControl {
                 info.secretHash
             )
         );
-        require(s_erc721Transfers[id] > 0, "SafeSwap: request not exist");
-        delete s_erc721Transfers[id];
+        require(s_swaps[id] > 0, "SafeSwap: request not exist");
+        delete s_swaps[id];
         uint256 valueToSend;
         if (info.token0 == address(0)) {
             valueToSend = info.value0.add(info.fees0);
@@ -839,10 +844,10 @@ contract SafeSwap is AccessControl {
                 info.secretHash
             )
         );
-        uint256 tr = s_erc721Transfers[id];
+        uint256 tr = s_swaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) <= now, "SafeSwap: not expired");
-        delete s_erc721Transfers[id];
+        delete s_swaps[id];
         s_fees = s_fees + (tr >> 128); // autoRetreive fees
         uint256 valueToRetrieve;
         if (info.token0 == address(0)) {
@@ -883,7 +888,9 @@ contract SafeSwap is AccessControl {
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
-    ) external payable {
+    ) 
+        external payable
+    {
         if (info.token0 == address(0)) {
             //eth to 721
             require(
@@ -920,8 +927,8 @@ contract SafeSwap is AccessControl {
                 info.secretHash
             )
         );
-        require(s_erc721Transfers[id] == 0, "SafeSwap: request exist");
-        s_erc721Transfers[id] =
+        require(s_swaps[id] == 0, "SafeSwap: request exist");
+        s_swaps[id] =
             uint256(expiresAt) +
             (uint256(availableAt) << 64) +
             (uint256(autoRetrieveFees) << 128);
@@ -949,8 +956,8 @@ contract SafeSwap is AccessControl {
      */
     function hiddenRetrieve(bytes32 id1, uint256 value) external {
         bytes32 id = keccak256(abi.encode(msg.sender, value, id1));
-        require(s_htransfers[id] > 0, "SafeSwap: request not exist");
-        delete s_htransfers[id];
+        require(s_hswaps[id] > 0, "SafeSwap: request not exist");
+        delete s_hswaps[id];
         msg.sender.transfer(value);
         emit HRetrieved(msg.sender, id1, value);
     }
@@ -965,12 +972,15 @@ contract SafeSwap is AccessControl {
         address payable from,
         bytes32 id1,
         uint256 value
-    ) external onlyActivator() {
+    ) 
+        external 
+        onlyActivator()
+    {
         bytes32 id = keccak256(abi.encode(from, value, id1));
-        uint256 tr = s_htransfers[id];
+        uint256 tr = s_hswaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) <= now, "SafeSwap: not expired");
-        delete s_htransfers[id];
+        delete s_hswaps[id];
         s_fees = s_fees + (tr >> 128);
         uint256 toRetrieve = value.sub(tr >> 128);
         from.transfer(toRetrieve);
@@ -982,8 +992,8 @@ contract SafeSwap is AccessControl {
      */
     function hiddenDeposit(bytes32 id1) external payable {
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
-        require(s_htransfers[id] == 0, "SafeSwap: request exist");
-        s_htransfers[id] = 0xffffffffffffffff;
+        require(s_hswaps[id] == 0, "SafeSwap: request exist");
+        s_hswaps[id] = 0xffffffffffffffff;
         emit HDeposited(msg.sender, msg.value, id1);
     }
 
@@ -999,15 +1009,17 @@ contract SafeSwap is AccessControl {
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
-    ) external payable {
+    )
+        external payable
+    {
         require(
             msg.value >= autoRetrieveFees,
             "SafeSwap: autoRetrieveFees exeed value"
         );
         bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
-        require(s_htransfers[id] == 0, "SafeSwap: request exist");
+        require(s_hswaps[id] == 0, "SafeSwap: request exist");
         require(expiresAt > now, "SafeSwap: already expired");
-        s_htransfers[id] =
+        s_hswaps[id] =
             uint256(expiresAt) +
             (uint256(availableAt) << 64) +
             (uint256(autoRetrieveFees) << 128);
@@ -1048,7 +1060,9 @@ contract SafeSwap is AccessControl {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external payable {
+    )
+        external payable
+    {
         bytes32 id1 = keccak256(
             abi.encode(
                 HIDDEN_SWAP_TYPEHASH,
@@ -1070,17 +1084,17 @@ contract SafeSwap is AccessControl {
                 r,
                 s
             ) == from,
-            "SafeTransfer: wrong signature"
+            "SafeSwap: wrong signature"
         );
         bytes32 id = keccak256(
             abi.encode(from, info.value0.add(info.fees0), id1)
         );
-        uint256 tr = s_htransfers[id];
+        uint256 tr = s_hswaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
         require(keccak256(secret) == info.secretHash, "SafeSwap: wrong secret");
-        delete s_htransfers[id];
+        delete s_hswaps[id];
         s_fees = s_fees.add(info.fees0).add(info.fees1);
         if (info.token0 == address(0)) {
             msg.sender.transfer(info.value0);
@@ -1135,7 +1149,9 @@ contract SafeSwap is AccessControl {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external payable {
+    )
+        external payable
+    {
         bytes32 id1 = _calcHiddenERC712Id1(from, info);
         require(
             ecrecover(
@@ -1144,17 +1160,17 @@ contract SafeSwap is AccessControl {
                 r,
                 s
             ) == from,
-            "SafeTransfer: wrong signature"
+            "SafeSwap: wrong signature"
         );
         bytes32 id = keccak256(
             abi.encode(from, info.value0.add(info.fees0), id1)
         );
-        uint256 tr = s_htransfers[id];
+        uint256 tr = s_hswaps[id];
         require(tr > 0, "SafeSwap: request not exist");
         require(uint64(tr) > now, "SafeSwap: expired");
         require(uint64(tr >> 64) <= now, "SafeSwap: not available yet");
         require(keccak256(secret) == info.secretHash, "SafeSwap: wrong secret");
-        delete s_htransfers[id];
+        delete s_hswaps[id];
         s_fees = s_fees.add(info.fees0).add(info.fees1);
         if (info.token0 == address(0)) {
             //ether to 721

@@ -89,7 +89,7 @@ contract('SafeSwap', async accounts => {
     st = await SafeSwap.new(user1, { from: user1 })
     mlog.log('web3                    ', web3.version)
     mlog.log('token contract          ', token.address)
-    mlog.log('safe swap contract  ', st.address)
+    mlog.log('safe swap contract      ', st.address)
     mlog.log('token Owner             ', tokenOwner)
     mlog.log('user1                   ', user1)
     mlog.log('user2                   ', user2)
@@ -113,7 +113,7 @@ contract('SafeSwap', async accounts => {
     await token721.selfMint(NFT7, { from: user7 })
     await token721.selfMint(NFT8, { from: user8 })
 
-    mlog.log('token721  ',   token721.address);
+    mlog.log('token721                 ',   token721.address);
 
   })
 
@@ -641,11 +641,11 @@ function deposit(
           /* await mustRevert(async ()=> {
             st.retrieveERC721(user4, ZERO_ADDRESS, 80, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
           }) */
-          const params = {from: user4, token0:ZERO_ADDRESS , value0: 90, tokenData0:tokenData, fees0:10, token1:token721.address, 
+          const params = {token0:ZERO_ADDRESS , value0: 90, tokenData0:tokenData, fees0:10, token1:token721.address, 
             value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
 
-          st.retrieveERC721(params, { from: user3 })
+          await st.retrieveERC721(user4, params, { from: user3 })
         })
 
   })
