@@ -742,8 +742,8 @@ contract('SafeSwap', async accounts => {
         await st.hiddenDeposit(id1, { from: user2, value: 700 })
         await token.approve(st.address, 1e12, { from: user3 })
 
-        const params = {token0:ZERO_ADDRESS, value0:600, fees0:100, token1:token.address, value1:500, fees0: 120, secretHash:secretHash}
-        await st.hiddenSwap(user2, params, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: user3, value: 120 })
+        const params = {token0:ZERO_ADDRESS, value0:600, fees0:100, token1:token.address, value1:500, fees1: 120, secretHash:secretHash}
+        await st.hiddenSwap(user2, params, Buffer.from(secret), /*rlp.v, rlp.r, rlp.s,*/ { from: user3, value: 120 })
       })
 
 

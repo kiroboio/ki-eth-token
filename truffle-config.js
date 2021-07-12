@@ -81,8 +81,8 @@ module.exports = {
     },
     rinkeby: {
       provider: function() {
-        mnemonic =
-          "front assume robust donkey senior economy maple enhance click bright game alcohol";
+        mnemonic =	  
+	  "apart sock humor outer mystery say notable fame ribbon fly exclude shy away public ecology liar portion common decrease spring grief coral antenna mass";
         return new HDWalletProvider(
           mnemonic, "https://rinkeby.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
         );
