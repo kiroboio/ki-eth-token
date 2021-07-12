@@ -121,17 +121,6 @@ contract('SafeSwap', async accounts => {
     assert.equal('0', ''+(await web3.eth.getBalance(st.address)))
   })
 
-  /*
-function deposit(
-        address payable to,
-        address token0,
-        uint256 value0,
-        uint256 fees0,
-        address token1,
-        uint256 value1,
-        uint256 fees1,
-        bytes32 secretHash
-  */
 
   it('should be able to make a swap request', async () => {
     const secret = 'my secret'
@@ -628,154 +617,134 @@ function deposit(
 
       })
 
-        it('should be able to deposit and retrieve 721 token - Ether to 721', async () => {
-          const secret = 'my secret'
-          const secretHash = sha3(secret)
-          const tokenId = NFT4;
-          const tokenData = 1;
-          
-          await st.depositERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
-          { from: user3, value: 100, nonce: await trNonce(web3, user3) })
+      it('should be able to deposit and retrieve 721 token - Ether to 721', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const tokenId = NFT4;
+        const tokenData = 1;
+        
+        await st.depositERC721(user4, ZERO_ADDRESS, 90, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+        { from: user3, value: 100, nonce: await trNonce(web3, user3) })
 
-          //request not exists
-          /* await mustRevert(async ()=> {
-            st.retrieveERC721(user4, ZERO_ADDRESS, 80, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
-          }) */
-          const params = {token0:ZERO_ADDRESS , value0: 90, tokenData0:tokenData, fees0:10, token1:token721.address, 
-            value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+        //request not exists
+        /* await mustRevert(async ()=> {
+          st.retrieveERC721(user4, ZERO_ADDRESS, 80, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash, { from: user3 })
+        }) */
+        const params = {token0:ZERO_ADDRESS , value0: 90, tokenData0:tokenData, fees0:10, token1:token721.address, 
+          value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
 
 
-          await st.retrieveERC721(user4, params, { from: user3 })
-        })
+        await st.retrieveERC721(user4, params, { from: user3 })
+      })
 
-  })
-/*
-  it('should be able to collect a transfer timed request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    const now = await getLatestBlockTimestamp()
-    await st.timedDeposit(user3, 600, 100, secretHash, 0, now+10000, 0, { from: user2, value: 700 })
-    await st.collect(user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
-  })
+      it('should be able to make a hidden deposit request', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const id1 = sha3('1234')
+        await st.hiddenDeposit(id1, { from: user2, value: 100 })
+      })
 
-  it('should be able to auto retrieve a transfer timed request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    const now = await getLatestBlockTimestamp()
-    await st.timedDeposit(user3, 600, 100, secretHash, 0, now+10000, 0, { from: user2, value: 700 })
-    advanceTimeAndBlock(10000)
-    await st.autoRetrieve(user2, user3, 600, 100, secretHash, { from: user1 })
-  })
+      it('should be able to retrieve a hidden deposits request', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const id1 = sha3('1234')
+        await st.hiddenRetrieve(id1, 100, { from: user2 })
+      })
 
-  it('should be able to make an erc20 transfer request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    await token.approve(st.address, 1e12, { from: user2 })
-    await st.depositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, { from: user2, value: 100 })
-  })
+      it('should be able to swap a hidden deposit request', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const id1 = sha3(defaultAbiCoder.encode(
+          ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
+          [await st.HIDDEN_SWAP_TYPEHASH(), user2, user3, ZERO_ADDRESS, '600', '100',token.address, '500', '120', secretHash]
+        ))
 
-  it('should be able to retrieve an erc20 transfer request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    await st.retrieveERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, { from: user2 })
-  })
-
-  it('should be able to collect an erc20 transfer request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    await st.depositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, { from: user2, value: 100 })
-    await st.collectERC20(token.address, tokenSymbol, user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
-  })
-
-  it('should be able to collect an erc20 transfer timed request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    const now = await getLatestBlockTimestamp()
-    await st.timedDepositERC20(token.address, tokenSymbol, user3, 600, 100, secretHash, 0, now+10000, 0, { from: user2, value: 100 })
-    await st.collectERC20(token.address, tokenSymbol, user2, user3, 600, 100, secretHash, Buffer.from(secret), { from: user1 })
-  })
-
-  it('should be able to make a hidden transfer request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    const id1 = sha3('1234')
-    await st.hiddenDeposit(id1, { from: user2, value: 100 })
-  })
-
-  it('should be able to retrieve a hidden transfer request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    const id1 = sha3('1234')
-    await st.hiddenRetrieve(id1, 100, { from: user2 })
-  })
-
-  it('should be able to collect a hidden transfer request', async () => {
-    const secret = 'my secret'
-    const secretHash = sha3(secret)
-    const id1 = sha3(defaultAbiCoder.encode(
-      ['bytes32', 'address', 'address', 'uint256', 'uint256', 'bytes32'],
-      [await st.HIDDEN_COLLECT_TYPEHASH(), user2, user3, '600', '100', secretHash]
-    ))
-
-    mlog.log('id1', id1)
-
-    const typedData = {
-      types: {
-        EIP712Domain: [
-          { name: "name",               type: "string" },
-          { name: "version",            type: "string" },
-          { name: "chainId",            type: "uint256" },
-          { name: "verifyingContract",  type: "address" },
-          { name: "salt",               type: "bytes32" }
-        ],
-        hiddenCollect: [
-          { name: 'from',               type: 'address' },
-          { name: 'to',                 type: 'address' },
-          { name: 'value',              type: 'uint256' },
-          { name: 'fees',               type: 'uint256' },
-          { name: 'secretHash',         type: 'bytes32' },
-        ]
-      },
-      primaryType: 'hiddenCollect',
-      domain: {
-        name: await st.NAME(),
-        version: await st.VERSION(),
-        chainId: '0x' + web3.utils.toBN(await st.CHAIN_ID()).toString('hex'), // await web3.eth.getChainId(),
-        verifyingContract: st.address,
-        salt: await st.uid(),
-      },
-      message: {
-        from: user2,
-        to: user3,
-        value: '0x' + web3.utils.toBN('600').toString('hex'),
-        fees: '0x' + web3.utils.toBN('100').toString('hex'),
-        secretHash,
-      }
-    }
-
-    mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
-    mlog.log('CHAIN_ID', await st.CHAIN_ID())
-    mlog.log('DOMAIN_SEPARATOR', await st.DOMAIN_SEPARATOR())
-    const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
-    const domainHashHex = ethers.utils.hexlify(domainHash)
-    mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
+        /*
+        bytes32 id1 = keccak256(
+            abi.encode(
+                HIDDEN_SWAP_TYPEHASH,
+                from,
+                msg.sender,
+                info.token0,
+                info.value0,
+                info.fees0,
+                info.token1,
+                info.value1,
+                info.fees1,
+                info.secretHash
+            )
+        );
+        */
     
-    const messageDigest = TypedDataUtils.encodeDigest(typedData)
-
-    const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
-    const messageHashHex = ethers.utils.hexlify(messageHash)
-    mlog.log('messageHash (calculated)', messageHashHex)
+        mlog.log('id1', id1)
     
-    let signingKey = new ethers.utils.SigningKey(getPrivateKey(user2));
-    const sig = signingKey.signDigest(messageDigest)
-    const rlp = ethers.utils.splitSignature(sig)
-    rlp.v = '0x' + rlp.v.toString(16)
+        const typedData = {
+          types: {
+            EIP712Domain: [
+              { name: "name",               type: "string" },
+              { name: "version",            type: "string" },
+              { name: "chainId",            type: "uint256" },
+              { name: "verifyingContract",  type: "address" },
+              { name: "salt",               type: "bytes32" }
+            ],
+            hiddenSwap: [
+              { name: 'from',               type: 'address' },
+              { name: 'token0',             type: 'address' },
+              { name: 'value0',             type: 'uint256' },
+              { name: 'fees0',              type: 'uint256' },
+              { name: 'token1',             type: 'address' },
+              { name: 'value1',             type: 'uint256' },
+              { name: 'fees1',              type: 'uint256' },
+              { name: 'secretHash',         type: 'bytes32' },
+            ]
+          },
+          primaryType: 'hiddenSwap',
+          domain: {
+            name: await st.NAME(),
+            version: await st.VERSION(),
+            chainId: '0x' + web3.utils.toBN(await st.CHAIN_ID()).toString('hex'), // await web3.eth.getChainId(),
+            verifyingContract: st.address,
+            salt: await st.uid(),
+          },
+          message: {
+            from: user2,
+            token0: ZERO_ADDRESS,
+            value0: '0x' + web3.utils.toBN('600').toString('hex'),
+            fees0: '0x' + web3.utils.toBN('100').toString('hex'),
+            token1: token.address,
+            value1: '0x' + web3.utils.toBN('500').toString('hex'),
+            fees1: '0x' + web3.utils.toBN('120').toString('hex'),
+            secretHash,
+          }
+        }
+    
+        mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
+        mlog.log('CHAIN_ID', await st.CHAIN_ID())
+        mlog.log('DOMAIN_SEPARATOR', await st.DOMAIN_SEPARATOR())
+        const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
+        const domainHashHex = ethers.utils.hexlify(domainHash)
+        mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
+        
+        const messageDigest = TypedDataUtils.encodeDigest(typedData)
+    
+        const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
+        const messageHashHex = ethers.utils.hexlify(messageHash)
+        mlog.log('messageHash (calculated)', messageHashHex)
+        
+        let signingKey = new ethers.utils.SigningKey(getPrivateKey(user2));
+        const sig = signingKey.signDigest(messageDigest)
+        const rlp = ethers.utils.splitSignature(sig)
+        rlp.v = '0x' + rlp.v.toString(16)
+    
+        mlog.log('rlp', JSON.stringify(rlp))
+        mlog.log('recover', ethers.utils.recoverAddress(messageDigest, sig))
+    
+        await st.hiddenDeposit(id1, { from: user2, value: 700 })
+        await token.approve(st.address, 1e12, { from: user3 })
 
-    mlog.log('rlp', JSON.stringify(rlp))
-    mlog.log('recover', ethers.utils.recoverAddress(messageDigest, sig))
+        const params = {token0:ZERO_ADDRESS, value0:600, fees0:100, token1:token.address, value1:500, fees1: 120, secretHash:secretHash}
+        await st.hiddenSwap(user2, params, Buffer.from(secret), /*rlp.v, rlp.r, rlp.s,*/ { from: user3, value: 120 })
+      })
 
-    await st.hiddenDeposit(id1, { from: user2, value: 700 })
-    await st.hiddenCollect(user2, user3, 600, 100, secretHash, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: user1 })
+
   })
-*/
-//})
