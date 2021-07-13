@@ -657,8 +657,13 @@ contract('SafeSwap', async accounts => {
         await st.hiddenRetrieve(id1, 100, { from: user2 })
       })
 
-      it('should be able to swap a hidden deposit request', async () => {
+
+      //hidden tests
+      //------------------------
+
+       it('should be able to swap a hidden deposit request', async () => {
         const secret = 'my secret'
+        const secret2 = 'wrong secrete'
         const secretHash = sha3(secret)
         const id1 = sha3(defaultAbiCoder.encode(
           ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
@@ -666,14 +671,43 @@ contract('SafeSwap', async accounts => {
         ))
     
         mlog.log('id1', id1)
-
-    
-        await st.hiddenDeposit(id1, { from: user2, value: 700 })
+        await st.hiddenDeposit(id1, { from: user2, value: 700 , nonce: await trNonce(web3, user2)})
         await token.approve(st.address, 1e12, { from: user3 })
 
         const params = {token0:ZERO_ADDRESS, value0:600, fees0:100, token1:token.address, value1:500, fees1: 120, secretHash:secretHash}
-        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3, value: 120 })
+        //wrong secret
+        await mustRevert(async ()=> {
+          await st.hiddenSwap(user2, params, Buffer.from(secret2), { from: user3, value: 120, nonce: await trNonce(web3, user3) })
+        })
+        //wrong fees
+         await mustRevert(async ()=> {
+          await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3, value: 100, nonce: await trNonce(web3, user3) })
+        })
+        //no fees
+        await mustRevert(async ()=> {
+          await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3 , nonce: await trNonce(web3, user3)})
+        })
+        
+        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3,value:120, nonce: await trNonce(web3, user3)})
       })
+ 
+      it('should be able to swap a hidden deposit request', async () => {
+        const secret = 'my secret'
+        const secret2 = 'wrong secrete'
+        const secretHash = sha3(secret)
+        const id1 = sha3(defaultAbiCoder.encode(
+          ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
+          [await st.HIDDEN_SWAP_TYPEHASH(), user2, user1, token.address, '50', '10',ZERO_ADDRESS, '55', '17', secretHash]
+        ))
+        await token.approve(st.address, 1e12, { from: user1 })
+        await st.hiddenDeposit(id1, { from: user2, value: 60 , nonce: await trNonce(web3, user2)})
+        
+
+        const params = {token0:token.address, value0:50, fees0:10, token1:ZERO_ADDRESS, value1:55, fees1: 17, secretHash:secretHash}
+        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user1, value:72, nonce: await trNonce(web3, user1)})
+
+      })
+      
 
       it('should be able to swap 721 token from a hidden deposit request', async () => {
         const secret = 'my secret'
