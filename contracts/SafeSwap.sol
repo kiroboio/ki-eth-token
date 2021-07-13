@@ -36,9 +36,6 @@ contract SafeSwap is AccessControl {
     bytes32 public constant HIDDEN_ERC721_SWAP_TYPEHASH =
         0x22eb06b067ef6305a65d8334d41817cd2fb49f43ee331996ed20687c8152e5ed;
 
-    bytes32 public DOMAIN_SEPARATOR;
-    uint256 public CHAIN_ID;
-    bytes32 s_uid;
     uint256 s_fees;
 
     struct SwapInfo {
@@ -70,7 +67,7 @@ contract SafeSwap is AccessControl {
     string public constant VERSION = "1";
     uint8 public constant VERSION_NUMBER = 0x1;
 
-    event SwapDeposited(
+    event Deposited(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -82,7 +79,7 @@ contract SafeSwap is AccessControl {
         uint256 fees1
     );
 
-    event SwapTimedDeposited(
+    event TimedDeposited(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -114,44 +111,7 @@ contract SafeSwap is AccessControl {
         uint256 value1
     );
 
-    event ERC20Deposited(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash
-    );
-
-    event ERC20TimedDeposited(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
-        uint64 availableAt,
-        uint64 expiresAt,
-        uint128 autoRetrieveFees
-    );
-
-    event ERC20Retrieved(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        bytes32 id,
-        uint256 value
-    );
-
-    event ERC20Collected(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        bytes32 id,
-        uint256 value
-    );
-
-    event ERC721SwapDeposited(
+    event ERC721Deposited(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -241,32 +201,6 @@ contract SafeSwap is AccessControl {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, msg.sender);
         _setupRole(ACTIVATOR_ROLE, activator);
-
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-
-        CHAIN_ID = chainId;
-
-        s_uid = bytes32(
-            (uint256(VERSION_NUMBER) << 248) |
-                ((uint256(blockhash(block.number - 1)) << 192) >> 16) |
-                uint256(address(this))
-        );
-
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
-                ),
-                keccak256(bytes(NAME)),
-                keccak256(bytes(VERSION)),
-                chainId,
-                address(this),
-                s_uid
-            )
-        );
     }
 
     receive() external payable {
@@ -300,10 +234,6 @@ contract SafeSwap is AccessControl {
 
     function totalFees() external view returns (uint256) {
         return s_fees;
-    }
-
-    function uid() external view returns (bytes32) {
-        return s_uid;
     }
 
     // --------------------------------- ETH <==> ERC20 ---------------------------------
@@ -351,7 +281,7 @@ contract SafeSwap is AccessControl {
         );
         require(s_swaps[id] == 0, "SafeSwap: request exist");
         s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit SwapDeposited(
+        emit Deposited(
             msg.sender,
             to,
             token0,
@@ -421,7 +351,7 @@ contract SafeSwap is AccessControl {
             uint256(expiresAt) +
             uint256(availableAt << 64) +
             (uint256(autoRetrieveFees) << 128);
-        emit SwapTimedDeposited(
+        emit TimedDeposited(
             msg.sender,
             to,
             token0,
@@ -640,6 +570,7 @@ contract SafeSwap is AccessControl {
             require(value0 > 0, "SafeSwap: no token id");
         } else {
             //721 to 721
+            require(msg.value == fees0, "SafeSwap: value mismatch");
             require(value0 > 0, "SafeSwap: no token id");
             require(value1 > 0, "SafeSwap: no token id");
         }
@@ -661,7 +592,7 @@ contract SafeSwap is AccessControl {
         );
         require(s_swaps[id] == 0, "SafeSwap: request exist");
         s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit ERC721SwapDeposited(
+        emit ERC721Deposited(
             msg.sender,
             to,
             token0,
@@ -826,7 +757,11 @@ contract SafeSwap is AccessControl {
                     fees1: the amount of fees the recipient needs to pay for the swap
                     secretHash: a hash of the secret
      */
+<<<<<<< HEAD
     function autoRetrieveERC721(address payable from, address to, SwapERC721Info memory info)
+=======
+    function autoRetrieveERC721(address from, address to, SwapERC721Info memory info)
+>>>>>>> df7c43ace6baf49bd40f92039ac40b6cf24ceaff
         external
         onlyActivator()
     {
@@ -909,6 +844,7 @@ contract SafeSwap is AccessControl {
             require(info.value0 > 0, "SafeSwap: no token id");
         } else {
             //721 to 721
+            require(msg.value == info.fees0, "SafeSwap: value mismatch");
             require(info.value0 > 0, "SafeSwap: no token id");
             require(info.value1 > 0, "SafeSwap: no token id");
         }
@@ -1050,17 +986,11 @@ contract SafeSwap is AccessControl {
                     fees1: the amount of fees the recipient needs to pay for the swap
                     secretHash: a hash of the secret
         @param  secret: secret made up of passcode, private salt and public salt
-        @param  v:
-        @param  r:
-        @param  s:
      */
     function hiddenSwap(
         address payable from,
         SwapInfo memory info,
-        bytes calldata secret,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        bytes calldata secret
     )
         external payable
     {
@@ -1078,17 +1008,8 @@ contract SafeSwap is AccessControl {
                 info.secretHash
             )
         );
-        require(
-            ecrecover(
-                keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)),
-                v,
-                r,
-                s
-            ) == from,
-            "SafeSwap: wrong signature"
-        );
         bytes32 id = keccak256(
-            abi.encode(from, info.value0.add(info.fees0), id1)
+            abi.encode(from, info.token0 == address(0) ? info.value0.add(info.fees0): info.fees0, id1)
         );
         uint256 tr = s_hswaps[id];
         require(tr > 0, "SafeSwap: request not exist");
@@ -1139,32 +1060,18 @@ contract SafeSwap is AccessControl {
                     fees1: the amount of fees the recipient needs to pay for the swap
                     secretHash: a hash of the secret
         @param  secret: secret made up of passcode, private salt and public salt
-        @param  v:
-        @param  r:
-        @param  s:
      */
     function hiddenSwapERC721(
         address payable from,
         SwapERC721Info memory info,
-        bytes calldata secret,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        bytes calldata secret
+
     )
         external payable
     {
         bytes32 id1 = _calcHiddenERC712Id1(from, info);
-        require(
-            ecrecover(
-                keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, id1)),
-                v,
-                r,
-                s
-            ) == from,
-            "SafeSwap: wrong signature"
-        );
         bytes32 id = keccak256(
-            abi.encode(from, info.value0.add(info.fees0), id1)
+            abi.encode(from, info.token0 == address(0) ? info.value0.add(info.fees0): info.fees0, id1)
         );
         uint256 tr = s_hswaps[id];
         require(tr > 0, "SafeSwap: request not exist");
