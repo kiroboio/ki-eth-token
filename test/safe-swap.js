@@ -583,6 +583,12 @@ contract('SafeSwap', async accounts => {
             { from: user7, value: 20, nonce: await trNonce(web3, user7) })
         })
 
+        //msg.value != fees0
+        await mustRevert(async ()=> {
+          await st.depositERC721(user8, token721.address, tokenId7, tokenData, 20, token721.address, zero_tokenId, tokenData, 10, secretHash,
+            { from: user7, value: 10, nonce: await trNonce(web3, user7) })
+        })
+
         await st.depositERC721(user8, token721.address, tokenId7, tokenData, 20, token721.address, tokenId8, tokenData, 10, secretHash,
           { from: user7, value: 20, nonce: await trNonce(web3, user7) })
 
@@ -651,100 +657,77 @@ contract('SafeSwap', async accounts => {
         await st.hiddenRetrieve(id1, 100, { from: user2 })
       })
 
-      it('should be able to swap a hidden deposit request', async () => {
+
+      //hidden tests
+      //------------------------
+
+       it('should be able to swap a hidden deposit request', async () => {
         const secret = 'my secret'
+        const secret2 = 'wrong secrete'
         const secretHash = sha3(secret)
         const id1 = sha3(defaultAbiCoder.encode(
           ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
           [await st.HIDDEN_SWAP_TYPEHASH(), user2, user3, ZERO_ADDRESS, '600', '100',token.address, '500', '120', secretHash]
         ))
-
-        /*
-        bytes32 id1 = keccak256(
-            abi.encode(
-                HIDDEN_SWAP_TYPEHASH,
-                from,
-                msg.sender,
-                info.token0,
-                info.value0,
-                info.fees0,
-                info.token1,
-                info.value1,
-                info.fees1,
-                info.secretHash
-            )
-        );
-        */
     
         mlog.log('id1', id1)
-    
-        const typedData = {
-          types: {
-            EIP712Domain: [
-              { name: "name",               type: "string" },
-              { name: "version",            type: "string" },
-              { name: "chainId",            type: "uint256" },
-              { name: "verifyingContract",  type: "address" },
-              { name: "salt",               type: "bytes32" }
-            ],
-            hiddenSwap: [
-              { name: 'from',               type: 'address' },
-              { name: 'token0',             type: 'address' },
-              { name: 'value0',             type: 'uint256' },
-              { name: 'fees0',              type: 'uint256' },
-              { name: 'token1',             type: 'address' },
-              { name: 'value1',             type: 'uint256' },
-              { name: 'fees1',              type: 'uint256' },
-              { name: 'secretHash',         type: 'bytes32' },
-            ]
-          },
-          primaryType: 'hiddenSwap',
-          domain: {
-            name: await st.NAME(),
-            version: await st.VERSION(),
-            chainId: '0x' + web3.utils.toBN(await st.CHAIN_ID()).toString('hex'), // await web3.eth.getChainId(),
-            verifyingContract: st.address,
-            salt: await st.uid(),
-          },
-          message: {
-            from: user2,
-            token0: ZERO_ADDRESS,
-            value0: '0x' + web3.utils.toBN('600').toString('hex'),
-            fees0: '0x' + web3.utils.toBN('100').toString('hex'),
-            token1: token.address,
-            value1: '0x' + web3.utils.toBN('500').toString('hex'),
-            fees1: '0x' + web3.utils.toBN('120').toString('hex'),
-            secretHash,
-          }
-        }
-    
-        mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
-        mlog.log('CHAIN_ID', await st.CHAIN_ID())
-        mlog.log('DOMAIN_SEPARATOR', await st.DOMAIN_SEPARATOR())
-        const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
-        const domainHashHex = ethers.utils.hexlify(domainHash)
-        mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
-        
-        const messageDigest = TypedDataUtils.encodeDigest(typedData)
-    
-        const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
-        const messageHashHex = ethers.utils.hexlify(messageHash)
-        mlog.log('messageHash (calculated)', messageHashHex)
-        
-        let signingKey = new ethers.utils.SigningKey(getPrivateKey(user2));
-        const sig = signingKey.signDigest(messageDigest)
-        const rlp = ethers.utils.splitSignature(sig)
-        rlp.v = '0x' + rlp.v.toString(16)
-    
-        mlog.log('rlp', JSON.stringify(rlp))
-        mlog.log('recover', ethers.utils.recoverAddress(messageDigest, sig))
-    
-        await st.hiddenDeposit(id1, { from: user2, value: 700 })
+        await st.hiddenDeposit(id1, { from: user2, value: 700 , nonce: await trNonce(web3, user2)})
         await token.approve(st.address, 1e12, { from: user3 })
 
         const params = {token0:ZERO_ADDRESS, value0:600, fees0:100, token1:token.address, value1:500, fees1: 120, secretHash:secretHash}
-        await st.hiddenSwap(user2, params, Buffer.from(secret), /*rlp.v, rlp.r, rlp.s,*/ { from: user3, value: 120 })
+        //wrong secret
+        await mustRevert(async ()=> {
+          await st.hiddenSwap(user2, params, Buffer.from(secret2), { from: user3, value: 120, nonce: await trNonce(web3, user3) })
+        })
+        //wrong fees
+         await mustRevert(async ()=> {
+          await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3, value: 100, nonce: await trNonce(web3, user3) })
+        })
+        //no fees
+        await mustRevert(async ()=> {
+          await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3 , nonce: await trNonce(web3, user3)})
+        })
+        
+        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3,value:120, nonce: await trNonce(web3, user3)})
       })
+ 
+      it('should be able to swap a hidden deposit request', async () => {
+        const secret = 'my secret'
+        const secret2 = 'wrong secrete'
+        const secretHash = sha3(secret)
+        const id1 = sha3(defaultAbiCoder.encode(
+          ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
+          [await st.HIDDEN_SWAP_TYPEHASH(), user2, user1, token.address, '50', '10',ZERO_ADDRESS, '55', '17', secretHash]
+        ))
 
+        await token.approve(st.address, 1e12, { from: user2 })
+        await st.hiddenDeposit(id1, { from: user2, value: 10 , nonce: await trNonce(web3, user2)})
+        
+
+        const params = {token0:token.address, value0:50, fees0:10, token1:ZERO_ADDRESS, value1:55, fees1: 17, secretHash:secretHash}
+        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user1, value:72, nonce: await trNonce(web3, user1)})
+
+      })
+      
+
+      it('should be able to swap 721 token from a hidden deposit request', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const tokenId = NFT4;
+        const tokenData = 1;
+        const id1 = sha3(defaultAbiCoder.encode(
+          ['bytes32', 'address', 'address','address', 'uint256','bytes', 'uint256','address', 'uint256','bytes', 'uint256','bytes32'],
+          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user2, user4, ZERO_ADDRESS, '6000',tokenData, '1000',token721.address, tokenId,tokenData, '1200', secretHash]
+        ))
+    
+        mlog.log('id1', id1)
+    
+        await st.hiddenDeposit(id1, { from: user2, value: 7000 })
+        await token.approve(st.address, 1e12, { from: user4 })
+
+        const params = {token0:ZERO_ADDRESS, value0:6000, tokenData0:tokenData, fees0:1000, token1:token721.address, 
+                        value1:tokenId, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
+        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user4, value: 1200 })
+      })
 
   })
