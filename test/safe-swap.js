@@ -699,10 +699,7 @@ contract('SafeSwap', async accounts => {
           ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
           [await st.HIDDEN_SWAP_TYPEHASH(), user2, user1, token.address, '50', '10',ZERO_ADDRESS, '55', '17', secretHash]
         ))
-<<<<<<< HEAD
-=======
 
->>>>>>> abf98d9b7e5714205a9ea7ea1ce38fafadeb7d30
         await token.approve(st.address, 1e12, { from: user2 })
         await st.hiddenDeposit(id1, { from: user2, value: 10 , nonce: await trNonce(web3, user2)})
         
@@ -725,12 +722,12 @@ contract('SafeSwap', async accounts => {
     
         mlog.log('id1', id1)
     
-        await st.hiddenDeposit(id1, { from: user2, value: 7000 })
+        await st.hiddenDeposit(id1, { from: user2, value: 7000 , nonce: await trNonce(web3, user2)})
         await token.approve(st.address, 1e12, { from: user4 })
 
         const params = {token0:ZERO_ADDRESS, value0:6000, tokenData0:tokenData, fees0:1000, token1:token721.address, 
                         value1:tokenId, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
-        await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user4, value: 1200 })
+        await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user4, value: 1200, nonce: await trNonce(web3, user4) })
       })
 
       it('should be able to swap 721 token from a hidden deposit request - 721 to ether', async () => {
@@ -745,12 +742,12 @@ contract('SafeSwap', async accounts => {
     
         mlog.log('id1', id1)
     
-        await st.hiddenDeposit(id1, { from: user4, value: 1000 })
+        await st.hiddenDeposit(id1, { from: user4, value: 1000, nonce: await trNonce(web3, user4) })
         await token721.approve(st.address, 1e12, { from: user4 })
 
         const params = {token0:token721.address, value0:tokenId, tokenData0:tokenData, fees0:1000, token1:ZERO_ADDRESS, 
                         value1:6000, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
-        await st.hiddenSwapERC721(user4, params, Buffer.from(secret), { from: user2, value: 7200 })
+        await st.hiddenSwapERC721(user4, params, Buffer.from(secret), { from: user2, value: 7200, nonce: await trNonce(web3, user2) })
       })
 
   })
