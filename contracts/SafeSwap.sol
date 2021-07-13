@@ -477,6 +477,7 @@ contract SafeSwap is AccessControl {
                 after the sender sends the deposit he can undo it (for what ever reason)
                 until the recipient didnt approved the swap (swap function below)
                 the autoRetrieve automatically retrieves the funds when a time that was set by the sender is met
+        @param from: address of the recipient
         @param to: address of the recipient
         @param token0: the address of the token he is sending to the recipient
         @param value0: the amount being sent to the recipient side in the selected token in token0
@@ -742,6 +743,7 @@ contract SafeSwap is AccessControl {
     /** @notice autoRetrieveERC721 - gives the functionallity of the undo for swaps containing ERC721 tokens with addittion of automation.
                 after the sender sends the deposit he can undo it (for what ever reason)
                 until the recipient didnt approved the swap (swap function below)
+        @param  from: address of the recipient
         @param  to: address of the recipient
         @param  info: a struct (SwapRetrieveERC721) defimed above containing the following params:    
                     to: address of the recipient
@@ -757,11 +759,7 @@ contract SafeSwap is AccessControl {
                     fees1: the amount of fees the recipient needs to pay for the swap
                     secretHash: a hash of the secret
      */
-<<<<<<< HEAD
     function autoRetrieveERC721(address payable from, address to, SwapERC721Info memory info)
-=======
-    function autoRetrieveERC721(address from, address to, SwapERC721Info memory info)
->>>>>>> df7c43ace6baf49bd40f92039ac40b6cf24ceaff
         external
         onlyActivator()
     {
