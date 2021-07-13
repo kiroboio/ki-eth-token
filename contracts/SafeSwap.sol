@@ -524,8 +524,8 @@ contract SafeSwap is AccessControl {
         } else {
             valueToRetrieve = fees0.sub(tr >> 128);
         }
-        msg.sender.transfer(valueToRetrieve);
-        emit Retrieved(msg.sender, to, id, valueToRetrieve);
+        from.transfer(valueToRetrieve);
+        emit Retrieved(from, to, id, valueToRetrieve);
     }
 
     // ------------------------------- ERC-721 -------------------------------
@@ -757,7 +757,11 @@ contract SafeSwap is AccessControl {
                     fees1: the amount of fees the recipient needs to pay for the swap
                     secretHash: a hash of the secret
      */
+<<<<<<< HEAD
+    function autoRetrieveERC721(address payable from, address to, SwapERC721Info memory info)
+=======
     function autoRetrieveERC721(address from, address to, SwapERC721Info memory info)
+>>>>>>> df7c43ace6baf49bd40f92039ac40b6cf24ceaff
         external
         onlyActivator()
     {
@@ -787,11 +791,11 @@ contract SafeSwap is AccessControl {
         } else {
             valueToRetrieve = info.fees0.sub(tr >> 128);
         }
-        msg.sender.transfer(valueToRetrieve);
+        from.transfer(valueToRetrieve);
         if (info.token0 == address(0)) {
-            emit Retrieved(msg.sender, to, id, valueToRetrieve);
+            emit Retrieved(from, to, id, valueToRetrieve);
         } else {
-            emit ERC721Retrieved(info.token0, msg.sender, to, id, info.value0);
+            emit ERC721Retrieved(info.token0, from, to, id, info.value0);
         }
     }
 
