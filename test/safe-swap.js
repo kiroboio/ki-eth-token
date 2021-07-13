@@ -699,8 +699,9 @@ contract('SafeSwap', async accounts => {
           ['bytes32', 'address', 'address','address', 'uint256', 'uint256','address', 'uint256', 'uint256','bytes32'],
           [await st.HIDDEN_SWAP_TYPEHASH(), user2, user1, token.address, '50', '10',ZERO_ADDRESS, '55', '17', secretHash]
         ))
-        await token.approve(st.address, 1e12, { from: user1 })
-        await st.hiddenDeposit(id1, { from: user2, value: 60 , nonce: await trNonce(web3, user2)})
+
+        await token.approve(st.address, 1e12, { from: user2 })
+        await st.hiddenDeposit(id1, { from: user2, value: 10 , nonce: await trNonce(web3, user2)})
         
 
         const params = {token0:token.address, value0:50, fees0:10, token1:ZERO_ADDRESS, value1:55, fees1: 17, secretHash:secretHash}
