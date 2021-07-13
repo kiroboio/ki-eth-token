@@ -67,7 +67,7 @@ contract SafeSwap is AccessControl {
     string public constant VERSION = "1";
     uint8 public constant VERSION_NUMBER = 0x1;
 
-    event SwapDeposited(
+    event Deposited(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -79,7 +79,7 @@ contract SafeSwap is AccessControl {
         uint256 fees1
     );
 
-    event SwapTimedDeposited(
+    event TimedDeposited(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -111,44 +111,7 @@ contract SafeSwap is AccessControl {
         uint256 value1
     );
 
-    event ERC20Deposited(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash
-    );
-
-    event ERC20TimedDeposited(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        uint256 value,
-        uint256 fees,
-        bytes32 secretHash,
-        uint64 availableAt,
-        uint64 expiresAt,
-        uint128 autoRetrieveFees
-    );
-
-    event ERC20Retrieved(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        bytes32 id,
-        uint256 value
-    );
-
-    event ERC20Collected(
-        address indexed token,
-        address indexed from,
-        address indexed to,
-        bytes32 id,
-        uint256 value
-    );
-
-    event ERC721SwapDeposited(
+    event ERC721Deposited(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -318,7 +281,7 @@ contract SafeSwap is AccessControl {
         );
         require(s_swaps[id] == 0, "SafeSwap: request exist");
         s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit SwapDeposited(
+        emit Deposited(
             msg.sender,
             to,
             token0,
@@ -388,7 +351,7 @@ contract SafeSwap is AccessControl {
             uint256(expiresAt) +
             uint256(availableAt << 64) +
             (uint256(autoRetrieveFees) << 128);
-        emit SwapTimedDeposited(
+        emit TimedDeposited(
             msg.sender,
             to,
             token0,
@@ -629,7 +592,7 @@ contract SafeSwap is AccessControl {
         );
         require(s_swaps[id] == 0, "SafeSwap: request exist");
         s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit ERC721SwapDeposited(
+        emit ERC721Deposited(
             msg.sender,
             to,
             token0,
