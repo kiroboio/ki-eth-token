@@ -661,7 +661,7 @@ contract('SafeSwap', async accounts => {
       //hidden tests
       //------------------------
 
-       it('should be able to swap a hidden deposit request', async () => {
+       it('should be able to swap a hidden deposit request - ether to 20', async () => {
         const secret = 'my secret'
         const secret2 = 'wrong secrete'
         const secretHash = sha3(secret)
@@ -691,7 +691,7 @@ contract('SafeSwap', async accounts => {
         await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user3,value:120, nonce: await trNonce(web3, user3)})
       })
  
-      it('should be able to swap a hidden deposit request', async () => {
+      it('should be able to swap a hidden deposit request - 20 to ether', async () => {
         const secret = 'my secret'
         const secret2 = 'wrong secrete'
         const secretHash = sha3(secret)
@@ -710,7 +710,7 @@ contract('SafeSwap', async accounts => {
       })
       
 
-      it('should be able to swap 721 token from a hidden deposit request', async () => {
+      it('should be able to swap 721 token from a hidden deposit request - ether to 721', async () => {
         const secret = 'my secret'
         const secretHash = sha3(secret)
         const tokenId = NFT4;
@@ -727,7 +727,26 @@ contract('SafeSwap', async accounts => {
 
         const params = {token0:ZERO_ADDRESS, value0:6000, tokenData0:tokenData, fees0:1000, token1:token721.address, 
                         value1:tokenId, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
-        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user4, value: 1200 })
+        await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user4, value: 1200 })
+      })
+
+      it('should be able to swap 721 token from a hidden deposit request - 721 to ether', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const tokenId = NFT4;
+        const tokenData = 1;
+        const id1 = sha3(defaultAbiCoder.encode(
+          ['bytes32', 'address', 'address','address', 'uint256','bytes', 'uint256','address', 'uint256','bytes', 'uint256','bytes32'],
+          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user4, user1, token721.address, tokenId,tokenData, '1000',ZERO_ADDRESS ,'6000',tokenData, '1200', secretHash]
+        ))
+    
+        mlog.log('id1', id1)
+        await token721.approve(st.address, 1e12, { from: user4 })
+        await st.hiddenDeposit(id1, { from: user4, value: 1000 })
+
+        const params = {token0:token721.address, value0:tokenId, tokenData0:tokenData, fees0:1000, token1:ZERO_ADDRESS, 
+                        value1:6000, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
+        await st.hiddenSwapERC721(user4, params, Buffer.from(secret), { from: user1, value: 1200 , nonce: await trNonce(web3, user4)})
       })
 
   })
