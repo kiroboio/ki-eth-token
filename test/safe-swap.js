@@ -708,7 +708,6 @@ contract('SafeSwap', async accounts => {
       })
       //-------------721------------------------------------
 
-      
 
       it('should be able to swap 721 token from a hidden deposit request - ether to 721', async () => {
         const secret = 'my secret'
