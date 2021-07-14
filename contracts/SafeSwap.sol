@@ -73,10 +73,10 @@ contract SafeSwap is AccessControl {
         address indexed token0,
         uint256 value0,
         uint256 fees0,
-        bytes32 secretHash0,
         address token1,
         uint256 value1,
-        uint256 fees1
+        uint256 fees1,
+        bytes32 secretHash
     );
 
     event TimedDeposited(
@@ -85,10 +85,10 @@ contract SafeSwap is AccessControl {
         address indexed token0,
         uint256 value0,
         uint256 fees0,
-        bytes32 secretHash0,
         address token1,
         uint256 value1,
         uint256 fees1,
+        bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
@@ -287,10 +287,10 @@ contract SafeSwap is AccessControl {
             token0,
             value0,
             fees0,
-            secretHash,
             token1,
             value1,
-            fees1
+            fees1,
+            secretHash
         );
     }
 
@@ -357,10 +357,10 @@ contract SafeSwap is AccessControl {
             token0,
             value0,
             fees0,
-            secretHash,
             token1,
             value1,
             fees1,
+            secretHash,
             availableAt,
             expiresAt,
             autoRetrieveFees
