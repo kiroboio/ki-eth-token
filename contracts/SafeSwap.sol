@@ -846,6 +846,11 @@ contract SafeSwap is AccessControl {
             require(info.value0 > 0, "SafeSwap: no token id");
             require(info.value1 > 0, "SafeSwap: no token id");
         }
+        require(
+            info.fees0 >= autoRetrieveFees,
+            "SafeSwap: autoRetrieveFees exeed fees"
+        );
+        require(to != msg.sender, "SafeSwap: sender==recipient");
         require(expiresAt > now, "SafeSwap: already expired");
         bytes32 id = keccak256(
             abi.encode(
