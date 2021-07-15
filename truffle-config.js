@@ -45,6 +45,11 @@ module.exports = {
     // tab if you use this network and you must also set the `host`, `port` and `network_id`
     // options below to some value.
     //
+    ganache: {
+      host: "127.0.0.1",
+      port: 8545,
+      network_id: "*" // Match any network id
+    },
     test: {
       network_id: "*",
       provider: function() {
@@ -59,7 +64,7 @@ module.exports = {
         return provider
       },
     },
-    ganache: {
+    /* ganache: {
       network_id: "*",
       provider: function() {
         // const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
@@ -68,7 +73,7 @@ module.exports = {
         const provider = new HDWalletProvider(mnemonic, `http://127.0.0.1:${port}`)
         return provider
       },
-    },
+    }, */
     ropsten: {
       provider: function() {
         mnemonic =
