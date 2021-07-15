@@ -13,13 +13,15 @@ const { TypedDataUtils } = require('ethers-eip712')
 
 const sha3 = web3.utils.sha3
 const NFT4 = 23456
+const NFT5 = 86543
 const NFT6 = 12345
 const NFT7 = 45678
 const NFT8 = 45633
-const NFT9 = 73454
-const NFT10 = 54654
-const NFT11 = 45454
-const NFT12 = 45455
+const NFT9 = 43399
+const NFT10 = 63422
+const NFT11 = 86432
+const NFT12 = 53345
+const NFT13 = 34555
 
 const {
   ZERO_ADDRESS,
@@ -52,6 +54,9 @@ const getPrivateKey = (address) => {
 contract('SafeSwap', async accounts => {
   let token, tokenSymbol, st, nonce, targetSupply, duration, initialSupply
 
+  console.log(accounts);
+  console.log("length: " + accounts.length);
+
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
   const user2 = accounts[3]
@@ -61,6 +66,11 @@ contract('SafeSwap', async accounts => {
   const user6 = accounts[7]
   const user7 = accounts[8]
   const user8 = accounts[9]
+  const user9 = accounts[10]
+  const user10 = accounts[11]
+  const user11 = accounts[12]
+  const user12 = accounts[13]
+  const user13 = accounts[14]
 
   const val1  = web3.utils.toWei('0.5', 'gwei')
   const val2  = web3.utils.toWei('0.4', 'gwei')
@@ -68,6 +78,9 @@ contract('SafeSwap', async accounts => {
   const valBN = web3.utils.toBN('0')
   let token721;
   const startValue = 500n * 1000n * 10n ** 18n
+
+  console.log('user4', user4);
+  //console.log('user9', user9);
 
   before('checking constants', async () => {
       assert(typeof user1         == 'string', 'user1 should be string')
@@ -78,9 +91,14 @@ contract('SafeSwap', async accounts => {
       assert(typeof user6         == 'string', 'user6 should be string')
       assert(typeof user7         == 'string', 'user7 should be string')
       assert(typeof user8         == 'string', 'user8 should be string')
+      assert(typeof user9         == 'string', 'user9 should be string')
+      assert(typeof user10        == 'string', 'user10 should be string')
+      assert(typeof user11        == 'string', 'user11 should be string')
+      assert(typeof user12        == 'string', 'user12 should be string')
+      assert(typeof user13        == 'string', 'user13 should be string')
       assert(typeof val1          == 'string', 'val1  should be big number')
       assert(typeof val2          == 'string', 'val2  should be string')
-      assert(typeof val3          == 'string', 'val2  should be string')
+      assert(typeof val3          == 'string', 'val3  should be string')  
       assert(valBN instanceof web3.utils.BN, 'valBN should be big number')
   })
 
@@ -99,6 +117,11 @@ contract('SafeSwap', async accounts => {
     mlog.log('user6                   ', user6)
     mlog.log('user7                   ', user7)
     mlog.log('user8                   ', user8)
+    mlog.log('user9                   ', user9)
+    mlog.log('user10                  ', user10)
+    mlog.log('user11                  ', user11)
+    mlog.log('user12                  ', user12)
+    mlog.log('user13                  ', user13)
     mlog.log('val1                    ', val1)
     mlog.log('val2                    ', val2)
     mlog.log('val3                    ', val3)
@@ -109,9 +132,15 @@ contract('SafeSwap', async accounts => {
     tokenSymbol = await token.symbol()
     token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner});
     await token721.selfMint(NFT4, { from: user4 })
+    await token721.selfMint(NFT5, { from: user5 })
     await token721.selfMint(NFT6, { from: user6 })
     await token721.selfMint(NFT7, { from: user7 })
     await token721.selfMint(NFT8, { from: user8 })
+    await token721.selfMint(NFT9, { from: user9 })
+    await token721.selfMint(NFT10, { from: user10 })
+    await token721.selfMint(NFT11, { from: user11 })
+    await token721.selfMint(NFT12, { from: user12 })
+    await token721.selfMint(NFT13, { from: user13 })
 
     mlog.log('token721                 ',   token721.address);
 
@@ -701,52 +730,75 @@ contract('SafeSwap', async accounts => {
         ))
 
         await token.approve(st.address, 1e12, { from: user2 })
-        await st.hiddenDeposit(id1, { from: user2, value: 10 , nonce: await trNonce(web3, user2)})
+        await st.hiddenDeposit(id1, { from: user2, value: 10 })
         
 
         const params = {token0:token.address, value0:50, fees0:10, token1:ZERO_ADDRESS, value1:55, fees1: 17, secretHash:secretHash}
-        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user1, value:72, nonce: await trNonce(web3, user1)})
+        await st.hiddenSwap(user2, params, Buffer.from(secret), { from: user1, value:72})
 
       })
-      
+      //-------------721------------------------------------
+
 
       it('should be able to swap 721 token from a hidden deposit request - ether to 721', async () => {
         const secret = 'my secret'
         const secretHash = sha3(secret)
-        const tokenId = NFT4;
+        const tokenId = NFT5;
         const tokenData = 1;
         const id1 = sha3(defaultAbiCoder.encode(
           ['bytes32', 'address', 'address','address', 'uint256','bytes', 'uint256','address', 'uint256','bytes', 'uint256','bytes32'],
-          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user2, user4, ZERO_ADDRESS, '6000',tokenData, '1000',token721.address, tokenId,tokenData, '1200', secretHash]
+          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user2, user5, ZERO_ADDRESS, '6000',tokenData, '1000',token721.address, tokenId,tokenData, '1200', secretHash]
         ))
     
         mlog.log('id1', id1)
     
-        await st.hiddenDeposit(id1, { from: user2, value: 7000 })
-        await token.approve(st.address, 1e12, { from: user4 })
+        await st.hiddenDeposit(id1, { from: user2, value: 7000, nonce: await trNonce(web3, user2) })
+        await token721.approve(st.address, tokenId, { from: user5 })
 
         const params = {token0:ZERO_ADDRESS, value0:6000, tokenData0:tokenData, fees0:1000, token1:token721.address, 
                         value1:tokenId, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
-        await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user4, value: 1200 })
+        await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user5, value: 1200,nonce: await trNonce(web3, user5)  })
       })
 
       it('should be able to swap 721 token from a hidden deposit request - 721 to ether', async () => {
         const secret = 'my secret'
         const secretHash = sha3(secret)
-        const tokenId = NFT4;
+        const tokenId = NFT9;
         const tokenData = 1;
         const id1 = sha3(defaultAbiCoder.encode(
           ['bytes32', 'address', 'address','address', 'uint256','bytes', 'uint256','address', 'uint256','bytes', 'uint256','bytes32'],
-          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user4, user1, token721.address, tokenId,tokenData, '1000',ZERO_ADDRESS ,'6000',tokenData, '1200', secretHash]
+          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user9, user1, token721.address, tokenId,tokenData, '500',ZERO_ADDRESS ,'6000',tokenData, '1200', secretHash]
         ))
     
         mlog.log('id1', id1)
-        await token721.approve(st.address, 1e12, { from: user4 })
-        await st.hiddenDeposit(id1, { from: user4, value: 1000 })
+        await token721.approve(st.address, tokenId, { from: user9  })
+        //await token721.approve(st.address, tokenId, { from: user4 ,nonce: await trNonce(web3, user4) })
+        await st.hiddenDeposit(id1, { from: user9, value: 500 ,nonce: await trNonce(web3, user9) })
 
-        const params = {token0:token721.address, value0:tokenId, tokenData0:tokenData, fees0:1000, token1:ZERO_ADDRESS, 
+        const params = {token0:token721.address, value0:tokenId, tokenData0:tokenData, fees0:500, token1:ZERO_ADDRESS, 
                         value1:6000, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
-        await st.hiddenSwapERC721(user4, params, Buffer.from(secret), { from: user1, value: 1200 , nonce: await trNonce(web3, user4)})
+        await st.hiddenSwapERC721(user9, params, Buffer.from(secret), { from: user1, value: 7200 ,nonce: await trNonce(web3, user1) })
       })
+
+       it('should be able to swap 721 token from a hidden deposit request - 721 to 721', async () => {
+        const secret = 'my secret'
+        const secretHash = sha3(secret)
+        const tokenId10 = NFT10;
+        const tokenId11 = NFT11;
+        const tokenData = 1;
+        const id1 = sha3(defaultAbiCoder.encode(
+          ['bytes32', 'address', 'address','address', 'uint256','bytes', 'uint256','address', 'uint256','bytes', 'uint256','bytes32'],
+          [await st.HIDDEN_ERC721_SWAP_TYPEHASH(), user10, user11, token721.address, tokenId10,tokenData, '700',token721.address, tokenId11,tokenData, '1200', secretHash]
+        ))
+    
+        mlog.log('id1', id1)
+        await token721.approve(st.address, tokenId10, { from: user10  })
+        await token721.approve(st.address, tokenId11, { from: user11  })
+        await st.hiddenDeposit(id1, { from: user10, value: 700 ,nonce: await trNonce(web3, user10) })
+
+        const params = {token0:token721.address, value0:tokenId10, tokenData0:tokenData, fees0:700, token1:token721.address, 
+                        value1:tokenId11, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
+        await st.hiddenSwapERC721(user10, params, Buffer.from(secret), { from: user11, value: 1200,nonce: await trNonce(web3, user11)  })
+      }) 
 
   })
