@@ -264,10 +264,10 @@ contract('SafeSwap', async accounts => {
     const secretHash = sha3(secret)
     const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
 
-    //let senderInitBalance = await web3.eth.getBalance(user14)
-    let recipientBalance = bigInt(await web3.eth.getBalance(user15))
-    //console.log('senderInitBalance before the swap = ', senderInitBalance )
-    console.log('recipientBalance before the swap = ', bigInt(recipientBalance).toString() )
+    let senderInitBalance = bigInt(await web3.eth.getBalance(user14))
+    //let recipientBalance = bigInt(await web3.eth.getBalance(user15))
+    console.log('senderInitBalance before the swap = ', bigInt(senderInitBalance).toString() )
+    //console.log('recipientBalance before the swap = ', bigInt(recipientBalance).toString() )
 
     const res1 = await token.approve(st.address, 1e12, { from: user14 })
 
@@ -278,9 +278,9 @@ contract('SafeSwap', async accounts => {
       { from: user15, value: value150+10, nonce: await trNonce(web3, user15) })
 
     let senderFinalBalance = bigInt(await web3.eth.getBalance(user14))
-    recipientBalance = bigInt(await web3.eth.getBalance(user15))
-    //console.log('senderFinalBalance after the swap = ', senderFinalBalance)
-    console.log('recipientBalance after the swap = ', bigInt(recipientBalance).toString())
+    //recipientBalance = bigInt(await web3.eth.getBalance(user15))
+    console.log('senderFinalBalance after the swap = ', senderFinalBalance)
+    //console.log('recipientBalance after the swap = ', bigInt(recipientBalance).toString())
 
     if(await checkAmount(senderInitBalance, res.receipt.gasUsed+res1.receipt.gasUsed, value150, 10, senderFinalBalance))
     {
@@ -406,7 +406,7 @@ contract('SafeSwap', async accounts => {
       const tokenData = 1;
       const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
   
-      let recipientInitBalance = bigInt(await web3.eth.getBalance(user4))
+      let recipientInitBalance = bigInt(await web3.eth.getBalance(user12))
       console.log('recipientInitBalance before the swap = ', bigInt(recipientInitBalance).toString())
       await st.depositERC721(user12, ZERO_ADDRESS, value150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
           { from: user16, value: value150+10, nonce: await trNonce(web3, user16) })
@@ -420,7 +420,6 @@ contract('SafeSwap', async accounts => {
   
       let recipientFinalBalance = bigInt(await web3.eth.getBalance(user12))
       console.log('recipientFinalBalance after the swap = ', bigInt(recipientFinalBalance).toString())
-      //console.log('res.receipt.gasUsed+res1.receipt.gasUsed = ',res.receipt.gasUsed+res1.receipt.gasUsed)
       if(await checkAmount(recipientInitBalance, res.receipt.gasUsed+res1.receipt.gasUsed, value150, 10, recipientFinalBalance))
       {
         console.log("ether amount correct")
