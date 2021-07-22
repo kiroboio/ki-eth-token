@@ -86,7 +86,7 @@ module.exports = {
     },
     rinkeby: {
       provider: function() {
-        mnemonic =	  
+        mnemonic =
           "front assume robust donkey senior economy maple enhance click bright game alcohol";
         return new HDWalletProvider(
           mnemonic, "https://rinkeby.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
@@ -137,14 +137,18 @@ module.exports = {
   compilers: {
     solc: {
       version: "0.6.12",    // Fetch exact version from solc-bin (default: truffle's version)
-      // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
+    }
+  },
+  solc: {
       settings: {          // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
           enabled: true,
-          runs: 200
+          runs: 999
         },
-      //  evmVersion: "byzantium"
+      },
+      optimizer: {
+          enabled: true,
+          runs: 999
       }
-    }
   }
 }
