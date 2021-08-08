@@ -1,6 +1,7 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider")
 const ganache = require("ganache-cli")
 let server
+const INFURA_API_KEY = 'c3b4ff6ae7d64731a16ccfa5ee811d65'
 /**
  * Use this file to configure your truffle project. It's seeded with some
  * common settings for different networks and features like migrations,
@@ -26,6 +27,7 @@ let server
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
+const mnemonic = 'attack limb hood nothing divert clown target corn muscle leader naive small';
 
 module.exports = {
   /**
@@ -84,6 +86,17 @@ module.exports = {
       },
       network_id: 3,
     },
+    matic: {
+      provider: () => new HDWalletProvider(mnemonic, `https://rpc-mumbai.maticvigil.com`, 0,5),
+      network_id: 80001,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      //from: "0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9",
+      //from: "0x3E3185B08FF717b7a9126f6E160099dfe145d5E9",
+      //gas: "4500000",
+      gasPrice: "10000000000",
+    },
     rinkeby: {
       provider: function() {
         mnemonic =	  
@@ -93,6 +106,21 @@ module.exports = {
         );
       },
       network_id: 4,
+    },
+    goerli: {
+      
+      provider: function(){
+        Orimnemonic = 'attack limb hood nothing divert clown target corn muscle leader naive small';
+        return new HDWalletProvider(Orimnemonic, 'https://goerli.infura.io/v3/' + INFURA_API_KEY)
+      } ,
+      network_id: 5,
+      //confirmations: 2,
+      //timeoutBlocks: 200,
+      skipDryRun: true,
+      from: "0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9",
+      //gas: "29000000",
+      //gasPrice: "200000000000",
+      //nounce: 3,
     },
 
     // Another network with more advanced options...
