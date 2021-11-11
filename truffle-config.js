@@ -1,7 +1,10 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider")
 const ganache = require("ganache-cli")
+const MaticPOSClient = require('@maticnetwork/maticjs').MaticPOSClient
 let server
 const INFURA_API_KEY = 'c3b4ff6ae7d64731a16ccfa5ee811d65'
+
+
 /**
  * Use this file to configure your truffle project. It's seeded with some
  * common settings for different networks and features like migrations,
@@ -24,12 +27,28 @@ const INFURA_API_KEY = 'c3b4ff6ae7d64731a16ccfa5ee811d65'
 
 // const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
-//
+const BSCSCANAPIKEY = '9ZP9CBPK9Z2DXHJTCFV748RA5656K1ZQ1U'
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
 const mnemonic = 'attack limb hood nothing divert clown target corn muscle leader naive small';
+//const mnemonic = 'topic brown age machine torch art proof deny above ski badge border'
+
+const parentProvider = new HDWalletProvider(mnemonic, 'https://mainnet.infura.io/v3/' + INFURA_API_KEY)
+
+/* const maticPOSClient = new MaticPOSClient({
+  network: "mainnet",
+  version: "v1",
+  parentProvider: parentProvider,
+  maticProvider: maticProvider
+}); */
 
 module.exports = {
+  plugins: [
+    'truffle-plugin-verify'
+  ],
+  api_keys: {
+    bscscan: BSCSCANAPIKEY
+  },
   /**
    * Networks define how you connect to your ethereum client and let you set the
    * defaults web3 uses to send transactions. If you don't specify one truffle
@@ -50,7 +69,9 @@ module.exports = {
     ganache: {
       host: "127.0.0.1",
       port: 8545,
-      network_id: "*" // Match any network id
+      network_id: "*" ,// Match any network id
+      gasPrice: 20000000000,
+      gas: "6721975",
     },
     test: {
       network_id: "*",
@@ -86,26 +107,63 @@ module.exports = {
       },
       network_id: 3,
     },
+    testnet: {
+      provider: () => new HDWalletProvider(mnemonic, `https://data-seed-prebsc-1-s1.binance.org:8545`),
+      network_id: 97,
+      confirmations: 10,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      //from: "0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9",
+      from: "0x1cbed60336E3FEe0734325fe70B13B805c15d99d",
+      //gas: "4500000",
+      //gasPrice: "10000000000",
+    },
+    bsc: {
+      provider: () => new HDWalletProvider(mnemonic, `https://bsc-dataseed1.binance.org`),
+      network_id: 56,
+      confirmations: 10,
+      timeoutBlocks: 200,
+      skipDryRun: true
+    },
+    maticMain: {
+      provider: () => new HDWalletProvider(mnemonic, 'https://rpc-mainnet.maticvigil.com/v1/cce4f4c10a8fd12cd1590eddf140a9f937809b07'),
+      network_id: 137,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      from: "0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9",
+      //gas: "4500000",
+      //gasPrice: "10000000000",
+    },
+    shasta:{
+      privateKey:'e6b4df55147ef6891de00c6227e403e99663e805c40ff4c869039abfc30f65c3',
+      fee_limit: 100000000,
+      fullNode:"https://api.shasta.trongrid.io",
+      solidityNode :"https://api.shasta.trongrid.io",
+      eventServer:"https://api.shasta.trongrid.io",
+      network_id: "*"
+    },
     matic: {
-      provider: () => new HDWalletProvider(mnemonic, `https://rpc-mumbai.maticvigil.com`, 0,5),
+      provider: () => new HDWalletProvider(mnemonic, `https://rpc-mumbai.maticvigil.com`),
       network_id: 80001,
       confirmations: 2,
       timeoutBlocks: 200,
       skipDryRun: true,
-      //from: "0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9",
-      //from: "0x3E3185B08FF717b7a9126f6E160099dfe145d5E9",
+      from: "0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9",
       //gas: "4500000",
-      gasPrice: "10000000000",
+      //gasPrice: "10000000000",
     },
     rinkeby: {
       provider: function() {
-        mnemonic =	  
-          "front assume robust donkey senior economy maple enhance click bright game alcohol";
+        //const rmnemonic =	"front assume robust donkey senior economy maple enhance click bright game alcohol";
         return new HDWalletProvider(
           mnemonic, "https://rinkeby.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
         );
       },
       network_id: 4,
+      gasPrice: 20000000000,
+      gas: "29900000",
+      //from: "0x119a1fF5DA23046784E83e35E94753e42feF7ad3",
     },
     goerli: {
       
