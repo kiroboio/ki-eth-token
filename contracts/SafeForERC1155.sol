@@ -9,7 +9,6 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-
 contract SafeForERC1155 is AccessControl {
     using SafeMath for uint256;
     //using SafeERC20 for IERC20;
@@ -403,7 +402,7 @@ contract SafeForERC1155 is AccessControl {
         emit ERC1155BatchTransferDeposited(token, msg.sender, to, tokenIds, values, fees, secretHash);
     }
 
-    function retrieveERC1155(
+    function retrieveBatchERC1155(
         address token,
         address to,
         uint256[] calldata tokenIds,
@@ -444,7 +443,7 @@ contract SafeForERC1155 is AccessControl {
 
     // ----------------------- swap - batch ERC1155 <--> ETH/721 -------------------------------------------
     //0x0Fc471ed8ed3a01Ab11E1F7A3A3d71F4bCEf39E7
-    function depositERC1155(address payable to, SwapERC1155Info memory info) external payable
+    function swapDepositERC1155(address payable to, SwapERC1155Info memory info) external payable
     {
         if (info.token0 == address(0)) {
             //eth to 1155
@@ -470,8 +469,7 @@ contract SafeForERC1155 is AccessControl {
             require(info.value1[0] > 0, "SafeSwap: no value");
         }
         require(to != msg.sender, "SafeSwap: sender==recipient");
-        bytes32 id = keccak256(
-            abi.encode(to));/*
+        bytes32 id = keccak256(abi.encode(to));/*
                 msg.sender,
                 to,
                 info.token0,
@@ -487,8 +485,8 @@ contract SafeForERC1155 is AccessControl {
                 info.secretHash
             )
         ); */
-        //require(s_swaps[id] == 0, "SafeSwap: request exist");
-        //s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
+        require(s_swaps[id] == 0, "SafeSwap: request exist");
+        s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
         emit ERC1155SwapDeposited(
             msg.sender,
             to,
@@ -504,7 +502,7 @@ contract SafeForERC1155 is AccessControl {
         );
     }
 
-    function retrieveERC1155(address to, SwapERC1155Info memory info) external {
+    function swapRetrieveERC1155(address to, SwapERC1155Info memory info) external {
          bytes32 id = keccak256(abi.encode(to));/*
             abi.encode(
                 msg.sender,

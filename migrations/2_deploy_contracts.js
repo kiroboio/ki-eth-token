@@ -7,6 +7,7 @@
 //const SafeSwap = artifacts.require("SafeSwap") 
 //const SafeTransfer = artifacts.require("SafeTransfer")
 const SafeForERC1155 = artifacts.require("SafeForERC1155")
+const MyERC1155 = artifacts.require("myERC1155")
 
 //const liveTestNetworks = { ropsten: true, rinkeby: true, kovan: true };
 //const liveTestNetworks = { maticMain: true };
@@ -33,6 +34,7 @@ module.exports = function(deployer, network, accounts) {
     //const staking = await deployer.deploy(Staking, , )
   //	const pool    = await deployer.deploy(Pool, "0xB382C1cfA622795a534e5bd56Fac93d59BAc8B0D", { from: tokenOwner })
     //const safeSwap = await deployer.deploy(SafeSwap ,'0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' , { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
+    const myERC1155 = await deployer.deploy(MyERC1155, { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
     const safeForERC1155 = await deployer.deploy(SafeForERC1155 ,'0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' , { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
     //const safeTransfer = await deployer.deploy(SafeTransfer ,'0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' , { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
  
