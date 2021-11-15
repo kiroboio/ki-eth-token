@@ -449,15 +449,16 @@ contract SafeForERC1155 is AccessControl {
             //eth to 1155
             require(info.token0 != info.token1, "SafeSwap: try to swap ether and ether");
             require(msg.value == info.value0[0].add(info.fees0), "SafeSwap: value mismatch");
-            require(info.value1[0] > 0, "SafeSwap: no value");
+            require(info.value1[0] > 0, "SafeSwap: no value for ERC1155 token");
         } else if (info.token1 == address(0)) {
             //1155 to eth
             require(msg.value == info.fees0, "SafeSwap: value mismatch");
-            require(info.value0[0] > 0, "SafeSwap: no value");
+            require(info.value0[0] > 0, "SafeSwap: no value for ERC1155 token");
+            require(info.value1[0] > 0, "SafeSwap: no value for ETH");
         } else if(info.value0[0] == 0){
             //721 to 1155
             require(msg.value == info.fees0, "SafeSwap: value mismatch");
-            require(info.value1[0] > 0, "SafeSwap: no value");
+            require(info.value1[0] > 0, "SafeSwap: no value for ERC1155 token");
         } else if(info.value1[0] == 0){    
             //1155 to 721
             require(msg.value == info.fees0, "SafeSwap: value mismatch");
@@ -465,8 +466,8 @@ contract SafeForERC1155 is AccessControl {
         } else {
             //1155 to 1155
             require(msg.value == info.fees0, "SafeSwap: value mismatch");
-            require(info.value0[0] > 0, "SafeSwap: no value");
-            require(info.value1[0] > 0, "SafeSwap: no value");
+            require(info.value0[0] > 0, "SafeSwap: no value for ERC1155 token");
+            require(info.value1[0] > 0, "SafeSwap: no value for ERC1155 token");
         }
         require(to != msg.sender, "SafeSwap: sender==recipient");
         bytes32 id = keccak256(abi.encode(to));/*
