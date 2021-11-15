@@ -60,7 +60,7 @@ contract SafeForERC1155 is AccessControl {
         bytes secret;
     }
 
-    /* struct SwapBatchERC1155ToETHInfo {
+    struct SwapBatchERC1155ToERC20Info {
         address token0;
         uint256[] tokenIds0;
         uint256[] values0;
@@ -70,7 +70,7 @@ contract SafeForERC1155 is AccessControl {
         uint256 value1;
         uint256 fees1;
         bytes32 secretHash;
-    } */
+    }
 
     /* struct SwapETHToBatchERC1155Info {
         address token0;
@@ -195,7 +195,7 @@ contract SafeForERC1155 is AccessControl {
         bytes32 id
     );
 
-    /* event swapDepositERC1155ToETHEvent(
+    event swapDepositERC1155ToERC20Event(
         address indexed from,
         address indexed to,
         address indexed token0,
@@ -206,7 +206,7 @@ contract SafeForERC1155 is AccessControl {
         uint256 value1,
         uint256 fees1,
         bytes32 secretHash
-    ); */
+    );
 
     /* event swapDepositETHToERC1155Event(
         address indexed from,
@@ -631,9 +631,9 @@ contract SafeForERC1155 is AccessControl {
         );
     }
 
-    /* // ------------------------ swap batch ERC-1155 <-> eth -----------------
+    // ------------------------ swap batch ERC-1155 <-> ERC20 -----------------
 
-    function swapDepositERC1155ToETH(address payable to, SwapBatchERC1155ToETHInfo memory info) external payable
+    function swapDepositERC1155ToERC20(address payable to, SwapBatchERC1155ToERC20Info memory info) external payable
     {
         require(msg.value == info.fees0, "SafeSwap: value mismatch");
         require(to != msg.sender, "SafeSwap: sender==recipient");
@@ -654,7 +654,7 @@ contract SafeForERC1155 is AccessControl {
         );
         require(s_swaps[id] == 0, "SafeSwap: request exist");
         s_swaps[id] = 0xffffffffffffffff; // expiresAt: max, AvailableAt: 0, autoRetrieveFees: 0
-        emit swapDepositERC1155ToETHEvent(
+        emit swapDepositERC1155ToERC20Event(
             msg.sender,
             to,
             info.token0,
@@ -668,6 +668,7 @@ contract SafeForERC1155 is AccessControl {
         );
     }
 
+/*
     function swapRetrieveERC1155ToETH(address to, SwapBatchERC1155ToETHInfo memory info) external {
         bytes32 id = keccak256(
             abi.encode(

@@ -117,6 +117,7 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         address indexed to,
         uint256 tokenId,
+        bytes tokenData,
         uint256 fees,
         bytes32 secretHash
     );
@@ -126,6 +127,7 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         address indexed to,
         uint256 tokenId,
+        bytes tokenData,
         uint256 fees,
         bytes32 secretHash,
         uint64 availableAt,
@@ -138,7 +140,8 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         address indexed to,
         bytes32 id,
-        uint256 tokenId
+        uint256 tokenId,
+        bytes tokenData
     );    
     
     event ERC721Collected(
@@ -146,7 +149,8 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         address indexed to,
         bytes32 id,
-        uint256 tokenId
+        uint256 tokenId,
+        bytes tokenData
     );
 
     event HDeposited(
@@ -190,7 +194,8 @@ contract SafeTransfer is AccessControl {
         address indexed from,
         address indexed to,
         bytes32 id1,
-        uint256 tokenId
+        uint256 tokenId,
+        bytes tokenData
     );
 
     modifier onlyActivator() {
@@ -479,7 +484,7 @@ contract SafeTransfer is AccessControl {
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc721Transfers[id] = 0xffffffffffffffff;
-        emit ERC721Deposited(token, msg.sender, to, tokenId, fees, secretHash);
+        emit ERC721Deposited(token, msg.sender, to, tokenId, tokenData,fees, secretHash);
     }
 
     function timedDepositERC721(
@@ -504,7 +509,7 @@ contract SafeTransfer is AccessControl {
         bytes32 id = keccak256(abi.encode(token, tokenSymbol, msg.sender, to, tokenId, tokenData, fees, secretHash));
         require(s_erc721Transfers[id] == 0, "SafeTransfer: request exist"); 
         s_erc721Transfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
-        emit ERC721TimedDeposited(token, msg.sender, to, tokenId, fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
+        emit ERC721TimedDeposited(token, msg.sender, to, tokenId, tokenData,fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
     }
 
     function retrieveERC721(
@@ -522,7 +527,7 @@ contract SafeTransfer is AccessControl {
         require(s_erc721Transfers[id]  > 0, "SafeTransfer: request not exist");
         delete s_erc721Transfers[id];
         msg.sender.transfer(fees);
-        emit ERC721Retrieved(token, msg.sender, to, id, tokenId);
+        emit ERC721Retrieved(token, msg.sender, to, id, tokenId, tokenData);
     }
 
     function collectERC721(
@@ -548,7 +553,7 @@ contract SafeTransfer is AccessControl {
         delete s_erc721Transfers[id];
         s_fees = s_fees.add(fees);
         IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
-        emit ERC721Collected(token, from, to, id, tokenId);
+        emit ERC721Collected(token, from, to, id, tokenId, tokenData);
     }
 
    function autoRetrieveERC721(
@@ -571,7 +576,7 @@ contract SafeTransfer is AccessControl {
         delete  s_erc721Transfers[id];
         s_fees = s_fees + (tr>>128); // autoRetreive fees
         from.transfer(fees.sub(tr>>128));
-        emit ERC721Retrieved(token, from, to, id, tokenId);
+        emit ERC721Retrieved(token, from, to, id, tokenId, tokenData);
     }
 
     // ----------------------- Hidden ETH / ERC-20 / ERC-721 -----------------------
@@ -702,7 +707,7 @@ contract SafeTransfer is AccessControl {
         delete s_htransfers[tinfo.id];
         s_fees = s_fees.add(fees);
         IERC721(token).safeTransferFrom(from, to, tokenId, tokenData);
-        emit HERC721Collected(token, from, to, tinfo.id1, tokenId);
+        emit HERC721Collected(token, from, to, tinfo.id1, tokenId, tokenData);
     }
 
    function hiddenAutoRetrieve(
