@@ -50,7 +50,7 @@ const getPrivateKey = (address) => {
 }
 
 contract('SafeForERC1155', async accounts => {
-  let token, token1155, tokenSymbol, st, nonce, targetSupply, duration, initialSupply
+  let token20, token1155, tokenSymbol, st, nonce, targetSupply, duration, initialSupply
 
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
@@ -78,10 +78,10 @@ contract('SafeForERC1155', async accounts => {
   })
 
   before('setup contract for the test', async () => {
-    //token = await Token.new({ from: tokenOwner })
+    token20 = await Token.new({ from: tokenOwner })
     st = await SafeForERC1155.new(user1, { from: user1 })
     mlog.log('web3                    ', web3.version)
-    //mlog.log('token contract          ', token.address)
+    mlog.log('token contract          ', token20.address)
     mlog.log('safeForERC1155 contract  ', st.address)
     mlog.log('token Owner             ', tokenOwner)
     mlog.log('user1                   ', user1)
@@ -100,9 +100,16 @@ contract('SafeForERC1155', async accounts => {
     await token721.selfMint(NFT4, { from: user4 })
     await token721.approve(st.address, NFT3, { from: user3 })
     await token721.approve(st.address, NFT4, { from: user4 })
+    await token20.mint(tokenOwner, 1e10, { from: tokenOwner })
+    await token20.mint(user1, 1e10, { from: tokenOwner })
+    await token20.mint(user2, 1e10, { from: tokenOwner })
+    await token20.mint(user3, 1e10, { from: tokenOwner })
+    await token20.approve(st.address, 1e12, { from: tokenOwner })
+    await token20.approve(st.address, 1e12, { from: user1 })
 
     mlog.log('token721                 ',   token721.address);
     mlog.log('token1155                ',   token1155.address);
+    mlog.log('token20                  ',   token20.address);
   })
 
   it('should create an empty contract', async () => {
@@ -181,50 +188,50 @@ contract('SafeForERC1155', async accounts => {
     const secret = 'my secret'
     const token0 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0,1]
-    const value0 = [100,200]
+    const tokenIds0 = [0,1]
+    const values0 = [100,200]
     const tokenData0 = "0x00"
     const fees0 = 20
     const token1 = ZERO_ADDRESS
-    const tokenId1 = [0]
-    const value1 = [100000000000]
+    const tokenIds1 = [0]
+    const values1 = [100000000000]
     const tokenData1 = "0x00"
     const fees1 = 40
-    await st.swapDepositERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
+    await st.swapDepositERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
   })
 
   it('should be able to retrieve a swap request', async () => {
     const secret = 'my secret'
     const token0 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0,1]
-    const value0 = [100,200]
+    const tokenIds0 = [0,1]
+    const values0 = [100,200]
     const tokenData0 = "0x00"
     const fees0 = 20
     const token1 = ZERO_ADDRESS
-    const tokenId1 = [0]
-    const value1 = [100000000000]
+    const tokenIds1 = [0]
+    const values1 = [100000000000]
     const tokenData1 = "0x00"
     const fees1 = 40
-    await st.swapRetrieveERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner})
+    await st.swapRetrieveERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:tokenOwner})
   })
 
   it('should be able to collect a swap request', async () => {
     const secret = 'my secret'
     const token0 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0,1]
-    const value0 = [100,200]
+    const tokenIds0 = [0,1]
+    const values0 = [100,200]
     const tokenData0 = "0x00"
     const fees0 = 20
     const token1 = ZERO_ADDRESS
-    const tokenId1 = [0]
-    const value1 = [100000000000]
+    const tokenIds1 = [0]
+    const values1 = [100000000000]
     const tokenData1 = "0x00"
     const fees1 = 40
-    const trxValue = value1[0]+fees1
-    await st.swapDepositERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
-    await st.swapERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:user1, value: trxValue})
+    const trxValue = values1[0]+fees1
+    await st.swapDepositERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
+    await st.swapERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:user1, value: trxValue})
   })
 
   //  swap ETH to 1155
@@ -233,52 +240,52 @@ contract('SafeForERC1155', async accounts => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0]
-    const value0 = [100000000000]
+    const tokenIds0 = [0]
+    const values0 = [100000000000]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = ZERO_ADDRESS
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    const trxValue = value0[0]+fees0
-    await st.swapDepositERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1, value:trxValue})
+    const trxValue = values0[0]+fees0
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:trxValue})
   })
 
   it('should be able to retrieve a swap request', async () => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0]
-    const value0 = [100000000000]
+    const tokenIds0 = [0]
+    const values0 = [100000000000]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = ZERO_ADDRESS
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    const trxValue = value0[0]+fees0
-    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1})
+    const trxValue = values0[0]+fees0
+    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1})
   })
 
   it('should be able to collect a swap request', async () => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0]
-    const value0 = [100000000000]
+    const tokenIds0 = [0]
+    const values0 = [100000000000]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = ZERO_ADDRESS
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    const trxValue = value0[0]+fees0
-    await st.swapDepositERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1, value:trxValue})
-    await st.swapERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
+    const trxValue = values0[0]+fees0
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:trxValue})
+    await st.swapERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
   })
 
 
@@ -288,49 +295,49 @@ contract('SafeForERC1155', async accounts => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [NFT3]
-    const value0 = [0]
+    const tokenIds0 = [NFT3]
+    const values0 = [0]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = token721.address
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    await st.swapDepositERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user3, value:fees0})
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user3, value:fees0})
   })
 
   it('should be able to retrieve a swap request', async () => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [NFT3]
-    const value0 = [0]
+    const tokenIds0 = [NFT3]
+    const values0 = [0]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = token721.address
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user3})
+    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user3})
   })
 
   it('should be able to collect a swap request', async () => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [NFT3]
-    const value0 = [0]
+    const tokenIds0 = [NFT3]
+    const values0 = [0]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = token721.address
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    await st.swapDepositERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user3, value:fees0})
-    await st.swapERC1155(user3, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user3, value:fees0})
+    await st.swapERC1155(user3, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
   }) 
 
   // swap 1155 with 1155
@@ -339,49 +346,151 @@ contract('SafeForERC1155', async accounts => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0,1]
-    const value0 = [10, 20]
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = token1155.address
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    await st.swapDepositERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
   })
 
   it('should be able to retrieve a swap request', async () => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0,1]
-    const value0 = [10, 20]
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = token1155.address
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1})
+    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1})
   })
 
   it('should be able to collect a swap request', async () => {
     const secret = 'my secret'
     const token1 = token1155.address
     const secretHash = sha3(secret)
-    const tokenId0 = [0,1]
-    const value0 = [10, 20]
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
     const tokenData0 = "0x00"
     const fees0 = 40
     const token0 = token1155.address
-    const tokenId1 = [0,3]
-    const value1 = [100,200]
+    const tokenIds1 = [0,3]
+    const values1 = [100,200]
     const tokenData1 = "0x00"
     const fees1 = 20
-    await st.swapDepositERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
-    await st.swapERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
+    await st.swapERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
+  }) 
+
+  // swap ERC20 with batch 1155
+
+  it('should be able to deposit an ERC20 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token20.address
+    const secretHash = sha3(secret)
+    const tokenId0 = 0
+    const value0 = 100
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token1155.address
+    const tokenIds1 = [0,3]
+    const values1 = [100,100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapDepositERC20ToERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
+  })
+
+  it('should be able to retrieve an ERC20 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token20.address
+    const secretHash = sha3(secret)
+    const tokenId0 = 0
+    const value0 = 100
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token1155.address
+    const tokenIds1 = [0,3]
+    const values1 = [100,100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapRetrieveERC20ToERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:tokenOwner})
+  })
+
+  it('should be able to collect an ERC20 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token20.address
+    const secretHash = sha3(secret)
+    const tokenId0 = 0
+    const value0 = 100
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token1155.address
+    const tokenIds1 = [0,3]
+    const values1 = [100,100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapDepositERC20ToERC1155(user1, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
+    await st.swapERC20ToERC1155(tokenOwner, {token0, tokenId0, value0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:user1, value: fees1})
+  }) 
+
+  // swap batch 1155 with ERC20
+
+  it('should be able to deposit an ERC1155 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
+  })
+
+  it('should be able to retrieve an ERC1155 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapRetrieveERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner})
+  })
+
+  it('should be able to collect an ERC1155 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
+    await st.swapERC1155ToERC20(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:user1, value: fees1})
   }) 
   
   })

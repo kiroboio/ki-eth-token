@@ -757,7 +757,7 @@ contract SafeForERC1155 is AccessControl {
                                              id);
     }
 
-    function swapERC1155ToETH(
+    function swapERC1155ToERC20(
         address payable from,
         SwapBatchERC1155ToERC20Info memory info,
         bytes calldata secret
@@ -845,7 +845,7 @@ contract SafeForERC1155 is AccessControl {
             info.secretHash
         );
     }
-    function swapRetrieveERC1155ToERC20(address to, SwapERC20ToBatchERC1155Info memory info) external {
+    function swapRetrieveERC20ToERC1155(address to, SwapERC20ToBatchERC1155Info memory info) external {
         bytes32 id = keccak256(
             abi.encode(
                 msg.sender,
@@ -872,7 +872,7 @@ contract SafeForERC1155 is AccessControl {
                                              id);
     }
 
-    function swapERC1155ToETH(
+    function swapERC20ToERC1155(
         address payable from,
         SwapERC20ToBatchERC1155Info memory info,
         bytes calldata secret
