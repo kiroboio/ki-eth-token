@@ -135,6 +135,36 @@ module.exports = {
       //gas: "4500000",
       //gasPrice: "10000000000",
     },
+    development: {
+      network_id: "*",
+      provider: function () {
+        const mnemonic = 'awesome grain neither pond excess garage tackle table piece assist venture escape'
+        const port = 9545
+        const accounts = 220
+        if (!server) {
+          server = ganache.server({
+            mnemonic,
+            total_accounts: accounts,
+            gasLimit: 22500000,
+            default_balance_ether: 1000,
+          })
+           server.listen(port, () => { console.log('ready') })
+         }
+         const provider = new HDWalletProvider({
+           mnemonic,
+           numberOfAddresses: accounts,
+           providerOrUrl: `http://127.0.0.1:${port}`,
+           _chainId: 4,
+           _chainIdRpc: 4,
+          })
+         return provider
+       },
+      ens: {
+        registry: {
+          address: '0x194882C829ba3F56C7B7b99175435381d8Ac30B9',
+        },
+      },
+    },
     shasta:{
       privateKey:'e6b4df55147ef6891de00c6227e403e99663e805c40ff4c869039abfc30f65c3',
       fee_limit: 100000000,
@@ -209,6 +239,7 @@ module.exports = {
       // production: true    // Treats this network as if it was a public net. (default: false)
     // }
   },
+  
 
   // Set default mocha options here, use special reporters etc.
   mocha: {

@@ -15,7 +15,7 @@ const MyERC1155 = artifacts.require("myERC1155")
 
 module.exports = function(deployer, network, accounts) {
 
-  //const tokenOwner    = accounts[1]
+  const tokenOwner    = accounts[1]
 /*    const poolOwner     = accounts[2]
   const walletOwner1  = accounts[6]
   const walletOwner2  = accounts[7]
@@ -34,8 +34,8 @@ module.exports = function(deployer, network, accounts) {
     //const staking = await deployer.deploy(Staking, , )
   //	const pool    = await deployer.deploy(Pool, "0xB382C1cfA622795a534e5bd56Fac93d59BAc8B0D", { from: tokenOwner })
     //const safeSwap = await deployer.deploy(SafeSwap ,'0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' , { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
-    const myERC1155 = await deployer.deploy(MyERC1155, { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
-    const safeForERC1155 = await deployer.deploy(SafeForERC1155 ,'0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' , { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
+    const myERC1155 = await deployer.deploy(MyERC1155, { from: tokenOwner })
+    const safeForERC1155 = await deployer.deploy(SafeForERC1155 ,tokenOwner , { from: tokenOwner })
     //const safeTransfer = await deployer.deploy(SafeTransfer ,'0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' , { from: '0x29bC20DebBB95fEFef4dB8057121c8e84547E1A9' })
  
      /*await token.disableTransfers(false, { from: tokenOwner })

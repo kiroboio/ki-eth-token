@@ -148,6 +148,19 @@ contract('SafeForERC1155', async accounts => {
     await st.collectERC1155(token1155.address, tokenOwner, user1, tokenId, value, tokenData, fees, secretHash, Buffer.from(secret), { from: user1 })
   })
 
+  //single item in batch functions
+  it('should be able to collect a batch transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const tokenIds = [1]
+    const values = [100]
+    const tokenData = "0x00"
+    const fees = 20
+    await st.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
+    await st.collectBatchERC1155(user1, tokenOwner, {token: token1155.address ,tokenIds: tokenIds, values: values, tokenData: tokenData, fees: fees, 
+                                  secretHash: secretHash, secret: Buffer.from(secret)}, { from: user1 })
+  })
+
   // batch transfer
 
   it('should be able to make a batch transfer request', async () => {
