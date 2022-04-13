@@ -149,7 +149,7 @@ contract('SafeForERC1155', async accounts => {
   })
 
   //single item in batch functions
-  it('should be able to collect a batch transfer request', async () => {
+  it('should be able to send one item in a batch function', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     const tokenIds = [1]
