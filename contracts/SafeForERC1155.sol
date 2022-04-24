@@ -136,16 +136,14 @@ contract SafeForERC1155 is AccessControl {
     address indexed token,
     address indexed from,
     address indexed to,
-    uint256 tokenId,
-    uint256 value
+    bytes32 id
   );
 
   event ERC721Retrieved(
     address indexed token,
     address indexed from,
     address indexed to,
-    bytes32 id,
-    uint256[] tokenId
+    bytes32 id
   );
 
   event ERC1155BatchTransferRetrieved(
@@ -160,17 +158,16 @@ contract SafeForERC1155 is AccessControl {
     address indexed token,
     address indexed from,
     address indexed to,
-    uint256 tokenId,
-    uint256 value
+    bytes32 id
   );
 
-  event ERC1155BatchCollected(
-    address indexed token,
-    address indexed from,
-    address indexed to,
-    uint256[] tokenIds,
-    uint256[] values
-  );
+  // event ERC1155BatchCollected(
+  //   address indexed token,
+  //   address indexed from,
+  //   address indexed to,
+  //   uint256[] tokenIds,
+  //   uint256[] values
+  // );
 
   event ERC1155SwapDeposited(
     address indexed from,
@@ -190,8 +187,6 @@ contract SafeForERC1155 is AccessControl {
     address indexed from,
     address indexed to,
     address indexed token,
-    uint256[] tokenIds,
-    uint256[] values,
     bytes32 id
   );
 
@@ -442,7 +437,7 @@ contract SafeForERC1155 is AccessControl {
     require(s_erc1155Transfers[id] > 0, "SafeTransfer: request not exist");
     delete s_erc1155Transfers[id];
     msg.sender.transfer(fees);
-    emit ERC1155TransferRetrieved(token, msg.sender, to, tokenId, value);
+    emit ERC1155TransferRetrieved(token, msg.sender, to, id);
   }
 
   function collectERC1155(
@@ -461,13 +456,14 @@ contract SafeForERC1155 is AccessControl {
     );
     uint256 tr = s_erc1155Transfers[id];
     require(tr > 0, "SafeTransfer: request not exist");
-    require(uint64(tr) > now, "SafeTranfer: expired");
-    require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
+    // require(uint64(tr) > now, "SafeTranfer: expired");
+    // require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
     require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
     delete s_erc1155Transfers[id];
     s_fees = s_fees.add(fees);
     IERC1155(token).safeTransferFrom(from, to, tokenId, value, tokenData);
-    emit ERC1155Collected(token, from, to, tokenId, value);
+    emit ERC1155Collected(token, from, to, id);
+    // emit ERC1155Collected(token, from, to, tokenId, value);
   }
 
   //------------------------------ERC-1155 batch transfer -----------------------------------------
@@ -568,13 +564,19 @@ contract SafeForERC1155 is AccessControl {
       info.values,
       info.tokenData
     );
-    emit ERC1155BatchCollected(
+    emit ERC1155Collected(
       info.token,
       from,
       to,
-      info.tokenIds,
-      info.values
+      id
     );
+    // emit ERC1155BatchCollected(
+    //   info.token,
+    //   from,
+    //   to,
+    //   info.tokenIds,
+    //   info.values
+    // );
   }
 
   function encodeObject(
@@ -699,14 +701,12 @@ contract SafeForERC1155 is AccessControl {
       emit Retrieved(msg.sender, to, id, valueToSend);
     } else if (info.values0[0] == 0) {
       //retrieve 721
-      emit ERC721Retrieved(info.token0, msg.sender, to, id, info.values0);
+      emit ERC721Retrieved(info.token0, msg.sender, to, id);
     } else {
       emit ERC1155SwapRetrieved(
         msg.sender,
         to,
         info.token0,
-        info.tokenIds0,
-        info.values0,
         id
       );
     }

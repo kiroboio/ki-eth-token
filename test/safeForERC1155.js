@@ -93,9 +93,9 @@ contract('SafeForERC1155', async accounts => {
     mlog.log('val3                    ', val3)
 
     token1155 = await ERC1155Token.new({from: tokenOwner});
-    token1155.setApprovalForAll(st.address,true, {from:tokenOwner})
-    token1155.setApprovalForAll(st.address,true, {from:user1})
-    token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner});
+    await token1155.setApprovalForAll(st.address,true, {from:tokenOwner})
+    await token1155.setApprovalForAll(st.address,true, {from:user1})
+    token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner, nonce: await trNonce(web3, tokenOwner)});
     await token721.selfMint(NFT3, { from: user3 })
     await token721.selfMint(NFT4, { from: user4 })
     await token721.approve(st.address, NFT3, { from: user3 })
@@ -505,6 +505,6 @@ contract('SafeForERC1155', async accounts => {
     await st.swapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
     await st.swapERC1155ToERC20(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:user1, value: fees1})
   }) 
-  
+ 
   })
 
