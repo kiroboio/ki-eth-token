@@ -122,6 +122,19 @@ contract SafeForERC1155 is AccessControl {
     bytes32 secretHash
   );
 
+  event TimedERC1155TransferDeposited(
+    address indexed token,
+    address indexed from,
+    address indexed to,
+    uint256 tokenId,
+    uint256 value,
+    uint256 fees,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  );
+
   event ERC1155BatchTransferDeposited(
     address indexed token,
     address indexed from,
@@ -130,6 +143,19 @@ contract SafeForERC1155 is AccessControl {
     uint256[] values,
     uint256 fees,
     bytes32 secretHash
+  );
+
+  event TimedERC1155BatchTransferDeposited(
+    address indexed token,
+    address indexed from,
+    address indexed to,
+    uint256[] tokenIds,
+    uint256[] values,
+    uint256 fees,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
   );
 
   event ERC1155TransferRetrieved(
@@ -183,6 +209,23 @@ contract SafeForERC1155 is AccessControl {
     bytes32 secretHash
   );
 
+  event TimedERC1155SwapDeposited(
+    address indexed from,
+    address indexed to,
+    address indexed token0,
+    uint256[] tokenIds0,
+    uint256[] values0,
+    uint256 fees0,
+    address token1,
+    uint256[] tokenIds1,
+    uint256[] values1,
+    uint256 fees1,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  );
+
   event ERC1155SwapRetrieved(
     address indexed from,
     address indexed to,
@@ -216,6 +259,23 @@ contract SafeForERC1155 is AccessControl {
     bytes32 secretHash
   );
 
+  event TimedSwapDepositERC1155ToERC20Event(
+    address indexed from,
+    address indexed to,
+    address indexed token0,
+    uint256[] tokenIds0,
+    uint256[] values0,
+    bytes tokenData0,
+    uint256 fees0,
+    address token1,
+    uint256 value1,
+    uint256 fees1,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  );
+  
   event swapDepositERC20ToERC1155Event(
     address indexed from,
     address indexed to,
@@ -228,6 +288,23 @@ contract SafeForERC1155 is AccessControl {
     bytes tokenData1,
     uint256 fees1,
     bytes32 secretHash
+  );
+
+  event TimedSwapDepositERC20ToERC1155Event(
+    address indexed from,
+    address indexed to,
+    address indexed token0,
+    uint256 value0,
+    uint256 fees0,
+    address token1,
+    uint256[] tokenIds1,
+    uint256[] values1,
+    bytes tokenData1,
+    uint256 fees1,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
   );
 
   /* event swapDepositETHToERC1155Event(
@@ -385,7 +462,7 @@ contract SafeForERC1155 is AccessControl {
     bytes calldata tokenData,
     uint256 fees,
     bytes32 secretHash
-  ) external payable {
+  ) public payable {
     require(msg.value == fees, "SafeTransfer: msg.value must match fees");
     require(to != msg.sender, "SafeTransfer: sender==recipient");
     bytes32 id = keccak256(
@@ -410,6 +487,50 @@ contract SafeForERC1155 is AccessControl {
       value,
       fees,
       secretHash
+    );
+  }
+
+  function timedDepositERC1155(
+    address token,
+    address to,
+    uint256 tokenId,
+    uint256 value,
+    bytes calldata tokenData,
+    uint256 fees,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  ) public payable {
+    require(msg.value == fees, "SafeTransfer: msg.value must match fees");
+    require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
+    require(to != msg.sender, "SafeTransfer: sender==recipient");
+    require(expiresAt > now, "SafeTransfer: already expired");
+    bytes32 id = keccak256(
+      abi.encode(
+        token,
+        msg.sender,
+        to,
+        tokenId,
+        value,
+        tokenData,
+        fees,
+        secretHash
+      )
+    );
+    require(s_erc1155Transfers[id] == 0, "SafeTransfer: request exist");
+    s_erc1155Transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+    emit TimedERC1155TransferDeposited(
+      token,
+      msg.sender,
+      to,
+      tokenId,
+      value,
+      fees,
+      secretHash,
+      availableAt,
+      expiresAt,
+      autoRetrieveFees
     );
   }
 
@@ -446,11 +567,11 @@ contract SafeForERC1155 is AccessControl {
     address payable to,
     uint256 tokenId,
     uint256 value,
-    bytes calldata tokenData,
+    bytes memory tokenData,
     uint256 fees,
     bytes32 secretHash,
-    bytes calldata secret
-  ) external onlyActivator {
+    bytes memory secret
+  ) public onlyActivator {
     bytes32 id = keccak256(
       abi.encode(token, from, to, tokenId, value, tokenData, fees, secretHash)
     );
@@ -466,6 +587,37 @@ contract SafeForERC1155 is AccessControl {
     // emit ERC1155Collected(token, from, to, tokenId, value);
   }
 
+  function autoRetrieveERC1155(
+    address payable from,
+    address token,
+    address to,
+    uint256 tokenId,
+    uint256 value,
+    bytes calldata tokenData,
+    uint256 fees,
+    bytes32 secretHash
+  ) external {
+    bytes32 id = keccak256(
+      abi.encode(
+        token,
+        from,
+        to,
+        tokenId,
+        value,
+        tokenData,
+        fees,
+        secretHash
+      )
+    );
+    uint256 tr = s_erc1155Transfers[id];
+    require(tr > 0, "SafeTransfer: request not exist");
+    require(uint64(tr) <= now, "SafeTranfer: not expired");
+    delete s_erc1155Transfers[id];
+    s_fees = s_fees + (tr>>128); // autoRetreive fees
+    from.transfer(fees - (tr >> 128));
+    emit ERC1155TransferRetrieved(token, from, to, id);
+  }
+
   //------------------------------ERC-1155 batch transfer -----------------------------------------
   function depositBatchERC1155(
     address token,
@@ -476,31 +628,86 @@ contract SafeForERC1155 is AccessControl {
     uint256 fees,
     bytes32 secretHash
   ) external payable {
-    require(msg.value == fees, "SafeTransfer: msg.value must match fees");
-    require(to != msg.sender, "SafeTransfer: sender==recipient");
-    bytes32 id = keccak256(
-      abi.encode(
+    if(tokenIds.length == 1 && values.length == 1){
+      depositERC1155(token, to, tokenIds[0], values[0], tokenData, fees, secretHash);
+    }
+    else{
+      require(msg.value == fees, "SafeTransfer: msg.value must match fees");
+      require(to != msg.sender, "SafeTransfer: sender==recipient");
+      bytes32 id = keccak256(
+        abi.encode(
+          token,
+          msg.sender,
+          to,
+          tokenIds,
+          values,
+          tokenData,
+          fees,
+          secretHash
+        )
+      );
+      require(s_erc1155Transfers[id] == 0, "SafeTransfer: request exist");
+      s_erc1155Transfers[id] = 0xffffffffffffffff;
+      emit ERC1155BatchTransferDeposited(
         token,
         msg.sender,
         to,
         tokenIds,
         values,
-        tokenData,
         fees,
         secretHash
-      )
-    );
-    require(s_erc1155Transfers[id] == 0, "SafeTransfer: request exist");
-    s_erc1155Transfers[id] = 0xffffffffffffffff;
-    emit ERC1155BatchTransferDeposited(
-      token,
-      msg.sender,
-      to,
-      tokenIds,
-      values,
-      fees,
-      secretHash
-    );
+      );
+    }
+  }
+
+  function TimedDepositBatchERC1155(
+    address token,
+    address to,
+    uint256[] calldata tokenIds,
+    uint256[] calldata values,
+    bytes calldata tokenData,
+    uint256 fees,
+    bytes32 secretHash,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  ) external payable {
+    if(tokenIds.length == 1 && values.length == 1){
+      timedDepositERC1155(token, to, tokenIds[0], values[0], tokenData, 
+                fees, secretHash, availableAt, expiresAt, autoRetrieveFees);
+    }
+    else{
+      require(msg.value == fees, "SafeTransfer: msg.value must match fees");
+      require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
+      require(to != msg.sender, "SafeTransfer: sender==recipient");
+      require(expiresAt > now, "SafeTransfer: already expired");
+      bytes32 id = keccak256(
+        abi.encode(
+          token,
+          msg.sender,
+          to,
+          tokenIds,
+          values,
+          tokenData,
+          fees,
+          secretHash
+        )
+      );
+      require(s_erc1155Transfers[id] == 0, "SafeTransfer: request exist");
+      s_erc1155Transfers[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+      emit TimedERC1155BatchTransferDeposited(
+        token,
+        msg.sender,
+        to,
+        tokenIds,
+        values,
+        fees,
+        secretHash,
+        availableAt,
+        expiresAt,
+        autoRetrieveFees
+      );
+    }
   }
 
   function retrieveBatchERC1155(
@@ -531,52 +738,82 @@ contract SafeForERC1155 is AccessControl {
   }
 
   function collectBatchERC1155(
-    address to,
+    address payable to,
     address from,
     CollectBatchERC1155Info memory info
   ) external onlyActivator {
-    bytes32 id = keccak256(
-      abi.encode(
-        info.token,
+    if(info.tokenIds.length == 1 && info.values.length == 1){
+      collectERC1155(info.token, from, to, info.tokenIds[0], info.values[0], 
+      info.tokenData, info.fees, info.secretHash, info.secret);
+    }
+    else{
+      bytes32 id = keccak256(
+        abi.encode(
+          info.token,
+          from,
+          to,
+          info.tokenIds,
+          info.values,
+          info.tokenData,
+          info.fees,
+          info.secretHash
+        )
+      );
+      uint256 tr = s_erc1155Transfers[id];
+      require(tr > 0, "SafeTransfer: request not exist");
+      require(uint64(tr) > now, "SafeTranfer: expired");
+      require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
+      require(
+        keccak256(info.secret) == info.secretHash,
+        "SafeTransfer: wrong secret"
+      );
+      delete s_erc1155Transfers[id];
+      s_fees = s_fees.add(info.fees);
+      IERC1155(info.token).safeBatchTransferFrom(
         from,
         to,
         info.tokenIds,
         info.values,
-        info.tokenData,
-        info.fees,
-        info.secretHash
+        info.tokenData
+      );
+      emit ERC1155Collected(
+        info.token,
+        from,
+        to,
+        id
+      );
+    }
+  }
+
+  function autoRetrieveBatchERC1155(
+    address payable from,
+    address token,
+    address to,
+    uint256[] calldata tokenIds,
+    uint256[] calldata values,
+    bytes calldata tokenData,
+    uint256 fees,
+    bytes32 secretHash
+  ) external {
+    bytes32 id = keccak256(
+      abi.encode(
+        token,
+        from,
+        to,
+        tokenIds,
+        values,
+        tokenData,
+        fees,
+        secretHash
       )
     );
     uint256 tr = s_erc1155Transfers[id];
     require(tr > 0, "SafeTransfer: request not exist");
-    require(uint64(tr) > now, "SafeTranfer: expired");
-    require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
-    require(
-      keccak256(info.secret) == info.secretHash,
-      "SafeTransfer: wrong secret"
-    );
+    require(uint64(tr) <= now, "SafeTranfer: not expired");
     delete s_erc1155Transfers[id];
-    s_fees = s_fees.add(info.fees);
-    IERC1155(info.token).safeBatchTransferFrom(
-      from,
-      to,
-      info.tokenIds,
-      info.values,
-      info.tokenData
-    );
-    emit ERC1155Collected(
-      info.token,
-      from,
-      to,
-      id
-    );
-    // emit ERC1155BatchCollected(
-    //   info.token,
-    //   from,
-    //   to,
-    //   info.tokenIds,
-    //   info.values
-    // );
+    s_fees = s_fees + (tr>>128); // autoRetreive fees
+    from.transfer(fees - (tr >> 128));
+    emit ERC1155BatchTransferRetrieved(token, from, to, tokenIds, values);
   }
 
   function encodeObject(
@@ -661,6 +898,90 @@ contract SafeForERC1155 is AccessControl {
       info.values1,
       info.fees1,
       info.secretHash
+    );
+  }
+
+  function swapDepositERC1155(
+    address payable to, 
+    SwapERC1155Info memory info,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  )
+    external
+    payable
+  {
+    require(info.fees0 >= autoRetrieveFees,"SafeSwap: autoRetrieveFees exeed fees");
+    require(expiresAt > now, "SafeSwap: already expired");
+    if (info.token0 == address(0)) {
+      //eth to 1155
+      require(
+        info.token0 != info.token1,
+        "SafeSwap: try to swap ether and ether"
+      );
+      require(
+        msg.value == info.values0[0].add(info.fees0),
+        "SafeSwap: value mismatch"
+      );
+      require(info.values1[0] > 0, "SafeSwap: no value for ERC1155 token");
+    } else if (info.token1 == address(0)) {
+      //1155 to eth
+      require(msg.value == info.fees0, "SafeSwap: value mismatch");
+      require(info.values0[0] > 0, "SafeSwap: no value for ERC1155 token");
+      require(info.values1[0] > 0, "SafeSwap: no value for ETH");
+    } else if (info.values0[0] == 0) {
+      //721 to 1155
+      require(msg.value == info.fees0, "SafeSwap: value mismatch");
+      require(info.values1[0] > 0, "SafeSwap: no value for ERC1155 token");
+    } else if (info.values1[0] == 0) {
+      //1155 to 721
+      require(msg.value == info.fees0, "SafeSwap: value mismatch");
+      require(info.values0[0] > 0, "SafeSwap: no value");
+    } else {
+      //1155 to 1155
+      require(msg.value == info.fees0, "SafeSwap: value mismatch");
+      require(info.values0[0] > 0, "SafeSwap: no value for ERC1155 token");
+      require(info.values1[0] > 0, "SafeSwap: no value for ERC1155 token");
+    }
+    require(to != msg.sender, "SafeSwap: sender==recipient");
+    bytes32 id = keccak256(
+      abi.encode(
+        msg.sender,
+        to,
+        encodeObject(
+          info.token0,
+          info.tokenIds0,
+          info.values0,
+          info.tokenData0,
+          info.fees0
+        ),
+        encodeObject(
+          info.token1,
+          info.tokenIds1,
+          info.values1,
+          info.tokenData1,
+          info.fees1
+        ),
+        info.secretHash
+      )
+    );
+    require(s_swaps[id] == 0, "SafeSwap: request exist");
+    s_swaps[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+    emit TimedERC1155SwapDeposited(
+      msg.sender,
+      to,
+      info.token0,
+      info.tokenIds0,
+      info.values0,
+      info.fees0,
+      info.token1,
+      info.tokenIds1,
+      info.values1,
+      info.fees1,
+      info.secretHash,
+      availableAt,
+      expiresAt,
+      autoRetrieveFees
     );
   }
 
@@ -805,6 +1126,60 @@ contract SafeForERC1155 is AccessControl {
     );
   }
 
+  function autoSwapRetrieveERC1155(
+    address payable from, 
+    address to, 
+    SwapERC1155Info memory info)
+    external
+  {
+    bytes32 id = keccak256(
+      abi.encode(
+        from,
+        to,
+        encodeObject(
+          info.token0,
+          info.tokenIds0,
+          info.values0,
+          info.tokenData0,
+          info.fees0
+        ),
+        encodeObject(
+          info.token1,
+          info.tokenIds1,
+          info.values1,
+          info.tokenData1,
+          info.fees1
+        ),
+        info.secretHash
+      )
+    );
+    uint256 tr = s_swaps[id];
+    require(tr > 0, "SafeSwap: request not exist");
+    require(uint64(tr) <= now, "SafeSwap: not expired");
+    delete s_swaps[id];
+    s_fees = s_fees + (tr >> 128); // autoRetreive fees
+    uint256 valueToSend;
+    if (info.token0 == address(0)) {
+      valueToSend = info.values0[0].add(info.fees0).sub(tr >> 128);
+    } else {
+      valueToSend = info.fees0 - (tr >> 128);
+    }
+    from.transfer(valueToSend);
+    if (info.token0 == address(0)) {
+      emit Retrieved(from, to, id, valueToSend);
+    } else if (info.values0[0] == 0) {
+      //retrieve 721
+      emit ERC721Retrieved(info.token0, from, to, id);
+    } else {
+      emit ERC1155SwapRetrieved(
+        from,
+        to,
+        info.token0,
+        id
+      );
+    }
+  }
+
   // ------------------------ swap batch ERC-1155 <-> ERC20 -----------------
 
   function swapDepositERC1155ToERC20(
@@ -842,6 +1217,52 @@ contract SafeForERC1155 is AccessControl {
       info.value1,
       info.fees1,
       info.secretHash
+    );
+  }
+
+  function swapDepositERC1155ToERC20(
+    address payable to,
+    SwapBatchERC1155ToERC20Info memory info,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  ) external payable {
+    require(msg.value == info.fees0, "SafeSwap: value mismatch");
+    require(to != msg.sender, "SafeSwap: sender==recipient");
+    require(info.fees0 >= autoRetrieveFees,"SafeSwap: autoRetrieveFees exeed fees");
+    require(expiresAt > now, "SafeSwap: already expired");
+    bytes32 id = keccak256(
+      abi.encode(
+        msg.sender,
+        to,
+        info.token0,
+        info.tokenIds0,
+        info.values0,
+        info.tokenData0,
+        info.fees0,
+        info.token1,
+        info.value1,
+        info.fees1,
+        info.secretHash
+      )
+    );
+    require(s_swaps[id] == 0, "SafeSwap: request exist");
+    s_swaps[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+    emit TimedSwapDepositERC1155ToERC20Event(
+      msg.sender,
+      to,
+      info.token0,
+      info.tokenIds0,
+      info.values0,
+      info.tokenData0,
+      info.fees0,
+      info.token1,
+      info.value1,
+      info.fees1,
+      info.secretHash,
+      availableAt,
+      expiresAt,
+      autoRetrieveFees
     );
   }
 
@@ -928,6 +1349,44 @@ contract SafeForERC1155 is AccessControl {
     );
   }
 
+  function autoSwapRetrieveERC1155ToERC20(
+    address payable from,
+    address to,
+    SwapBatchERC1155ToERC20Info memory info
+  ) external {
+    bytes32 id = keccak256(
+      abi.encode(
+        from,
+        to,
+        info.token0,
+        info.tokenIds0,
+        info.values0,
+        info.tokenData0,
+        info.fees0,
+        info.token1,
+        info.value1,
+        info.fees1,
+        info.secretHash
+      )
+    );
+    uint256 tr = s_swaps[id];
+    require(tr > 0, "SafeSwap: request not exist");
+    require(uint64(tr) <= now, "SafeSwap: not expired");
+    delete s_swaps[id];
+    s_fees = s_fees + (tr >> 128); // autoRetreive fees
+    uint256 valueToSend = info.fees0 - (tr >> 128);
+    from.transfer(valueToSend);
+    emit swapRetrieveERC1155ToERC20Event(
+      from,
+      to,
+      info.token0,
+      info.tokenIds0,
+      info.values0,
+      info.tokenData0,
+      id
+    );
+  }
+
   // ------------------------ swap ERC20 <-> batch ERC-1155  -----------------
 
   function swapDepositERC20ToERC1155(
@@ -965,6 +1424,52 @@ contract SafeForERC1155 is AccessControl {
       info.tokenData1,
       info.fees1,
       info.secretHash
+    );
+  }
+
+  function TimedSwapDepositERC20ToERC1155(
+    address payable to,
+    SwapERC20ToBatchERC1155Info memory info,
+    uint64 availableAt,
+    uint64 expiresAt,
+    uint128 autoRetrieveFees
+  ) external payable {
+    require(msg.value == info.fees0, "SafeSwap: value mismatch");
+    require(to != msg.sender, "SafeSwap: sender==recipient");
+    require(info.fees0 >= autoRetrieveFees,"SafeSwap: autoRetrieveFees exeed fees");
+    require(expiresAt > now, "SafeSwap: already expired");
+    bytes32 id = keccak256(
+      abi.encode(
+        msg.sender,
+        to,
+        info.token0,
+        info.value0,
+        info.fees0,
+        info.token1,
+        info.tokenIds1,
+        info.values1,
+        info.tokenData1,
+        info.fees1,
+        info.secretHash
+      )
+    );
+    require(s_swaps[id] == 0, "SafeSwap: request exist");
+    s_swaps[id] = uint256(expiresAt) + uint256(availableAt << 64) + (uint256(autoRetrieveFees) << 128);
+    emit TimedSwapDepositERC20ToERC1155Event(
+      msg.sender,
+      to,
+      info.token0,
+      info.value0,
+      info.fees0,
+      info.token1,
+      info.tokenIds1,
+      info.values1,
+      info.tokenData1,
+      info.fees1,
+      info.secretHash,
+      availableAt,
+      expiresAt,
+      autoRetrieveFees
     );
   }
 
@@ -1045,6 +1550,42 @@ contract SafeForERC1155 is AccessControl {
       info.tokenIds1,
       info.values1,
       info.tokenData1,
+      id
+    );
+  }
+
+  function autoSwapRetrieveERC20ToERC1155(
+    address payable from,
+    address to,
+    SwapERC20ToBatchERC1155Info memory info
+  ) external {
+    bytes32 id = keccak256(
+      abi.encode(
+        from,
+        to,
+        info.token0,
+        info.value0,
+        info.fees0,
+        info.token1,
+        info.tokenIds1,
+        info.values1,
+        info.tokenData1,
+        info.fees1,
+        info.secretHash
+      )
+    );
+    uint256 tr = s_swaps[id];
+    require(tr > 0, "SafeSwap: request not exist");
+    require(uint64(tr) <= now, "SafeSwap: not expired");
+    delete s_swaps[id];
+    s_fees = s_fees + (tr >> 128); // autoRetreive fees
+    uint256 valueToSend = info.fees0 - (tr >> 128);
+    from.transfer(valueToSend);
+    emit swapRetrieveERC20ToERC1155Event(
+      from,
+      to,
+      info.token0,
+      info.value0,
       id
     );
   }
