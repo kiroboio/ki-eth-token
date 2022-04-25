@@ -17,13 +17,13 @@ contract SafeForERC1155 is AccessControl {
     0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
   // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash)");
-  //bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
+  bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
 
   // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash)");
-  // bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
+  bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
 
   // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash)");
-  // bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
+  bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
 
   bytes32 public DOMAIN_SEPARATOR;
   uint256 public CHAIN_ID;
@@ -99,6 +99,7 @@ contract SafeForERC1155 is AccessControl {
 
   mapping(bytes32 => uint256) s_erc1155Transfers;
   mapping(bytes32 => uint256) s_swaps;
+  mapping(bytes32 => uint256) s_htransfers;
   mapping(bytes32 => uint256) s_hswaps;
 
   string public constant NAME = "Kirobo Safe Transfer";
@@ -373,6 +374,27 @@ contract SafeForERC1155 is AccessControl {
     bytes32 id
   );
 
+  event HiddenERC1155Deposited(
+        address indexed from,
+        uint256 value,
+        bytes32 indexed id1
+  );
+
+  event HiddenERC1155TimedDeposited(
+        address indexed from,
+        uint256 value,
+        bytes32 indexed id1,
+        uint64 availableAt,
+        uint64 expiresAt,
+        uint128 autoRetrieveFees
+    );
+
+    event HiddenERC1155Retrieved(
+        address indexed from,
+        bytes32 indexed id1,
+        uint256 value
+    );
+
   /* event swapETHToERC1155Event(
     address indexed from,
     address indexed to,
@@ -617,6 +639,43 @@ contract SafeForERC1155 is AccessControl {
     from.transfer(fees - (tr >> 128));
     emit ERC1155TransferRetrieved(token, from, to, id);
   }
+
+  function hiddenERC1155Deposit(bytes32 id1) payable external
+  {
+      bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
+      require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
+      s_htransfers[id] = 0xffffffffffffffff;
+      emit HiddenERC1155Deposited(msg.sender, msg.value, id1);
+  }
+
+  function hiddenERC1155TimedDeposit(
+        bytes32 id1,
+        uint64 availableAt,
+        uint64 expiresAt,
+        uint128 autoRetrieveFees
+    ) 
+        payable external
+    {
+        require(msg.value >= autoRetrieveFees, "SafeTransfers: autoRetrieveFees exeed value");
+        bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
+        require(s_htransfers[id] == 0, "SafeTransfer: request exist");
+        require(expiresAt > now, "SafeTransfer: already expired"); 
+        s_htransfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
+        emit HiddenERC1155TimedDeposited(msg.sender, msg.value, id1, availableAt, expiresAt, autoRetrieveFees);
+    }
+
+    function hiddenERC1155Retrieve(
+        bytes32 id1,
+        uint256 value
+    )   
+        external 
+    {
+        bytes32 id = keccak256(abi.encode(msg.sender, value, id1));
+        require(s_htransfers[id]  > 0, "SafeTransfer: request not exist");
+        delete s_htransfers[id];
+        msg.sender.transfer(value);
+        emit HiddenERC1155Retrieved(msg.sender, id1, value);
+    }
 
   //------------------------------ERC-1155 batch transfer -----------------------------------------
   function depositBatchERC1155(
