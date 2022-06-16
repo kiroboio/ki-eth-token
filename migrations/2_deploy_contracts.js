@@ -7,7 +7,7 @@
 //const SafeSwap = artifacts.require("SafeSwap") 
 //const SafeTransfer = artifacts.require("SafeTransfer")
 const SafeForERC1155 = artifacts.require("SafeForERC1155")
-const MyERC1155 = artifacts.require("myERC1155")
+const MyERC1155 = artifacts.require("MyERC1155")
 
 //const liveTestNetworks = { ropsten: true, rinkeby: true, kovan: true };
 //const liveTestNetworks = { maticMain: true };

@@ -2,7 +2,8 @@
 
 pragma solidity 0.6.12;
 
-import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+//import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
 interface IToken {
    function mint(address to, uint256 amount) external;

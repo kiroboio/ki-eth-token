@@ -1,7 +1,8 @@
 'use strict'
 
 const Token = artifacts.require("Token")
-const ERC1155Token = artifacts.require("myERC1155")
+const ERC1155Token = artifacts.require("MyERC1155")
+const SafeForERC1155Core = artifacts.require('SafeForERC1155Core')
 const SafeForERC1155 = artifacts.require('SafeForERC1155')
 const ERC721Token = artifacts.require("ERC721Token")
 const mlog = require('mocha-logger')
@@ -50,7 +51,7 @@ const getPrivateKey = (address) => {
 }
 
 contract('SafeForERC1155', async accounts => {
-  let token20, token1155, tokenSymbol, st, nonce, targetSupply, duration, initialSupply
+  let token20, core,token1155, tokenSymbol, st, nonce, targetSupply, duration, initialSupply
 
   const tokenOwner = accounts[1]
   const user1 = accounts[2]
@@ -74,12 +75,13 @@ contract('SafeForERC1155', async accounts => {
       assert(typeof val1          == 'string', 'val1  should be big number')
       assert(typeof val2          == 'string', 'val2  should be string')
       assert(typeof val3          == 'string', 'val2  should be string')
-      assert(valBN instanceof web3.utils.BN, 'valBN should be big number')
+      //assert(valBN instanceof web3.utils.BN, 'valBN should be big number')
   })
 
   before('setup contract for the test', async () => {
     token20 = await Token.new({ from: tokenOwner })
-    st = await SafeForERC1155.new(user1, { from: user1 })
+    core = await SafeForERC1155Core.new(user1, { from: user1 })
+    st = await SafeForERC1155.new(core.address, { from: user1 })
     mlog.log('web3                    ', web3.version)
     mlog.log('token contract          ', token20.address)
     mlog.log('safeForERC1155 contract  ', st.address)
@@ -94,7 +96,9 @@ contract('SafeForERC1155', async accounts => {
 
     token1155 = await ERC1155Token.new({from: tokenOwner});
     await token1155.setApprovalForAll(st.address,true, {from:tokenOwner})
+    await token1155.setApprovalForAll(core.address,true, {from:tokenOwner})
     await token1155.setApprovalForAll(st.address,true, {from:user1})
+    await token1155.setApprovalForAll(core.address,true, {from:user1})
     token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner, nonce: await trNonce(web3, tokenOwner)});
     await token721.selfMint(NFT3, { from: user3 })
     await token721.selfMint(NFT4, { from: user4 })
@@ -106,6 +110,8 @@ contract('SafeForERC1155', async accounts => {
     await token20.mint(user3, 1e10, { from: tokenOwner })
     await token20.approve(st.address, 1e12, { from: tokenOwner })
     await token20.approve(st.address, 1e12, { from: user1 })
+    await token20.approve(core.address, 1e12, { from: tokenOwner })
+    await token20.approve(core.address, 1e12, { from: user1 })
 
     mlog.log('token721                 ',   token721.address);
     mlog.log('token1155                ',   token1155.address);
@@ -124,7 +130,7 @@ contract('SafeForERC1155', async accounts => {
     const value = 100
     const tokenData = "0x00"
     const fees = 20
-    await st.depositERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
+    await core.depositERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
   })
 
   it('should be able to retrieve a transfer request', async () => {
@@ -134,7 +140,7 @@ contract('SafeForERC1155', async accounts => {
     const value = 100
     const tokenData = "0x00"
     const fees = 20
-    await st.retrieveERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner })
+    await core.retrieveERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner })
   })
 
   it('should be able to collect a transfer request', async () => {
@@ -144,8 +150,8 @@ contract('SafeForERC1155', async accounts => {
     const value = 100
     const tokenData = "0x00"
     const fees = 20
-    await st.depositERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
-    await st.collectERC1155(token1155.address, tokenOwner, user1, tokenId, value, tokenData, fees, secretHash, Buffer.from(secret), { from: user1 })
+    await core.depositERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
+    await core.collectERC1155(token1155.address, tokenOwner, user1, tokenId, value, tokenData, fees, secretHash, Buffer.from(secret), { from: user1 })
   })
 
   //single item in batch functions
@@ -156,8 +162,8 @@ contract('SafeForERC1155', async accounts => {
     const values = [100]
     const tokenData = "0x00"
     const fees = 20
-    await st.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
-    await st.collectBatchERC1155(user1, tokenOwner, {token: token1155.address ,tokenIds: tokenIds, values: values, tokenData: tokenData, fees: fees, 
+    await core.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
+    await core.collectBatchERC1155(user1, tokenOwner, {token: token1155.address ,tokenIds: tokenIds, values: values, tokenData: tokenData, fees: fees, 
                                   secretHash: secretHash, secret: Buffer.from(secret)}, { from: user1 })
   })
 
@@ -170,7 +176,7 @@ contract('SafeForERC1155', async accounts => {
     const values = [100,200]
     const tokenData = "0x00"
     const fees = 20
-    await st.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
+    await core.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
   })
 
   it('should be able to retrieve a batch transfer request', async () => {
@@ -180,7 +186,7 @@ contract('SafeForERC1155', async accounts => {
     const values = [100,200]
     const tokenData = "0x00"
     const fees = 20
-    await st.retrieveBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner })
+    await core.retrieveBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner })
   })
 
   it('should be able to collect a batch transfer request', async () => {
@@ -190,8 +196,8 @@ contract('SafeForERC1155', async accounts => {
     const values = [100,200]
     const tokenData = "0x00"
     const fees = 20
-    await st.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
-    await st.collectBatchERC1155(user1, tokenOwner, {token: token1155.address ,tokenIds: tokenIds, values: values, tokenData: tokenData, fees: fees, 
+    await core.depositBatchERC1155(token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner, value: 20 })
+    await core.collectBatchERC1155(user1, tokenOwner, {token: token1155.address ,tokenIds: tokenIds, values: values, tokenData: tokenData, fees: fees, 
                                   secretHash: secretHash, secret: Buffer.from(secret)}, { from: user1 })
   })
 

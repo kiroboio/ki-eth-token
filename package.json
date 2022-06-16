@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "truffle compile --all; truffle test test/safeForERC1155.js --network ganache"
+    "test": "truffle compile --all; truffle test --network ganache",
+    "htest": "hardhat test --network ganache"
   },
   "repository": {
     "type": "git",
@@ -20,10 +21,13 @@
   },
   "homepage": "https://github.com/kiroboio/ki-eth-token#readme",
   "devDependencies": {
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@truffle/hdwallet-provider": "1.5.0",
     "eth-gas-reporter": "0.2.18",
+    "ethereum-waffle": "^3.4.4",
     "ganache-cli": "6.12.2",
     "ganache-core": "2.13.2",
+    "hardhat": "^2.9.9",
     "husky": "4.3.0",
     "mocha-logger": "1.0.6",
     "solc": "0.6.12",
@@ -34,6 +38,7 @@
     "@ledgerhq/hw-app-eth": "5.23.0",
     "@ledgerhq/hw-transport-node-hid": "5.23.0",
     "@maticnetwork/maticjs": "2.0.45",
+    "@nomiclabs/hardhat-truffle5": "^2.0.6",
     "@openzeppelin/contracts": "3.1.0",
     "@types/eth-sig-util": "2.1.0",
     "@types/ethereumjs-util": "6.1.0",
@@ -43,7 +48,6 @@
     "axios": "0.20.0",
     "big-integer": "1.6.48",
     "eth-sig-util": "2.5.3",
-    "ethereum-waffle": "3.1.0",
     "ethereumjs-tx": "2.1.2",
     "ethereumjs-util": "7.0.5",
     "ethers": "5.0.11",

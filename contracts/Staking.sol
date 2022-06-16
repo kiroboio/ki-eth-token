@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.6.12;
 
-import "../node_modules/@openzeppelin/contracts/math/Math.sol";
-import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
-import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import '../node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
+import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
 
 contract Staking is AccessControl {
   using SafeMath for uint256;
