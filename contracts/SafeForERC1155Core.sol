@@ -2,11 +2,6 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-/* import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol"; */
 import "./ISafeForERC1155.sol";
 
 contract SafeForERC1155Core is AccessControl {
@@ -16,15 +11,11 @@ contract SafeForERC1155Core is AccessControl {
   // keccak256("ACTIVATOR_ROLE");
   bytes32 public constant ACTIVATOR_ROLE =
     0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
+  // keccak256("hiddenCollectERC1155(address from,address to,address token,uint256 tokenId,uint256 value,bytes tokenData,uint256 fees,bytes32 secretHash)");
+  bytes32 public constant HIDDEN_ERC1155_COLLECT_TYPEHASH = 0x52305613f25d3721d925f16075dae9fc93bca4de629d7a176387fcddedf84bbe;
 
-  // keccak256("hiddenCollect(address from,address to,uint256 value,uint256 fees,bytes32 secretHash)");
-  bytes32 public constant HIDDEN_COLLECT_TYPEHASH = 0x0506afef36f3613836f98ef019cb76a3e6112be8f9dc8d8fa77275d64f418234;
-
-  // keccak256("hiddenCollectERC20(address from,address to,address token,string tokenSymbol,uint256 value,uint256 fees,bytes32 secretHash)");
-  bytes32 public constant HIDDEN_ERC20_COLLECT_TYPEHASH = 0x9e6214229b9fba1927010d30b22a3a5d9fd5e856bb29f056416ff2ad52e8de44;
-
-  // keccak256("hiddenCollectERC721(address from,address to,address token,string tokenSymbol,uint256 tokenId,bytes tokenData,uint256 fees,bytes32 secretHash)");
-  bytes32 public constant HIDDEN_ERC721_COLLECT_TYPEHASH = 0xa14a2dc51c26e451800897aa798120e7d6c35039caf5eb29b8ac35d1e914c591;
+  // keccak256("hiddenCollectBatchERC1155(address from,address to,address token,uint256[] tokenIds,uint256[] values,bytes tokenData,uint256 fees,bytes32 secretHash)");
+  bytes32 public constant HIDDEN_BATCH_ERC1155_COLLECT_TYPEHASH = 0xd51361a3e93bdd2b87d77c397f90c65da2916cfbeeef526d8d1ce71bc4817726;
 
   bytes32 public DOMAIN_SEPARATOR;
   uint256 public CHAIN_ID;
@@ -32,9 +23,7 @@ contract SafeForERC1155Core is AccessControl {
   uint256 s_fees;
 
   mapping(bytes32 => uint256) s_erc1155Transfers;
-  mapping(bytes32 => uint256) s_swaps;
   mapping(bytes32 => uint256) s_htransfers;
-  mapping(bytes32 => uint256) s_hswaps;
 
   string public constant NAME = "Kirobo Safe Transfer";
   string public constant VERSION = "1";
@@ -115,27 +104,6 @@ contract SafeForERC1155Core is AccessControl {
     bytes32 id
   );
 
-  // event ERC1155BatchCollected(
-  //   address indexed token,
-  //   address indexed from,
-  //   address indexed to,
-  //   uint256[] tokenIds,
-  //   uint256[] values
-  // );
-
-  /* event swapDepositETHToERC1155Event(
-    address indexed from,
-    address indexed to,
-    address indexed token0,
-    uint256 value0,
-    uint256 fees0,
-    address token1,
-    uint256[] tokenIds1,
-    uint256[] values1,
-    uint256 fees1,
-    bytes32 secretHash
-  ); */
-
   event HiddenERC1155Deposited(
         address indexed from,
         uint256 value,
@@ -156,17 +124,6 @@ contract SafeForERC1155Core is AccessControl {
         bytes32 indexed id1,
         uint256 value
     );
-
-  /* event swapETHToERC1155Event(
-    address indexed from,
-    address indexed to,
-    address indexed token0,
-    uint256 value0,
-    address token1,
-    uint256[] tokenIds1,
-    uint256[] values1,
-    bytes32 id
-  ); */
 
   modifier onlyActivator() {
     require(
@@ -212,14 +169,6 @@ contract SafeForERC1155Core is AccessControl {
     require(false, "SafeTransfer: not accepting ether directly");
   }
 
-  /* function transferERC20(address token, address wallet, uint256 value) external onlyActivator() {
-        IERC20(token).safeTransfer(wallet, value);
-    }
-
-    function transferERC721(address token, address wallet, uint256 tokenId, bytes calldata data) external onlyActivator() {
-        IERC721(token).safeTransferFrom(address(this), wallet, tokenId, data);
-    } */
-
   function transferFees(address payable wallet, uint256 value)
     external
     onlyActivator
@@ -232,12 +181,11 @@ contract SafeForERC1155Core is AccessControl {
     return s_fees;
   }
 
-  /* function uid() view external returns (bytes32) {
-        return s_uid;
-    } */
+  function uid() view external returns (bytes32) {
+    return s_uid;
+  }
 
   // ------------------------------- ERC-1155 transfer single--------------------------------
-  //0x5978e4630233612269aC217784A41fB3EA720d30
   function depositERC1155(
     address token,
     address to,
@@ -285,7 +233,7 @@ contract SafeForERC1155Core is AccessControl {
     uint64 availableAt,
     uint64 expiresAt,
     uint128 autoRetrieveFees
-  ) external payable {
+  ) public payable {
     require(msg.value == fees, "SafeTransfer: msg.value must match fees");
     require(fees >= autoRetrieveFees, "SafeTransfer: autoRetrieveFees exeed fees");
     require(to != msg.sender, "SafeTransfer: sender==recipient");
@@ -361,14 +309,13 @@ contract SafeForERC1155Core is AccessControl {
     );
     uint256 tr = s_erc1155Transfers[id];
     require(tr > 0, "SafeTransfer: request not exist");
-    // require(uint64(tr) > now, "SafeTranfer: expired");
-    // require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
+    require(uint64(tr) > now, "SafeTranfer: expired");
+    require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
     require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
     delete s_erc1155Transfers[id];
     s_fees = s_fees.add(fees);
     IERC1155(token).safeTransferFrom(from, to, tokenId, value, tokenData);
     emit ERC1155Collected(token, from, to, id);
-    // emit ERC1155Collected(token, from, to, tokenId, value);
   }
 
   function autoRetrieveERC1155(
@@ -439,6 +386,30 @@ contract SafeForERC1155Core is AccessControl {
         emit HiddenERC1155Retrieved(msg.sender, id1, value);
     }
 
+    function hiddenERC1155Collect(
+      address token,
+      address from,
+      address payable to,
+      uint256 tokenId,
+      uint256 value,
+      bytes memory tokenData,
+      uint256 fees,
+      bytes32 secretHash,
+      bytes memory secret
+    ) external onlyActivator {
+      bytes32 id1 = keccak256(abi.encode(HIDDEN_ERC1155_COLLECT_TYPEHASH, from, to, token, tokenId, value, tokenData, fees, secretHash));
+      bytes32 id = keccak256(abi.encode(from, value, id1));
+      uint256 tr = s_htransfers[id];
+      require(tr > 0, "SafeTransfer: request not exist");
+      require(uint64(tr) > now, "SafeTranfer: expired");
+      require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
+      require(keccak256(secret) == secretHash, "SafeTransfer: wrong secret");
+      delete s_htransfers[id];
+      s_fees = s_fees.add(fees);
+      IERC1155(token).safeTransferFrom(from, to, tokenId, value, tokenData);
+      emit ERC1155Collected(token, from, to, id);
+    }
+
   //------------------------------ERC-1155 batch transfer -----------------------------------------
   function depositBatchERC1155(
     address token,
@@ -481,12 +452,13 @@ contract SafeForERC1155Core is AccessControl {
     }
   }
 
-  /* function TimedDepositBatchERC1155(
+  function TimedDepositBatchERC1155(
     address to,
-    TimedDepositBatchERC1155Info memory info
+    TimedDepositBatchERC1155Info memory info,
+    bytes calldata tokenData
   ) external payable {
     if(info.tokenIds.length == 1 && info.values.length == 1){
-      timedDepositERC1155(info.token, to, info.tokenIds[0], info.values[0], info.tokenData, 
+      timedDepositERC1155(info.token, to, info.tokenIds[0], info.values[0], tokenData, 
                 info.fees, info.secretHash, info.availableAt, info.expiresAt, info.autoRetrieveFees);
     }
     else{
@@ -501,7 +473,7 @@ contract SafeForERC1155Core is AccessControl {
           to,
           info.tokenIds,
           info.values,
-          info.tokenData,
+          tokenData,
           info.fees,
           info.secretHash
         )
@@ -521,7 +493,7 @@ contract SafeForERC1155Core is AccessControl {
         info.autoRetrieveFees
       );
     }
-  } */
+  }
 
   function retrieveBatchERC1155(
     address token,
@@ -628,4 +600,65 @@ contract SafeForERC1155Core is AccessControl {
     from.transfer(fees - (tr >> 128));
     emit ERC1155BatchTransferRetrieved(token, from, to, tokenIds, values);
   }
+
+  function hiddenBatchERC1155Deposit(bytes32 id1) payable external
+  {
+      bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
+      require(s_htransfers[id] == 0, "SafeTransfer: request exist"); 
+      s_htransfers[id] = 0xffffffffffffffff;
+      emit HiddenERC1155Deposited(msg.sender, msg.value, id1);
+  }
+
+  function hiddenBatchERC1155TimedDeposit(
+        bytes32 id1,
+        uint64 availableAt,
+        uint64 expiresAt,
+        uint128 autoRetrieveFees
+    ) 
+        payable external
+    {
+        require(msg.value >= autoRetrieveFees, "SafeTransfers: autoRetrieveFees exceed value");
+        bytes32 id = keccak256(abi.encode(msg.sender, msg.value, id1));
+        require(s_htransfers[id] == 0, "SafeTransfer: request exist");
+        require(expiresAt > now, "SafeTransfer: already expired"); 
+        s_htransfers[id] = uint256(expiresAt) + (uint256(availableAt) << 64) + (uint256(autoRetrieveFees) << 128);
+        emit HiddenERC1155TimedDeposited(msg.sender, msg.value, id1, availableAt, expiresAt, autoRetrieveFees);
+    }
+
+    function hiddenBatchERC1155Retrieve(
+        bytes32 id1,
+        uint256 value
+    )   
+        external 
+    {
+        bytes32 id = keccak256(abi.encode(msg.sender, value, id1));
+        require(s_htransfers[id]  > 0, "SafeTransfer: request not exist");
+        delete s_htransfers[id];
+        msg.sender.transfer(value);
+        emit HiddenERC1155Retrieved(msg.sender, id1, value);
+    } 
+
+    function hiddenBatchERC1155Collect(
+      address payable to,
+      address from,
+      CollectBatchERC1155Info memory info
+    ) external onlyActivator {
+      bytes32 id1 = keccak256(abi.encode(HIDDEN_BATCH_ERC1155_COLLECT_TYPEHASH, from, to, info.token, info.tokenIds, info.values, info.tokenData, info.fees, info.secretHash));
+      bytes32 id = keccak256(abi.encode(from, info.fees, id1));
+      uint256 tr = s_htransfers[id];
+      require(tr > 0, "SafeTransfer: request not exist");
+      require(uint64(tr) > now, "SafeTranfer: expired");
+      require(uint64(tr >> 64) <= now, "SafeTranfer: not available yet");
+      require(keccak256(info.secret) == info.secretHash, "SafeTransfer: wrong secret");
+      delete s_htransfers[id];
+      s_fees = s_fees.add(info.fees);
+      IERC1155(info.token).safeBatchTransferFrom(
+        from,
+        to,
+        info.tokenIds,
+        info.values,
+        info.tokenData
+      );
+      emit ERC1155Collected(info.token, from, to, id);
+    }
 }

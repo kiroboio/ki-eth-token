@@ -24,7 +24,6 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
       address token;
       uint256[] tokenIds;
       uint256[] values;
-      bytes tokenData;
       uint256 fees;
       bytes32 secretHash;
       uint64 availableAt;
@@ -82,6 +81,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
       uint256 fees1;
       bytes32 secretHash;
     } */
+    
 interface ISafeForERC1155 {
   function getS_swaps(bytes32) external returns (uint256);
   function setS_swaps(bytes32, uint256) external;
