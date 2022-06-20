@@ -45,6 +45,7 @@ const {
   mustFail,
   mustRevert,
 } = require('./lib/asserts')
+const { zeroAddress } = require('ethereumjs-util')
 
 const getPrivateKey = (address) => {
   const wallet = web3.currentProvider.wallets[address.toLowerCase()]
@@ -660,6 +661,7 @@ it('should be able to collect a hidden transfer request', async () => {
     const tokenData1 = "0x00"
     const fees1 = 40
     const secretHash = sha3(secret)
+    console.log("owner", await token721.ownerOf(tokenIds1[0]));
     await token1155.setApprovalForAll(st.address,true, {from:user3})
     await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user3, value:fees0})
     await st.swapERC1155(user3, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
@@ -715,6 +717,112 @@ it('should be able to collect a hidden transfer request', async () => {
     await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
     await st.swapERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
   }) 
+
+  // swap 1155 to eth
+
+  it('should be able to deposit a swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
+  })
+
+  it('should be able to retrieve a swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1})
+  })
+
+  it('should be able to collect a swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const trxValue = fees1 + values1[0];
+    await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1, value:fees0})
+    await st.swapERC1155(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: trxValue})
+  }) 
+
+  // auto retrive swap 1155 to eth
+
+  it('should be able to deposit a swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const now = await getLatestBlockTimestamp()
+    await st.timedSwapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash},0, now+10000, 0, {from:user1, value:fees0})
+  })
+
+  it('should be able to retrieve a swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapRetrieveERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1})
+  })
+
+  it('should be able to deposit a swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,1]
+    const values0 = [10, 20]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const now = await getLatestBlockTimestamp()
+    await st.timedSwapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash},0, now+10000, 0, {from:user1, value:fees0})
+    advanceTimeAndBlock(10000)
+    await st.autoSwapRetrieveERC1155(user1, tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user1})
+  })
 
   // swap ERC20 with batch 1155
 
@@ -817,6 +925,122 @@ it('should be able to collect a hidden transfer request', async () => {
     await st.swapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner, value:fees0})
     await st.swapERC1155ToERC20(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:user1, value: fees1})
   }) 
+
+  // auto retrive swap batch 1155 with ERC20
+
+  it('should be able to deposit an ERC1155 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const now = await getLatestBlockTimestamp() 
+    await st.timedSwapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash},0, now+10000, 0, {from:tokenOwner, value:fees0})
+  })
+
+  it('should be able to retrieve an ERC1155 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    await st.swapRetrieveERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner})
+  })
+
+  it('should be able to deposit an ERC1155 swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const now = await getLatestBlockTimestamp() 
+    await st.timedSwapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash},0, now+10000, 0, {from:tokenOwner, value:fees0})
+    advanceTimeAndBlock(10000)
+    await st.autoSwapRetrieveERC1155ToERC20(tokenOwner, user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner})
+  })
+
+  //hidden 1155 to eth
+
+  it('should be able to make a hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    await st.hiddenBatchERC1155SwapDeposit(id1, { from: tokenOwner, value:100})
+  })
+  
+  it('should be able to retrieve a hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    await st.hiddenBatchERC1155SwapRetrieve(id1, 100, { from: tokenOwner })
+  })
+  
+  it('should be able to make a timed hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    const now = await getLatestBlockTimestamp()
+    await st.hiddenERC1155TimedSwapDeposit(id1, 0, now+10000, 0, { from: tokenOwner, value:100})
+  })
+  
+  it('should be able to retrieve a hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    await st.hiddenBatchERC1155SwapRetrieve(id1, 100, { from: tokenOwner })
+  })
+
+  //hidden 1155 to erc20
+
+  it('should be able to make a hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    await st.hiddenBatchERC1155ToERC20SwapDeposit(id1, { from: tokenOwner, value:100})
+  })
+  
+  it('should be able to retrieve a hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    await st.hiddenBatchERC1155ToERC20SwapRetrieve(id1, 100, { from: tokenOwner })
+  })
+  
+  it('should be able to make a timed hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    const now = await getLatestBlockTimestamp()
+    await st.hiddenERC1155ToERC20TimedSwapDeposit(id1, 0, now+10000, 0, { from: tokenOwner, value:100})
+  })
+  
+  it('should be able to retrieve a hidden swap request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const id1 = sha3('1234')
+    await st.hiddenBatchERC1155ToERC20SwapRetrieve(id1, 100, { from: tokenOwner })
+  })
  
   })
 

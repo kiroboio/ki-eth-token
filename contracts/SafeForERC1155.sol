@@ -279,14 +279,8 @@ contract SafeForERC1155 is AccessControl {
   {
     if (info.token0 == address(0)) {
       //eth to 1155
-      require(
-        info.token0 != info.token1,
-        "SafeSwap: try to swap ether and ether"
-      );
-      require(
-        msg.value == info.values0[0].add(info.fees0),
-        "SafeSwap: value mismatch"
-      );
+      require(info.token0 != info.token1,"SafeSwap: try to swap ether and ether");
+      require(msg.value == info.values0[0].add(info.fees0),"SafeSwap: value mismatch");
       require(info.values1[0] > 0, "SafeSwap: no value for ERC1155 token");
     } else if (info.token1 == address(0)) {
       //1155 to eth
@@ -542,8 +536,8 @@ contract SafeForERC1155 is AccessControl {
     } else if (info.values1[0] == 0) {
       //1155 to 721
       IERC721(info.token1).safeTransferFrom(
-        from,
         msg.sender,
+        from,
         info.tokenIds1[0],
         info.tokenData1
       );
@@ -728,8 +722,8 @@ contract SafeForERC1155 is AccessControl {
     } else if (info.values1[0] == 0) {
       //1155 to 721
       IERC721(info.token1).safeTransferFrom(
-        from,
         msg.sender,
+        from,
         info.tokenIds1[0],
         info.tokenData1
       );
