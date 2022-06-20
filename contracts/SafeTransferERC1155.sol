@@ -2,10 +2,13 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "./ISafeForERC1155.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-contract SafeForERC1155Core is AccessControl {
+contract SafeTransferERC1155 is AccessControl {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
@@ -18,7 +21,6 @@ contract SafeForERC1155Core is AccessControl {
   // keccak256("hiddenCollectBatchERC1155(address from,address to,address token,uint256[] tokenIds,uint256[] values,bytes tokenData,uint256 fees,bytes32 secretHash)");
   bytes32 public constant HIDDEN_BATCH_ERC1155_COLLECT_TYPEHASH = 0xd51361a3e93bdd2b87d77c397f90c65da2916cfbeeef526d8d1ce71bc4817726;
 
-  bytes32 public DOMAIN_SEPARATOR;
   uint256 public CHAIN_ID;
   bytes32 s_uid;
   uint256 s_fees;
@@ -29,6 +31,27 @@ contract SafeForERC1155Core is AccessControl {
   string public constant NAME = "Kirobo Safe Transfer";
   string public constant VERSION = "1";
   uint8 public constant VERSION_NUMBER = 0x1;
+
+  struct CollectBatchERC1155Info {
+      address token;
+      uint256[] tokenIds;
+      uint256[] values;
+      bytes tokenData;
+      uint256 fees;
+      bytes32 secretHash;
+      bytes secret;
+    }
+
+  struct TimedDepositBatchERC1155Info {
+      address token;
+      uint256[] tokenIds;
+      uint256[] values;
+      uint256 fees;
+      bytes32 secretHash;
+      uint64 availableAt;
+      uint64 expiresAt;
+      uint128 autoRetrieveFees;
+  }
 
   event Retrieved(
     address indexed from,
@@ -150,19 +173,6 @@ contract SafeForERC1155Core is AccessControl {
       (uint256(VERSION_NUMBER) << 248) |
         ((uint256(blockhash(block.number - 1)) << 192) >> 16) |
         uint256(address(this))
-    );
-
-    DOMAIN_SEPARATOR = keccak256(
-      abi.encode(
-        keccak256(
-          "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
-        ),
-        keccak256(bytes(NAME)),
-        keccak256(bytes(VERSION)),
-        chainId,
-        address(this),
-        s_uid
-      )
     );
   }
 
@@ -328,7 +338,7 @@ contract SafeForERC1155Core is AccessControl {
     bytes calldata tokenData,
     uint256 fees,
     bytes32 secretHash
-  ) external {
+  ) external onlyActivator{
     bytes32 id = keccak256(
       abi.encode(
         token,
@@ -580,7 +590,7 @@ contract SafeForERC1155Core is AccessControl {
     bytes calldata tokenData,
     uint256 fees,
     bytes32 secretHash
-  ) external {
+  ) external onlyActivator{
     bytes32 id = keccak256(
       abi.encode(
         token,

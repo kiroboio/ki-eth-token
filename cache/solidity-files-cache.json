@@ -77,49 +77,6 @@
         "Ownable"
       ]
     },
-    "/Users/orishalom/repositories/ki-eth-token/contracts/ISafeForERC1155.sol": {
-      "lastModificationDate": 1655711951761,
-      "contentHash": "23b201a465a366d1c232fe86ac154f23",
-      "sourceName": "contracts/ISafeForERC1155.sol",
-      "solcConfig": {
-        "version": "0.6.12",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 999
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "storageLayout",
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "storageLayout",
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/math/SafeMath.sol",
-        "@openzeppelin/contracts/access/AccessControl.sol",
-        "@openzeppelin/contracts/token/ERC20/SafeERC20.sol",
-        "@openzeppelin/contracts/token/ERC721/IERC721.sol",
-        "@openzeppelin/contracts/token/ERC1155/IERC1155.sol"
-      ],
-      "versionPragmas": [
-        "0.6.12"
-      ],
-      "artifacts": [
-        "ISafeForERC1155"
-      ]
-    },
     "/Users/orishalom/repositories/ki-eth-token/contracts/Migrations.sol": {
       "lastModificationDate": 1624430332347,
       "contentHash": "7d4adbed15a210d741f4fef715879234",
@@ -1381,85 +1338,6 @@
         "IERC1155Receiver"
       ]
     },
-    "/Users/orishalom/repositories/ki-eth-token/contracts/SafeForERC1155Core.sol": {
-      "lastModificationDate": 1655714112367,
-      "contentHash": "cd42686ebc1e7db5cf259e7dfc18e663",
-      "sourceName": "contracts/SafeForERC1155Core.sol",
-      "solcConfig": {
-        "version": "0.6.12",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 999
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "storageLayout",
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "storageLayout",
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./ISafeForERC1155.sol",
-        "hardhat/console.sol"
-      ],
-      "versionPragmas": [
-        "0.6.12"
-      ],
-      "artifacts": [
-        "SafeForERC1155Core"
-      ]
-    },
-    "/Users/orishalom/repositories/ki-eth-token/contracts/SafeForERC1155.sol": {
-      "lastModificationDate": 1655720217504,
-      "contentHash": "a24d4bbfc8ff62a07956efcdd15de100",
-      "sourceName": "contracts/SafeForERC1155.sol",
-      "solcConfig": {
-        "version": "0.6.12",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 999
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "storageLayout",
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "storageLayout",
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./ISafeForERC1155.sol"
-      ],
-      "versionPragmas": [
-        "0.6.12"
-      ],
-      "artifacts": [
-        "SafeForERC1155"
-      ]
-    },
     "/Users/orishalom/repositories/ki-eth-token/contracts/test/MyERC1155.sol": {
       "lastModificationDate": 1655297749774,
       "contentHash": "3aa8ba5757498ac56db0a5df924e8b1c",
@@ -1734,6 +1612,92 @@
       ],
       "artifacts": [
         "console"
+      ]
+    },
+    "/Users/orishalom/repositories/ki-eth-token/contracts/SafeTransferERC1155.sol": {
+      "lastModificationDate": 1655729461659,
+      "contentHash": "e300449b088ac3b045d16719dbf50ee8",
+      "sourceName": "contracts/SafeTransferERC1155.sol",
+      "solcConfig": {
+        "version": "0.6.12",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 999
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "storageLayout",
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "storageLayout",
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/math/SafeMath.sol",
+        "@openzeppelin/contracts/access/AccessControl.sol",
+        "@openzeppelin/contracts/token/ERC20/SafeERC20.sol",
+        "@openzeppelin/contracts/token/ERC721/IERC721.sol",
+        "@openzeppelin/contracts/token/ERC1155/IERC1155.sol"
+      ],
+      "versionPragmas": [
+        "0.6.12"
+      ],
+      "artifacts": [
+        "SafeTransferERC1155"
+      ]
+    },
+    "/Users/orishalom/repositories/ki-eth-token/contracts/SafeSwapERC1155.sol": {
+      "lastModificationDate": 1655730695223,
+      "contentHash": "8151fc77169c4e50af9d98f78e78b5d4",
+      "sourceName": "contracts/SafeSwapERC1155.sol",
+      "solcConfig": {
+        "version": "0.6.12",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 999
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "storageLayout",
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "storageLayout",
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/math/SafeMath.sol",
+        "@openzeppelin/contracts/access/AccessControl.sol",
+        "@openzeppelin/contracts/token/ERC20/SafeERC20.sol",
+        "@openzeppelin/contracts/token/ERC721/IERC721.sol",
+        "@openzeppelin/contracts/token/ERC1155/IERC1155.sol"
+      ],
+      "versionPragmas": [
+        "0.6.12"
+      ],
+      "artifacts": [
+        "SafeSwapERC1155"
       ]
     }
   }

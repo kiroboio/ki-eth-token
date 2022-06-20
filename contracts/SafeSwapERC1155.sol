@@ -2,11 +2,19 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "./ISafeForERC1155.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-contract SafeForERC1155 is AccessControl {
+contract SafeSwapERC1155 is AccessControl {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
+
+  // keccak256("ACTIVATOR_ROLE");
+  bytes32 public constant ACTIVATOR_ROLE =
+    0xec5aad7bdface20c35bc02d6d2d5760df981277427368525d634f4e2603ea192;
 
   //keccak256("HIDDEN_SWAP_ERC1155_TYPEHASH(address from,address to,bytes memory sideA,bytes memory sideB,bytes32 secretHash)");
   bytes32 public constant HIDDEN_SWAP_ERC1155_TYPEHASH = 0x5def028ebfda9e7c902eeb540d78a84b6b40defc4aa193fb9039fdd8d09255a4;
@@ -17,8 +25,6 @@ contract SafeForERC1155 is AccessControl {
   //keccak256("HIDDEN_ERC1155_TO_ERC20_SWAP(address from,address to,address token0,uint256[] tokenIds0,uint256[] values0,bytes tokenData0,uint256 fees0,address token1,uint256 value1,uint256 fees1,bytes32 secretHash)");
   bytes32 public constant HIDDEN_ERC1155_TO_ERC20_SWAP = 0x445e79546b82e242bfb84f5a7c4f59342a0c9e8b523e6e7b8c9dcd4c5ca272d0;
 
-  
-  bytes32 public DOMAIN_SEPARATOR;
   uint256 public CHAIN_ID;
   bytes32 s_uid;
   uint256 s_fees;
@@ -29,7 +35,43 @@ contract SafeForERC1155 is AccessControl {
   string public constant NAME = "Kirobo Safe Transfer";
   string public constant VERSION = "1";
   uint8 public constant VERSION_NUMBER = 0x1;
-  //address public immutable SAFE_FOR_ERC_1155_CORE;
+  
+  struct SwapERC20ToBatchERC1155Info {
+      address token0;
+      uint256 value0;
+      uint256 fees0;
+      address token1;
+      uint256[] tokenIds1;
+      uint256[] values1;
+      bytes tokenData1;
+      uint256 fees1;
+      bytes32 secretHash;
+  }
+
+  struct SwapBatchERC1155ToERC20Info {
+      address token0;
+      uint256[] tokenIds0;
+      uint256[] values0;
+      bytes tokenData0;
+      uint256 fees0;
+      address token1;
+      uint256 value1;
+      uint256 fees1;
+      bytes32 secretHash;
+    }
+struct SwapERC1155Info {
+      address token0;
+      uint256[] tokenIds0;
+      uint256[] values0;
+      bytes tokenData0;
+      uint256 fees0;
+      address token1;
+      uint256[] tokenIds1;
+      uint256[] values1;
+      bytes tokenData1;
+      uint256 fees1;
+      bytes32 secretHash;
+  }
 
   event ERC721Retrieved(
     address indexed token,
@@ -220,8 +262,18 @@ contract SafeForERC1155 is AccessControl {
         uint256 value
     );
 
-  constructor(address core) public {
-  // SAFE_FOR_ERC_1155_CORE = core;
+  modifier onlyActivator() {
+    require(
+      hasRole(ACTIVATOR_ROLE, msg.sender),
+      "SafeTransfer: not an activator"
+    );
+    _;
+  }
+
+  constructor(address activator) public {
+    _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _setupRole(ACTIVATOR_ROLE, msg.sender);
+    _setupRole(ACTIVATOR_ROLE, activator);
 
     uint256 chainId;
     assembly {
@@ -235,23 +287,18 @@ contract SafeForERC1155 is AccessControl {
         ((uint256(blockhash(block.number - 1)) << 192) >> 16) |
         uint256(address(this))
     );
-
-    DOMAIN_SEPARATOR = keccak256(
-      abi.encode(
-        keccak256(
-          "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
-        ),
-        keccak256(bytes(NAME)),
-        keccak256(bytes(VERSION)),
-        chainId,
-        address(this),
-        s_uid
-      )
-    );
   }
 
   receive() external payable {
     require(false, "SafeTransfer: not accepting ether directly");
+  }
+
+  function transferFees(address payable wallet, uint256 value)
+    external
+    onlyActivator
+  {
+    s_fees = s_fees.sub(value);
+    wallet.transfer(value);
   }
 
   function totalFees() external view returns (uint256) {
@@ -268,8 +315,8 @@ contract SafeForERC1155 is AccessControl {
     uint256[] memory arr2,
     bytes memory b,
     uint256 c
-  ) internal pure returns (bytes memory) {
-    return abi.encode(a, arr1, arr2, b, c);
+  ) internal pure returns (bytes32) {
+    return keccak256(abi.encode(a, arr1, arr2, b, c));
   }
 
   // ----------------------- swap - batch ERC1155 <--> ETH/721//batch 1155 -------------------------------------------
@@ -569,7 +616,7 @@ contract SafeForERC1155 is AccessControl {
     address payable from, 
     address to, 
     SwapERC1155Info memory info)
-    external
+    external onlyActivator
   {
     bytes32 id = keccak256(
       abi.encode(
@@ -683,7 +730,7 @@ contract SafeForERC1155 is AccessControl {
         info.secretHash
       )
     );
-    bytes32 id = keccak256(abi.encode(from, id1));
+    bytes32 id = keccak256(abi.encode(from,info.fees0, id1));
     uint256 tr = s_hswaps[id];
     require(tr > 0, "SafeSwap: request not exist");
     require(uint64(tr) > now, "SafeSwap: expired");
@@ -924,7 +971,7 @@ contract SafeForERC1155 is AccessControl {
     address payable from,
     address to,
     SwapBatchERC1155ToERC20Info memory info
-  ) external {
+  ) external onlyActivator{
     bytes32 id = keccak256(
       abi.encode(
         from,
@@ -1219,7 +1266,7 @@ contract SafeForERC1155 is AccessControl {
     address payable from,
     address to,
     SwapERC20ToBatchERC1155Info memory info
-  ) external {
+  ) external onlyActivator{
     bytes32 id = keccak256(
       abi.encode(
         from,

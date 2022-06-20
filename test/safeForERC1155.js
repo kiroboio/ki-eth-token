@@ -2,8 +2,8 @@
 
 const Token = artifacts.require("Token")
 const ERC1155Token = artifacts.require("MyERC1155")
-const SafeForERC1155Core = artifacts.require('SafeForERC1155Core')
-const SafeForERC1155 = artifacts.require('SafeForERC1155')
+const SafeForERC1155Core = artifacts.require('SafeTransferERC1155')
+const SafeForERC1155 = artifacts.require('SafeSwapERC1155')
 const ERC721Token = artifacts.require("ERC721Token")
 const mlog = require('mocha-logger')
 
@@ -194,7 +194,7 @@ contract('SafeForERC1155', async accounts => {
     const now = await getLatestBlockTimestamp()
     await core.timedDepositERC1155(token1155.address, user1, tokenId, value, tokenData, fees, secretHash, 0, now+10000, 0,{ from: tokenOwner, value: 20 })
     advanceTimeAndBlock(10000)
-    await core.autoRetrieveERC1155(tokenOwner, token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: tokenOwner })
+    await core.autoRetrieveERC1155(tokenOwner, token1155.address, user1, tokenId, value, tokenData, fees, secretHash, { from: user1 })
 })
 
 it('should be able to make a hidden transfer request', async () => {
@@ -315,7 +315,7 @@ it('should be able to collect a hidden transfer request', async () => {
     const autoRetrieveFees = 0;
     await core.TimedDepositBatchERC1155(user1, {token, tokenIds, values, fees, secretHash, availableAt , expiresAt, autoRetrieveFees}, tokenData, { from: tokenOwner, value: 20 })
     advanceTimeAndBlock(10000)
-    await core.autoRetrieveBatchERC1155(tokenOwner, token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: tokenOwner })
+    await core.autoRetrieveBatchERC1155(tokenOwner, token1155.address, user1, tokenIds, values, tokenData, fees, secretHash, { from: user1 })
   })
 
   it('should be able to make a hidden batch transfer request', async () => {
@@ -939,7 +939,7 @@ it('should be able to collect a hidden transfer request', async () => {
     const now = await getLatestBlockTimestamp() 
     await st.timedSwapDepositERC1155ToERC20(user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash},0, now+10000, 0, {from:tokenOwner, value:fees0})
     advanceTimeAndBlock(10000)
-    await st.autoSwapRetrieveERC1155ToERC20(tokenOwner, user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:tokenOwner})
+    await st.autoSwapRetrieveERC1155ToERC20(tokenOwner, user1, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenId1, value1, tokenData1, fees1, secretHash}, {from:user1})
   })
 
   //hidden 1155 to eth
@@ -986,18 +986,20 @@ it('should be able to collect a hidden transfer request', async () => {
     const values1 = [100]
     const tokenData1 = "0x00"
     const fees1 = 20
-    const sideAsha = soliditySha3(token0, tokenIds0, values0, tokenData0,fees0 )
-    const sideBsha= soliditySha3(token1, tokenIds1, values1, tokenData1,fees1 )
-    const sideA = (token0, tokenIds0, values0, tokenData0,fees0 )
-    const sideB = (token1, tokenIds1, values1, tokenData1,fees1 )
+    const trxValue = fees1+values1[0]
+    const sideAsha = defaultAbiCoder.encode(
+      ['address','uint256[]','uint256[]','bytes','uint256'],
+      [token0, tokenIds0, values0, tokenData0,fees0])
+    const sideBsha= defaultAbiCoder.encode(
+      ['address','uint256[]','uint256[]','bytes','uint256'],
+      [token1, tokenIds1, values1, tokenData1,fees1])
     const id1 = sha3(defaultAbiCoder.encode(
-      ['bytes32', 'address', 'address', 'bytes','bytes', 'bytes32'],
-      [await st.HIDDEN_SWAP_ERC1155_TYPEHASH(), tokenOwner, user1, sideAsha, sideBsha, secretHash]
-   ))
+      ['bytes32','address','address','bytes32','bytes32','bytes32'],
+      [await st.HIDDEN_SWAP_ERC1155_TYPEHASH(), tokenOwner, user1, keccak256(sideAsha),keccak256(sideBsha),secretHash]))
   
     await st.hiddenBatchERC1155SwapDeposit(id1, { from: tokenOwner, value: fees0 })
     const params = {token0, tokenIds0, values0, tokenData0,fees0, token1, tokenIds1, values1, tokenData1,fees1,secretHash}
-    await st.hiddenSwapERC1155(tokenOwner,params ,Buffer.from(secret), { from: user1 })
+    await st.hiddenSwapERC1155(tokenOwner,params ,Buffer.from(secret), { from: user1, value: trxValue})
   })
 
   //hidden 1155 to erc20
