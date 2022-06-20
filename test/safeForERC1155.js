@@ -12,6 +12,7 @@ const { defaultAbiCoder, keccak256, toUtf8Bytes } = ethers.utils
 const { TypedDataUtils } = require('ethers-eip712')
 
 const sha3 = web3.utils.sha3
+const soliditySha3 = web3.utils.soliditySha3;
 const NFT3 = 23456
 const NFT4 = 86543
 const NFT5 = 76543
@@ -227,78 +228,18 @@ it('should be able to retrieve a hidden transfer request', async () => {
 
 it('should be able to collect a hidden transfer request', async () => {
   const secret = 'my secret'
+  const secretHash = sha3(secret)
   const tokenId = 1
   const value = 100
   const tokenData = "0x00"
   const fees = 20
-  const secretHash = sha3(secret)
   const id1 = sha3(defaultAbiCoder.encode(
     ['bytes32', 'address', 'address', 'address','uint256', 'uint256', 'bytes','uint256', 'bytes32'],
     [await core.HIDDEN_ERC1155_COLLECT_TYPEHASH(), tokenOwner, user1, token1155.address, tokenId, value, tokenData, fees, secretHash]
-  ))
+ ))
 
-  mlog.log('id1', id1)
-
-  const typedData = {
-    types: {
-      EIP712Domain: [
-        { name: "name",               type: "string" },
-        { name: "version",            type: "string" },
-        { name: "chainId",            type: "uint256" },
-        { name: "verifyingContract",  type: "address" },
-        { name: "salt",               type: "bytes32" }
-      ],
-      hiddenCollect: [
-        { name: 'from',               type: 'address' },
-        { name: 'to',                 type: 'address' },
-        { name: 'token',              type: 'address' },
-        { name: 'tokenId',            type: 'uint256' },
-        { name: 'value',              type: 'uint256' },
-        { name: 'tokenData',          type: 'bytes'   },
-        { name: 'fees',               type: 'uint256' },
-        { name: 'secretHash',         type: 'bytes32' },
-      ]
-    },
-    primaryType: 'hiddenCollect',
-    domain: {
-      name: await core.NAME(),
-      version: await core.VERSION(),
-      chainId: '0x' + web3.utils.toBN(await core.CHAIN_ID()).toString('hex'), // await web3.eth.getChainId(),
-      verifyingContract: st.address,
-      salt: await core.uid(),
-    },
-    message: {
-      from: tokenOwner,
-      to: user1,
-      value: '0x' + web3.utils.toBN('600').toString('hex'),
-      fees: '0x' + web3.utils.toBN('100').toString('hex'),
-      secretHash,
-    }
-  }
-
-  mlog.log('typedData: ', JSON.stringify(typedData, null, 2))
-  mlog.log('CHAIN_ID', await core.CHAIN_ID())
-  mlog.log('DOMAIN_SEPARATOR', await core.DOMAIN_SEPARATOR())
-  const domainHash = TypedDataUtils.hashStruct(typedData, 'EIP712Domain', typedData.domain)
-  const domainHashHex = ethers.utils.hexlify(domainHash)
-  mlog.log('DOMAIN_SEPARATOR (calculated)', domainHashHex)
-  
-  const messageDigest = TypedDataUtils.encodeDigest(typedData)
-
-  const messageHash = TypedDataUtils.hashStruct(typedData, typedData.primaryType, typedData.message)
-  const messageHashHex = ethers.utils.hexlify(messageHash)
-  mlog.log('messageHash (calculated)', messageHashHex)
-  
-  let signingKey = new ethers.utils.SigningKey(getPrivateKey(user2));
-  const sig = signingKey.signDigest(messageDigest)
-  const rlp = ethers.utils.splitSignature(sig)
-  rlp.v = '0x' + rlp.v.toString(16)
-
-  mlog.log('rlp', JSON.stringify(rlp))
-  mlog.log('recover', ethers.utils.recoverAddress(messageDigest, sig))
-
-  await core.hiddenERC1155Deposit(id1, { from: tokenOwner, value: 700 })
-  await core.hiddenERC1155Collect(tokenOwner, user1, 600, 100, secretHash, Buffer.from(secret), rlp.v, rlp.r, rlp.s, { from: user1 })
+  await core.hiddenERC1155Deposit(id1, { from: tokenOwner, value: fees })
+  await core.hiddenERC1155Collect(token1155.address, tokenOwner, user1, tokenId, value,tokenData, fees , secretHash, Buffer.from(secret),{ from: user1 })
 })
 
   // batch transfer
@@ -404,6 +345,28 @@ it('should be able to collect a hidden transfer request', async () => {
     const secretHash = sha3(secret)
     const id1 = sha3('1234')
     await core.hiddenBatchERC1155Retrieve(id1, 100, { from: tokenOwner })
+  })
+
+  it('should be able to collect a hidden transfer request', async () => {
+    const secret = 'my secret'
+    const secretHash = sha3(secret)
+    const tokenIds = [0,1]
+    const values = [100,200]
+    const tokenData = "0x00"
+    const fees = 20
+    const token = token1155.address;
+    const now = await getLatestBlockTimestamp()
+    const availableAt = 0;
+    const expiresAt = now+10000;
+    const autoRetrieveFees = 0;
+    const id1 = sha3(defaultAbiCoder.encode(
+      ['bytes32', 'address', 'address', 'address','uint256[]', 'uint256[]', 'bytes','uint256', 'bytes32'],
+      [await core.HIDDEN_BATCH_ERC1155_COLLECT_TYPEHASH(), tokenOwner, user1, token1155.address, tokenIds, values, tokenData, fees, secretHash]
+   ))
+  
+    await core.hiddenBatchERC1155Deposit(id1, { from: tokenOwner, value: fees })
+    const params = {token:token1155.address, tokenIds, values,tokenData, fees , secretHash, secret:Buffer.from(secret)}
+    await core.hiddenBatchERC1155Collect(user1, tokenOwner,params ,{ from: user1 })
   })
 
   //  swap 1155 to ETH
@@ -661,7 +624,6 @@ it('should be able to collect a hidden transfer request', async () => {
     const tokenData1 = "0x00"
     const fees1 = 40
     const secretHash = sha3(secret)
-    console.log("owner", await token721.ownerOf(tokenIds1[0]));
     await token1155.setApprovalForAll(st.address,true, {from:user3})
     await st.swapDepositERC1155(tokenOwner, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, {from:user3, value:fees0})
     await st.swapERC1155(user3, {token0, tokenIds0, values0, tokenData0, fees0, token1, tokenIds1, values1, tokenData1, fees1, secretHash}, Buffer.from(secret), {from:tokenOwner, value: fees1})
@@ -1011,6 +973,33 @@ it('should be able to collect a hidden transfer request', async () => {
     await st.hiddenBatchERC1155SwapRetrieve(id1, 100, { from: tokenOwner })
   })
 
+  it('should be able to collect a hidden swap request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = ZERO_ADDRESS
+    const tokenIds1 = [0]
+    const values1 = [100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const sideAsha = soliditySha3(token0, tokenIds0, values0, tokenData0,fees0 )
+    const sideBsha= soliditySha3(token1, tokenIds1, values1, tokenData1,fees1 )
+    const sideA = (token0, tokenIds0, values0, tokenData0,fees0 )
+    const sideB = (token1, tokenIds1, values1, tokenData1,fees1 )
+    const id1 = sha3(defaultAbiCoder.encode(
+      ['bytes32', 'address', 'address', 'bytes','bytes', 'bytes32'],
+      [await st.HIDDEN_SWAP_ERC1155_TYPEHASH(), tokenOwner, user1, sideAsha, sideBsha, secretHash]
+   ))
+  
+    await st.hiddenBatchERC1155SwapDeposit(id1, { from: tokenOwner, value: fees0 })
+    const params = {token0, tokenIds0, values0, tokenData0,fees0, token1, tokenIds1, values1, tokenData1,fees1,secretHash}
+    await st.hiddenSwapERC1155(tokenOwner,params ,Buffer.from(secret), { from: user1 })
+  })
+
   //hidden 1155 to erc20
 
   it('should be able to make a hidden swap request', async () => {
@@ -1040,6 +1029,52 @@ it('should be able to collect a hidden transfer request', async () => {
     const secretHash = sha3(secret)
     const id1 = sha3('1234')
     await st.hiddenBatchERC1155ToERC20SwapRetrieve(id1, 100, { from: tokenOwner })
+  })
+
+  it('should be able to collect a hidden transfer request', async () => {
+    const secret = 'my secret'
+    const token0 = token1155.address
+    const secretHash = sha3(secret)
+    const tokenIds0 = [0,3]
+    const values0 = [100,100]
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token20.address
+    const tokenId1 = 0
+    const value1 = 100
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const id1 = sha3(defaultAbiCoder.encode(
+      ['bytes32','address','address','address','uint256[]','uint256[]','bytes','uint256','address','uint256','uint256','bytes32'],
+      [await st.HIDDEN_ERC1155_TO_ERC20_SWAP(), tokenOwner, user1, token1155.address, tokenIds0, values0, tokenData0, fees0,token1,value1,fees1,secretHash]
+   ))
+  
+    await st.hiddenBatchERC1155ToERC20SwapDeposit(id1, { from: tokenOwner, value: fees0 })
+    const params = {from:tokenOwner, to:user1, token0:token1155.address, tokenIds0 , values0,tokenData0, fees0,token1, value1,fees1,secretHash}
+    await st.hiddenSwapERC1155ToERC20(tokenOwner,params ,Buffer.from(secret), { from: user1, value: fees1 })
+  })
+
+  it('should be able to collect a hidden transfer request', async () => {
+    const secret = 'my secret'
+    const token0 = token20.address
+    const secretHash = sha3(secret)
+    const tokenId0 = 0
+    const value0 = 100
+    const tokenData0 = "0x00"
+    const fees0 = 40
+    const token1 = token1155.address
+    const tokenIds1 = [0,3]
+    const values1 = [100,100]
+    const tokenData1 = "0x00"
+    const fees1 = 20
+    const id1 = sha3(defaultAbiCoder.encode(
+      ['bytes32','address' ,'address' ,'address' ,'uint256' ,'uint256' ,'address' ,'uint256[]' ,'uint256[]' ,'bytes' ,'uint256' ,'bytes32'],
+      [await st.HIDDEN_ERC20_TO_ERC1155_SWAP(), tokenOwner, user1, token0, value0, fees0,token1,tokenIds1, values1,tokenData1,fees1,secretHash]
+   ))
+  
+    await st.hiddenERC20ToBatchERC1155SwapDeposit(id1, { from: tokenOwner, value: fees0 })
+    const params = {token0, value0 , fees0,token1, tokenIds1,values1,tokenData1,fees1,secretHash}
+    await st.hiddenSwapERC20ToERC1155(tokenOwner,params ,Buffer.from(secret), { from: user1, value: fees1 })
   })
  
   })

@@ -14,8 +14,8 @@ contract SafeForERC1155 is AccessControl {
   //keccak256("HIDDEN_SWAP_ERC1155_TYPEHASH(address from,address to,address token0,uint256 value0,uint256 fees0,address token1,uint256[] tokenIds1,uint256[] values1,bytes tokenData1,uint256 fees1,bytes32 secretHash)");
   bytes32 public constant HIDDEN_ERC20_TO_ERC1155_SWAP = 0x5c63c8b83e3cbed2a40bd68b993c3f69622c8b52ff80ef2eb730c1891ab70bfa;
 
-  //keccak256("HIDDEN_ERC1155_TO_ERC20_SWAP(address from,address to,address token0,uint256[] tokenIds0,uint256 values0,bytes tokenData0,uint256 fees0,address token1,uint256 value1,uint256 fees1,bytes32 secretHash)");
-  bytes32 public constant HIDDEN_ERC1155_TO_ERC20_SWAP = 0xb2f66588a216b525a05fe09ca7ba4764d7b26466ba34d83189af334663aaa547;
+  //keccak256("HIDDEN_ERC1155_TO_ERC20_SWAP(address from,address to,address token0,uint256[] tokenIds0,uint256[] values0,bytes tokenData0,uint256 fees0,address token1,uint256 value1,uint256 fees1,bytes32 secretHash)");
+  bytes32 public constant HIDDEN_ERC1155_TO_ERC20_SWAP = 0x445e79546b82e242bfb84f5a7c4f59342a0c9e8b523e6e7b8c9dcd4c5ca272d0;
 
   
   bytes32 public DOMAIN_SEPARATOR;
@@ -29,7 +29,7 @@ contract SafeForERC1155 is AccessControl {
   string public constant NAME = "Kirobo Safe Transfer";
   string public constant VERSION = "1";
   uint8 public constant VERSION_NUMBER = 0x1;
-  address public immutable SAFE_FOR_ERC_1155_CORE;
+  //address public immutable SAFE_FOR_ERC_1155_CORE;
 
   event ERC721Retrieved(
     address indexed token,
@@ -221,7 +221,7 @@ contract SafeForERC1155 is AccessControl {
     );
 
   constructor(address core) public {
-   SAFE_FOR_ERC_1155_CORE = core;
+  // SAFE_FOR_ERC_1155_CORE = core;
 
     uint256 chainId;
     assembly {

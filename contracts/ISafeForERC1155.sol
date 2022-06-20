@@ -8,8 +8,6 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-
-  
   struct CollectBatchERC1155Info {
       address token;
       uint256[] tokenIds;
@@ -81,7 +79,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
       uint256 fees1;
       bytes32 secretHash;
     } */
-    
+
 interface ISafeForERC1155 {
   function getS_swaps(bytes32) external returns (uint256);
   function setS_swaps(bytes32, uint256) external;

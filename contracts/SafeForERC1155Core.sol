@@ -3,6 +3,7 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "./ISafeForERC1155.sol";
+import "hardhat/console.sol";
 
 contract SafeForERC1155Core is AccessControl {
   using SafeMath for uint256;
@@ -398,7 +399,7 @@ contract SafeForERC1155Core is AccessControl {
       bytes memory secret
     ) external onlyActivator {
       bytes32 id1 = keccak256(abi.encode(HIDDEN_ERC1155_COLLECT_TYPEHASH, from, to, token, tokenId, value, tokenData, fees, secretHash));
-      bytes32 id = keccak256(abi.encode(from, value, id1));
+      bytes32 id = keccak256(abi.encode(from, fees, id1));
       uint256 tr = s_htransfers[id];
       require(tr > 0, "SafeTransfer: request not exist");
       require(uint64(tr) > now, "SafeTranfer: expired");
