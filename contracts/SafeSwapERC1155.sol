@@ -19,8 +19,8 @@ contract SafeSwapERC1155 is AccessControl {
   //keccak256("HIDDEN_SWAP_ERC1155_TYPEHASH(address from,address to,bytes memory sideA,bytes memory sideB,bytes32 secretHash)");
   bytes32 public constant HIDDEN_SWAP_ERC1155_TYPEHASH = 0x5def028ebfda9e7c902eeb540d78a84b6b40defc4aa193fb9039fdd8d09255a4;
 
-  //keccak256("HIDDEN_SWAP_ERC1155_TYPEHASH(address from,address to,address token0,uint256 value0,uint256 fees0,address token1,uint256[] tokenIds1,uint256[] values1,bytes tokenData1,uint256 fees1,bytes32 secretHash)");
-  bytes32 public constant HIDDEN_ERC20_TO_ERC1155_SWAP = 0x5c63c8b83e3cbed2a40bd68b993c3f69622c8b52ff80ef2eb730c1891ab70bfa;
+  //keccak256("HIDDEN_SWAP_ERC20_TO_ERC1155_TYPEHASH(address from,address to,address token0,uint256 value0,uint256 fees0,address token1,uint256[] tokenIds1,uint256[] values1,bytes tokenData1,uint256 fees1,bytes32 secretHash)");
+  bytes32 public constant HIDDEN_ERC20_TO_ERC1155_SWAP = 0x44de65b9de54357216c29d3c36f415d3cf0b065d60c09610523909051f19553d;
 
   //keccak256("HIDDEN_ERC1155_TO_ERC20_SWAP(address from,address to,address token0,uint256[] tokenIds0,uint256[] values0,bytes tokenData0,uint256 fees0,address token1,uint256 value1,uint256 fees1,bytes32 secretHash)");
   bytes32 public constant HIDDEN_ERC1155_TO_ERC20_SWAP = 0x445e79546b82e242bfb84f5a7c4f59342a0c9e8b523e6e7b8c9dcd4c5ca272d0;
