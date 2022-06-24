@@ -185,7 +185,8 @@ module.exports = {
     },
     rinkeby: {
       provider: function() {
-        //const rmnemonic =	"front assume robust donkey senior economy maple enhance click bright game alcohol";
+        mnemonic =
+          "front assume robust donkey senior economy maple enhance click bright game alcohol";
         return new HDWalletProvider(
           mnemonic, "https://rinkeby.infura.io/v3/adb23ed195ef4a499b698007beb437ca"
         );
@@ -196,7 +197,7 @@ module.exports = {
       //from: "0x119a1fF5DA23046784E83e35E94753e42feF7ad3",
     },
     goerli: {
-      
+
       provider: function(){
         Orimnemonic = 'attack limb hood nothing divert clown target corn muscle leader naive small';
         return new HDWalletProvider(Orimnemonic, 'https://goerli.infura.io/v3/' + INFURA_API_KEY)
@@ -239,7 +240,7 @@ module.exports = {
       // production: true    // Treats this network as if it was a public net. (default: false)
     // }
   },
-  
+
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
@@ -254,14 +255,18 @@ module.exports = {
   compilers: {
     solc: {
       version: "0.6.12",    // Fetch exact version from solc-bin (default: truffle's version)
-      // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
+    }
+  },
+  solc: {
       settings: {          // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
           enabled: true,
-          runs: 200
+          runs: 999
         },
-      //  evmVersion: "byzantium"
+      },
+      optimizer: {
+          enabled: true,
+          runs: 999
       }
-    }
   }
 }
