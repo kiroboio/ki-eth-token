@@ -2,7 +2,7 @@
 
 pragma solidity ^0.6.0;
 
-import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 contract Vesting {
     using SafeERC20 for IERC20;

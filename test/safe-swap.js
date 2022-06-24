@@ -71,6 +71,9 @@ contract('SafeSwap', async accounts => {
   const user11 = accounts[12]
   const user12 = accounts[13]
   const user13 = accounts[14]
+  const user14 = accounts[15]
+  const user15 = accounts[16]
+  const user16 = accounts[17]
 
   const val1  = web3.utils.toWei('0.5', 'gwei')
   const val2  = web3.utils.toWei('0.4', 'gwei')
@@ -96,6 +99,9 @@ contract('SafeSwap', async accounts => {
       assert(typeof user11        == 'string', 'user11 should be string')
       assert(typeof user12        == 'string', 'user12 should be string')
       assert(typeof user13        == 'string', 'user13 should be string')
+      assert(typeof user14        == 'string', 'user14 should be string')
+      assert(typeof user15        == 'string', 'user15 should be string')
+      assert(typeof user16        == 'string', 'user16 should be string')
       assert(typeof val1          == 'string', 'val1  should be big number')
       assert(typeof val2          == 'string', 'val2  should be string')
       assert(typeof val3          == 'string', 'val3  should be string')  
@@ -122,6 +128,9 @@ contract('SafeSwap', async accounts => {
     mlog.log('user11                  ', user11)
     mlog.log('user12                  ', user12)
     mlog.log('user13                  ', user13)
+    mlog.log('user14                  ', user14)
+    mlog.log('user15                  ', user15)
+    mlog.log('user16                  ', user16)
     mlog.log('val1                    ', val1)
     mlog.log('val2                    ', val2)
     mlog.log('val3                    ', val3)
@@ -129,6 +138,10 @@ contract('SafeSwap', async accounts => {
     await token.mint(user1, 1e10, { from: tokenOwner })
     await token.mint(user2, 1e10, { from: tokenOwner })
     await token.mint(user3, 1e10, { from: tokenOwner })
+    await token.mint(user14, 1e10, { from: tokenOwner })
+    await token.mint(user15, 1e10, { from: tokenOwner })
+    await token.mint(user16, 1e10, { from: tokenOwner })
+
     tokenSymbol = await token.symbol()
     token721 = await ERC721Token.new('Kirobo ERC721 Token', 'KBF', {from: tokenOwner});
     await token721.selfMint(NFT4, { from: user4 })
@@ -236,54 +249,46 @@ contract('SafeSwap', async accounts => {
     })
   })
 
-  const checkAmount = function(InitAmount, gasPrice, gasUsed, amountAdded, fee, finalAmount )
+  const checkAmount = async function(InitAmount, gasUsed, amountAdded, fee, finalAmount )
   {
-    let totalgasSpent = bigInt(gasPrice).multiply((bigInt(gasUsed)));
+    let totalgasSpent = bigInt(await web3.eth.getGasPrice()).multiply((bigInt(gasUsed)));
     let endAmount = bigInt(InitAmount).minus(bigInt(totalgasSpent)).add(bigInt(amountAdded)).minus(bigInt(fee));
     console.log('calculated ', bigInt(endAmount).toString())
     console.log('finalAmount', bigInt(finalAmount).toString())
     return bigInt(endAmount).eq(bigInt(finalAmount));
   }
 
-  /*
+  
   it('should be able to collect a transfer request from token to ether', async () => {
     const secret = 'my secret'
     const secretHash = sha3(secret)
     const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
-    const gasPrice = await web3.eth.getGasPrice()
 
-    let senderInitBalance = await web3.eth.getBalance(user3)
-    let recipientBalance = await web3.eth.getBalance(user4)
-    console.log('senderInitBalance before the swap = ', web3.utils.fromWei(senderInitBalance ,'ether'))
-    console.log('recipientBalance before the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
+    let senderInitBalance = bigInt(await web3.eth.getBalance(user14))
+    //let recipientBalance = bigInt(await web3.eth.getBalance(user15))
+    console.log('senderInitBalance before the swap = ', bigInt(senderInitBalance).toString() )
+    //console.log('recipientBalance before the swap = ', bigInt(recipientBalance).toString() )
 
-    //console.log('senderInitBalance before the swap = ', web3.utils.fromWei(await token.balanceOf(user3, { from: user3 }) ,'ether'))
-    //console.log('recipientBalance before the swap = ', web3.utils.fromWei(await token.balanceOf(user4, { from: user4 }),'ether'))
+    const res1 = await token.approve(st.address, 1e12, { from: user14 })
 
+    const res = await st.deposit(user15, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash,
+      { from: user14, value: 10, nonce: await trNonce(web3, user14) })
 
-    await token.approve(st.address, 1e12, { from: user3 })
+    await st.swap(user14, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash, Buffer.from(secret),
+      { from: user15, value: value150+10, nonce: await trNonce(web3, user15) })
 
-    const res = await st.deposit(user4, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash,
-      { from: user3, value: 10, nonce: await trNonce(web3, user3) })
+    let senderFinalBalance = bigInt(await web3.eth.getBalance(user14))
+    //recipientBalance = bigInt(await web3.eth.getBalance(user15))
+    console.log('senderFinalBalance after the swap = ', senderFinalBalance)
+    //console.log('recipientBalance after the swap = ', bigInt(recipientBalance).toString())
 
-    await st.swap(user3, token.address, 50, 10, ZERO_ADDRESS, value150, 10, secretHash, Buffer.from(secret),
-      { from: user4, value: value150+10, nonce: await trNonce(web3, user4) })
-
-    console.log('gas used in wei ', res.receipt.gasUsed * gasPrice)
-
-    let senderFinalBalance = await web3.eth.getBalance(user3)
-    recipientBalance = await web3.eth.getBalance(user4)
-    console.log('senderFinalBalance after the swap = ', web3.utils.fromWei(senderFinalBalance ,'ether'))
-    console.log('recipientBalance after the swap = ', web3.utils.fromWei(recipientBalance ,'ether'))
-    //console.log('senderBalance after the swap = ', web3.utils.fromWei(await token.balanceOf(user3, { from: user3 }) ,'ether'))
-    //console.log(`recipientBalance after the swap = ${web3.utils.fromWei(await token.balanceOf(user4, { from: user4 }) ,'ether')}`)
-    if(checkAmount(senderInitBalance, gasPrice, res.receipt.gasUsed, value150, 10, senderFinalBalance))
+    if(await checkAmount(senderInitBalance, res.receipt.gasUsed+res1.receipt.gasUsed, value150, 10, senderFinalBalance))
     {
       console.log("ether amount correct")
     }else{
       console.log("ether amount not correct")
     }
-  })*/
+  })
 
   it('should be able to collect a transfer request from token to ether', async () => {
     const secret = 'my secret'
@@ -393,42 +398,36 @@ contract('SafeSwap', async accounts => {
 
   /*                ERC-721     */
 
-/*
+
     it('should be able to swap 721 token - Ether to 721', async () => {
       const secret = 'my secret'
       const secretHash = sha3(secret)
-      const tokenId = NFT4;
+      const tokenId = NFT12;
       const tokenData = 1;
       const value150 = 1500000000000000 //web3.utils.toBN(web3.utils.toWei('150', 'ether'))
-      const gasPrice = await web3.eth.getGasPrice()
   
-      let senderInitBalance = await web3.eth.getBalance(user3)
-      let recipientInitBalance = await web3.eth.getBalance(user4)
-      console.log('senderInitBalance before the swap = ', web3.utils.fromWei(senderInitBalance ,'ether'))
-      console.log('recipientInitBalance before the swap = ', web3.utils.fromWei(recipientInitBalance ,'ether'))
+      let recipientInitBalance = bigInt(await web3.eth.getBalance(user12))
+      console.log('recipientInitBalance before the swap = ', bigInt(recipientInitBalance).toString())
+      await st.depositERC721(user12, ZERO_ADDRESS, value150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
+          { from: user16, value: value150+10, nonce: await trNonce(web3, user16) })
   
-      await st.depositERC721(user4, ZERO_ADDRESS, value150, tokenData, 10, token721.address, tokenId, tokenData, 10, secretHash,
-          { from: user3, value: value150+10, nonce: await trNonce(web3, user3) })
-  
-      const params = {from: user3, token0: ZERO_ADDRESS, value0: value150, tokenData0:tokenData, fees0:10, token1:token721.address, 
-                      value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash, secret:Buffer.from(secret)}
+      const params = {token0: ZERO_ADDRESS, value0: value150, tokenData0:tokenData, fees0:10, token1:token721.address, 
+                      value1:tokenId, tokenData1:tokenData, fees1:10, secretHash:secretHash}
       
-      const res1 = await token721.approve(st.address, tokenId, { from: user4 })
+      const res1 = await token721.approve(st.address, tokenId, { from: user12 })
   
-      const res = await st.swapERC721(params,{ from: user4, value: 10, nonce: await trNonce(web3, user4) })
+      const res = await st.swapERC721(user16, params, Buffer.from(secret),{ from: user12, value: 10, nonce: await trNonce(web3, user12) })
   
-      let senderFinalBalance = await web3.eth.getBalance(user3)
-      let recipientFinalBalance = await web3.eth.getBalance(user4)
-      console.log('senderFinalBalance after the swap = ', web3.utils.fromWei(senderFinalBalance ,'ether'))
-      console.log('recipientFinalBalance after the swap = ', web3.utils.fromWei(recipientFinalBalance ,'ether'))
-      if(checkAmount(recipientInitBalance, gasPrice, res.receipt.gasUsed+res1.receipt.gasUsed, value150, 10, recipientFinalBalance))
+      let recipientFinalBalance = bigInt(await web3.eth.getBalance(user12))
+      console.log('recipientFinalBalance after the swap = ', bigInt(recipientFinalBalance).toString())
+      if(await checkAmount(recipientInitBalance, res.receipt.gasUsed+res1.receipt.gasUsed, value150, 10, recipientFinalBalance))
       {
         console.log("ether amount correct")
       }else{
         console.log("ether amount not correct")
       } 
       })
-      */
+      
 
 
   it('should be able to swap 721 token - Ether to 721', async () => {
@@ -742,6 +741,7 @@ contract('SafeSwap', async accounts => {
 
       it('should be able to swap 721 token from a hidden deposit request - ether to 721', async () => {
         const secret = 'my secret'
+        const sercet2 = 'wrong secret'
         const secretHash = sha3(secret)
         const tokenId = NFT5;
         const tokenData = 1;
@@ -757,6 +757,18 @@ contract('SafeSwap', async accounts => {
 
         const params = {token0:ZERO_ADDRESS, value0:6000, tokenData0:tokenData, fees0:1000, token1:token721.address, 
                         value1:tokenId, tokenData1:tokenData, fees1: 1200, secretHash:secretHash}
+
+        //wrong fees
+        await mustRevert(async ()=> {
+          await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user5, value: 1100,nonce: await trNonce(web3, user5)  })
+        })
+
+        //wrong secret
+        await mustRevert(async ()=> {
+          await st.hiddenSwapERC721(user2, params, Buffer.from(sercet2), { from: user5, value: 1000,nonce: await trNonce(web3, user5)  })
+        })
+
+
         await st.hiddenSwapERC721(user2, params, Buffer.from(secret), { from: user5, value: 1200,nonce: await trNonce(web3, user5)  })
       })
 
@@ -772,7 +784,6 @@ contract('SafeSwap', async accounts => {
     
         mlog.log('id1', id1)
         await token721.approve(st.address, tokenId, { from: user9  })
-        //await token721.approve(st.address, tokenId, { from: user4 ,nonce: await trNonce(web3, user4) })
         await st.hiddenDeposit(id1, { from: user9, value: 500 ,nonce: await trNonce(web3, user9) })
 
         const params = {token0:token721.address, value0:tokenId, tokenData0:tokenData, fees0:500, token1:ZERO_ADDRESS, 

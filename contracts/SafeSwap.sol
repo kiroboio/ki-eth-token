@@ -2,10 +2,10 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
-import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /** @title SafeSwap constract 
     @author Tal Asa <tal@kirobo.io> , Ori Shalom <oris@kirobo.io> 
@@ -116,9 +116,11 @@ contract SafeSwap is AccessControl {
         address indexed to,
         address indexed token0,
         uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes tokenData0,
         uint256 fees0,
         address token1,
         uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes tokenData1,
         uint256 fees1,
         bytes32 secretHash
     );
@@ -128,14 +130,24 @@ contract SafeSwap is AccessControl {
         address indexed to,
         address indexed token0,
         uint256 value0, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes tokenData0,
         uint256 fees0,
         address token1,
         uint256 value1, //in case of ether it's a value, in case of 721 it's tokenId
+        bytes tokenData1,
         uint256 fees1,
         bytes32 secretHash,
         uint64 availableAt,
         uint64 expiresAt,
         uint128 autoRetrieveFees
+    );
+
+    event ERC20Retrived(
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        bytes32 id,
+        uint256 value
     );
 
     event ERC721Retrieved(
@@ -151,8 +163,10 @@ contract SafeSwap is AccessControl {
         address indexed to,
         address indexed token0,
         uint256 value0,
+        bytes tokenData0,
         address token1,
         uint256 value1,
+        bytes tokenData1,
         bytes32 id
     );
 
@@ -185,8 +199,10 @@ contract SafeSwap is AccessControl {
         bytes32 indexed id1,
         address token0,
         uint256 value0,
+        bytes tokenData0,
         address token1,
-        uint256 value1
+        uint256 value1,
+        bytes tokenData1
     );
 
     modifier onlyActivator() {
@@ -569,6 +585,12 @@ contract SafeSwap is AccessControl {
             //721 to eth
             require(msg.value == fees0, "SafeSwap: value mismatch");
             require(value0 > 0, "SafeSwap: no token id");
+        } else if(value0 > 0 && token0 != address(0)) {
+            //20 to 721
+            require(msg.value == fees0, "SafeSwap: value mismatch");
+        } else if(value1 > 0 && token1 != address(0)) {
+            //721 to 20
+            require(msg.value == fees0, "SafeSwap: value mismatch");
         } else {
             //721 to 721
             require(msg.value == fees0, "SafeSwap: value mismatch");
@@ -598,9 +620,11 @@ contract SafeSwap is AccessControl {
             to,
             token0,
             value0,
+            tokenData0,
             fees0,
             token1,
             value1,
+            tokenData1,
             fees1,
             secretHash
         );
@@ -655,6 +679,9 @@ contract SafeSwap is AccessControl {
         if (info.token0 == address(0)) {
             //ether to 721
             msg.sender.transfer(info.value0);
+        } else if(info.value0 > 0 && info.token0 != address(0)) {
+            //20 to 721
+            IERC20(info.token0).safeTransferFrom(from, msg.sender, info.value0);
         } else {
             IERC721(info.token0).safeTransferFrom(
                 from,
@@ -670,6 +697,9 @@ contract SafeSwap is AccessControl {
                 "SafeSwap: value mismatch"
             );
             from.transfer(info.value1);
+        } else if(info.value1 > 0 && info.token1 != address(0)) {
+            //721 to 20
+            IERC20(info.token1).safeTransferFrom(msg.sender, from, info.value1);
         } else {
             require(msg.value == info.fees1, "SafeSwap: value mismatch");
             IERC721(info.token1).safeTransferFrom(
@@ -684,8 +714,10 @@ contract SafeSwap is AccessControl {
             msg.sender,
             info.token0,
             info.value0,
+            info.tokenData0,
             info.token1,
             info.value1,
+            info.tokenData1,
             id
         );
     }
@@ -735,6 +767,9 @@ contract SafeSwap is AccessControl {
         msg.sender.transfer(valueToSend);
         if (info.token0 == address(0)) {
             emit Retrieved(msg.sender, to, id, valueToSend);
+        } else if(info.value0 > 0 && info.token0 != address(0)) {
+            //20 to 721
+            emit ERC20Retrived(info.token0, msg.sender, to, id, info.value0);
         } else {
             emit ERC721Retrieved(info.token0, msg.sender, to, id, info.value0);
         }
@@ -792,6 +827,9 @@ contract SafeSwap is AccessControl {
         from.transfer(valueToRetrieve);
         if (info.token0 == address(0)) {
             emit Retrieved(from, to, id, valueToRetrieve);
+        } else if(info.value0 > 0 && info.token0 != address(0)) {
+            //20 to 721
+            emit ERC20Retrived(info.token0, msg.sender, to, id, info.value0);
         } else {
             emit ERC721Retrieved(info.token0, from, to, id, info.value0);
         }
@@ -827,19 +865,19 @@ contract SafeSwap is AccessControl {
     {
         if (info.token0 == address(0)) {
             //eth to 721
-            require(
-                info.token0 != info.token1,
-                "SafeSwap: try to swap ether and ether"
-            );
-            require(
-                msg.value == info.value0.add(info.fees0),
-                "SafeSwap: value mismatch"
-            );
+            require(info.token0 != info.token1,"SafeSwap: try to swap ether and ether");
+            require(msg.value == info.value0.add(info.fees0),"SafeSwap: value mismatch");
             require(info.value1 > 0, "SafeSwap: no token id");
         } else if (info.token1 == address(0)) {
             //721 to eth
             require(msg.value == info.fees0, "SafeSwap: value mismatch");
             require(info.value0 > 0, "SafeSwap: no token id");
+        } else if(info.value0 > 0 && info.token0 != address(0)) {
+            //20 to 721
+            require(msg.value == info.fees0, "SafeSwap: value mismatch");
+        } else if(info.value1 > 0 && info.token1 != address(0)) {
+            //721 to 20
+            require(msg.value == info.fees0, "SafeSwap: value mismatch");
         } else {
             //721 to 721
             require(msg.value == info.fees0, "SafeSwap: value mismatch");
@@ -877,9 +915,11 @@ contract SafeSwap is AccessControl {
             to,
             info.token0,
             info.value0,
+            info.tokenData0,
             info.fees0,
             info.token1,
             info.value1,
+            info.tokenData1,
             info.fees1,
             info.secretHash,
             availableAt,
@@ -1086,6 +1126,9 @@ contract SafeSwap is AccessControl {
         if (info.token0 == address(0)) {
             //ether to 721
             msg.sender.transfer(info.value0);
+        } else if(info.value0 > 0 && info.token0 != address(0)) {
+            //20 to 721
+            IERC20(info.token0).safeTransferFrom(from, msg.sender, info.value0);
         } else {
             IERC721(info.token0).safeTransferFrom(
                 from,
@@ -1116,8 +1159,10 @@ contract SafeSwap is AccessControl {
             id1,
             info.token0,
             info.value0,
+            info.tokenData0,
             info.token1,
-            info.value1
+            info.value1,
+            info.tokenData1
         );
     }
 

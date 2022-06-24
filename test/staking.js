@@ -3,8 +3,8 @@
 const Token = artifacts.require("Token")
 const Staking = artifacts.require("Staking")
 const mlog = require('mocha-logger')
-const UniswapV2Factory = require('@uniswap/v2-core/output/UniswapV2Factory.json')
-const UniswapV2Pair = require('@uniswap/v2-core/output/UniswapV2Pair.json')
+const UniswapV2Factory = require('@uniswap/v2-core/build/UniswapV2Factory.json')
+const UniswapV2Pair = require('@uniswap/v2-core/build/UniswapV2Pair.json')
 
 const {
   advanceBlock,
@@ -18,7 +18,7 @@ const {
   assertInvalidOpcode,
   assertPayable,
   assetEvent_getArgs,
-  assertFunction, 
+  assertFunction,
   mustFail,
   mustRevert,
 } = require('./lib/asserts')
@@ -31,7 +31,7 @@ contract('Staking', async accounts => {
   const user2 = accounts[3]
   const user3 = accounts[4]
   const user4 = accounts[5]
-  
+
   const val1  = web3.utils.toWei('0.5', 'gwei')
   const val2  = web3.utils.toWei('0.4', 'gwei')
   const val3  = web3.utils.toWei('0.3', 'gwei')
@@ -49,7 +49,7 @@ contract('Staking', async accounts => {
     mlog.log('rewards(used1)', await unipool.rewards(user))
     mlog.log('pair limit(used1)', await unipool.pairLimit(user))
   }
-  
+
   before('checking constants', async () => {
       assert(typeof user1         == 'string', 'user1 should be string')
       assert(typeof user2         == 'string', 'user2 should be string')
@@ -98,10 +98,10 @@ contract('Staking', async accounts => {
     await pair.methods.mint(user1).send({ from: user1 })
     await token.mint(pairAddress, 200000000, { from: tokenOwner })
     await uni.mint(pairAddress, 200000000, { from: tokenOwner })
-    await pair.methods.mint(user2).send({ from: user2 })    
+    await pair.methods.mint(user2).send({ from: user2 })
     await pair.methods.approve(unipool.address, 400000000).send({ from: user1 })
     await pair.methods.approve(unipool.address, 400000000).send({ from: user2 })
-    
+
     await token.mint(user1, 1000000, { from: tokenOwner })
     await uni.mint(user1, 1000000, { from: tokenOwner })
     await pair.methods.sync().send({ from: user1 })
@@ -141,11 +141,11 @@ contract('Staking', async accounts => {
     await advanceTimeAndBlock(1000)
     await token.mint(pairAddress, 2e8, { from: tokenOwner })
     await uni.mint(pairAddress, 2e8, { from: tokenOwner })
-    await pair.methods.mint(user2).send({ from: user2 })    
-    
+    await pair.methods.mint(user2).send({ from: user2 })
+
     await pair.methods.approve(unipool.address, 1e8).send({ from: user1 })
     // await pair.methods.approve(unipool.address, 2e8).send({ from: user2 })
-    
+
     await unipool.addReward(tokenOwner, 1e6, 10000, { from: tokenOwner })
     await unipool.stake(2e5, { from: user1 })
     await advanceTimeAndBlock(6000)
@@ -156,7 +156,7 @@ contract('Staking', async accounts => {
     await advanceTimeAndBlock(2000)
     // await unipool.stake(2e5, { from: user1 })
     await advanceTimeAndBlock(1000000)
-    
+
     // await logUnipoolState(user1, 'start')
     // await logUnipoolState(user1, 'add reward: 1000')
     // await unipool.stake(200, { from: user1 })

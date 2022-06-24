@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "truffle compile --all; truffle test --network ganache",
+    "htest": "hardhat test --network ganache"
   },
   "repository": {
     "type": "git",
@@ -20,18 +21,24 @@
   },
   "homepage": "https://github.com/kiroboio/ki-eth-token#readme",
   "devDependencies": {
-    "@truffle/hdwallet-provider": "1.0.43",
-    "eth-gas-reporter": "^0.2.18",
-    "ganache-cli": "6.11.0",
-    "ganache-core": "2.12.1",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@truffle/hdwallet-provider": "1.5.0",
+    "eth-gas-reporter": "0.2.18",
+    "ethereum-waffle": "^3.4.4",
+    "ganache-cli": "6.12.2",
+    "ganache-core": "2.13.2",
+    "hardhat": "^2.9.9",
     "husky": "4.3.0",
     "mocha-logger": "1.0.6",
     "solc": "0.6.12",
-    "truffle": "5.1.46"
+    "truffle": "5.2.5",
+    "webpack": "5.49.0"
   },
   "dependencies": {
     "@ledgerhq/hw-app-eth": "5.23.0",
     "@ledgerhq/hw-transport-node-hid": "5.23.0",
+    "@maticnetwork/maticjs": "2.0.45",
+    "@nomiclabs/hardhat-truffle5": "^2.0.6",
     "@openzeppelin/contracts": "3.1.0",
     "@types/eth-sig-util": "2.1.0",
     "@types/ethereumjs-util": "6.1.0",
@@ -39,14 +46,14 @@
     "@types/open": "6.2.1",
     "@uniswap/v2-core": "^1.0.1",
     "axios": "0.20.0",
-    "big-integer": "^1.6.48",
+    "big-integer": "1.6.48",
     "eth-sig-util": "2.5.3",
-    "ethereum-waffle": "^3.1.0",
     "ethereumjs-tx": "2.1.2",
     "ethereumjs-util": "7.0.5",
     "ethers": "5.0.11",
     "ethers-eip712": "0.2.0",
     "express": "4.17.1",
-    "open": "7.2.1"
+    "open": "7.2.1",
+    "web3": "1.2.9"
   }
 }
